@@ -1079,6 +1079,7 @@ button.automation-node {
   transform: translate(-50%, -50%) scale(0.6);
   transition: opacity var(--transition-fast) ease, transform var(--transition-fast) ease;
   pointer-events: auto;
+  will-change: transform, left, top, opacity;
 }
 
 .bit-token.visible {
@@ -1087,8 +1088,7 @@ button.automation-node {
 }
 
 .bit-token.collecting {
-  transition: transform var(--transition-fast) ease, opacity var(--transition-fast) ease;
-  opacity: 0;
+  pointer-events: none;
 }
 
 #skill-check {
