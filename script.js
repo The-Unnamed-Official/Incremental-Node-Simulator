@@ -291,24 +291,9 @@ function applySavedUpgradeFilter() {
     return;
   }
   const desired = state.selectedUpgradeFilter || 'damage';
-  let matched = false;
-  buttons.forEach((btn) => {
-    if (btn.dataset.filter === desired) {
-      btn.classList.add('active');
-      matched = true;
-    } else {
-      btn.classList.remove('active');
-    }
-  });
+  const matched = buttons.some((btn) => btn.dataset.filter === desired);
   const activeFilter = matched ? desired : buttons[0].dataset.filter;
   if (!matched) {
-    buttons.forEach((btn, index) => {
-      if (index === 0) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
     state.selectedUpgradeFilter = activeFilter;
     queueSave();
   }
@@ -599,12 +584,19 @@ function setupTabs() {
   });
 }
 
+function syncFilterButtons(activeFilter) {
+  const filters = document.querySelectorAll('.filter');
+  filters.forEach((filter) => {
+    const isActive = filter.dataset.filter === activeFilter;
+    filter.classList.toggle('active', isActive);
+    filter.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
 function setupFilters() {
   const filters = document.querySelectorAll('.filter');
   filters.forEach((filter) => {
     filter.addEventListener('click', () => {
-      filters.forEach((f) => f.classList.remove('active'));
-      filter.classList.add('active');
       const value = filter.dataset.filter;
       if (state.selectedUpgradeFilter !== value) {
         state.selectedUpgradeFilter = value;
@@ -613,6 +605,10 @@ function setupFilters() {
       renderUpgrades(value);
     });
   });
+  const currentFilter = document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter;
+  if (currentFilter) {
+    syncFilterButtons(currentFilter);
+  }
 }
 
 function setupSettings() {
@@ -923,6 +919,7 @@ function renderUpgrades(filter) {
   const buttonFilter = document.querySelector('.filter.active')?.dataset.filter;
   const activeFilter = filter || state.selectedUpgradeFilter || buttonFilter || 'damage';
   state.selectedUpgradeFilter = activeFilter;
+  syncFilterButtons(activeFilter);
   UI.skillTree.innerHTML = '';
   const fragment = document.createDocumentFragment();
   const branchMap = new Map();
@@ -1847,12 +1844,12 @@ function performAutoClick() {
   const pointerY = cursorPosition.y;
   const pointerRect = getPointerRect(pointerX, pointerY);
   const pointerPolygon = getPointerPolygon(pointerRect);
+  let hitSomething = false;
   if (state.currentLevel.bossActive && activeBoss?.el) {
     const bossRect = activeBoss.el.getBoundingClientRect();
     if (pointerIntersectsRect(pointerRect, bossRect)) {
-      triggerCursorClickAnimation(pointerX, pointerY);
       damageBoss();
-      return;
+      hitSomething = true;
     }
   }
   const nodesHit = [];
@@ -1864,8 +1861,11 @@ function performAutoClick() {
     }
   });
   if (nodesHit.length > 0) {
-    triggerCursorClickAnimation(pointerX, pointerY);
     nodesHit.forEach((node) => strikeNode(node));
+    hitSomething = true;
+  }
+  if (hitSomething) {
+    triggerCursorClickAnimation(pointerX, pointerY);
   }
 }
 
@@ -2070,6 +2070,13 @@ function spawnBitTokens(node) {
     const offsetY = (Math.random() - 0.5) * 160;
     token.style.left = `${centerX + offsetX}px`;
     token.style.top = `${centerY + offsetY}px`;
+    if (!state.settings.reducedAnimation) {
+      token.style.setProperty('--bit-rotation', `${(Math.random() - 0.5) * 18}deg`);
+      token.style.setProperty('--bit-bob', `${6 + Math.random() * 14}px`);
+      token.style.animationDelay = `${Math.random() * 0.12}s`;
+    } else {
+      token.classList.add('reduced-motion');
+    }
     token.dataset.value = `${valueBase + Math.floor(Math.random() * valueBase)}`;
     token.tabIndex = 0;
     token.addEventListener('pointerenter', () => collectBitToken(token));
