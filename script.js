@@ -41,6 +41,7 @@ const state = {
     owned: new Set(['default']),
     active: 'default',
   },
+  automationSkills: {},
   settings: {
     crt: true,
     scanlines: true,
@@ -132,6 +133,7 @@ let upgrades = [];
 let milestones = [];
 let achievements = [];
 let skins = [];
+let automationNodes = [];
 let tooltipEl;
 let achievementTimer = 0;
 
@@ -153,16 +155,18 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSettings();
   generateSkins();
   generateUpgrades();
+  generateAutomationSkills();
   generateMilestones();
   generateAchievements();
   renderSkins();
   renderUpgrades();
+  renderAutomationTree();
   renderMilestones();
   renderAchievements();
   initTooltip();
   setupCryptoControls();
   setupLabControls();
-  setupGameplayControls();
+  setupLevelDialog();
   setupCursor();
   setupSkillCheck();
   updateResources();
@@ -182,11 +186,8 @@ function cacheElements() {
   UI.nodeArea = document.getElementById('node-area');
   UI.particleLayer = document.getElementById('particle-layer');
   UI.bitLayer = document.getElementById('bit-layer');
-  UI.bossArea = document.getElementById('boss-area');
   UI.bossProgress = document.getElementById('boss-progress');
   UI.bossTimer = document.getElementById('boss-timer');
-  UI.levelReset = document.getElementById('level-reset');
-  UI.autoNode = document.getElementById('auto-node');
   UI.currentLevel = document.getElementById('current-level');
   UI.health = document.getElementById('health-display');
   UI.milestoneList = document.getElementById('milestone-list');
@@ -201,12 +202,17 @@ function cacheElements() {
   UI.labSpeed = document.getElementById('lab-speed');
   UI.toggleCRT = document.getElementById('toggle-crt');
   UI.skinGrid = document.getElementById('skin-grid');
+  UI.automationTree = document.getElementById('automation-tree');
   UI.customCursor = document.getElementById('custom-cursor');
   UI.skillCheck = document.getElementById('skill-check');
   UI.skillCheckProgress = document.getElementById('skill-check-progress');
   UI.skillCheckAction = document.getElementById('skill-check-action');
   UI.skillCheckTitle = document.getElementById('skill-check-title');
   UI.skillCheckDescription = document.getElementById('skill-check-description');
+  UI.levelDialog = document.getElementById('level-dialog');
+  UI.levelDialogSummary = document.getElementById('level-dialog-summary');
+  UI.levelContinue = document.getElementById('level-continue');
+  UI.levelReplay = document.getElementById('level-replay');
 }
 
 function setupTabs() {
@@ -218,6 +224,9 @@ function setupTabs() {
       contents.forEach((c) => c.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+      if (btn.dataset.tab === 'automation') {
+        requestAnimationFrame(drawAutomationConnectors);
+      }
     });
   });
 }
@@ -551,6 +560,181 @@ function renderUpgrades(filter = 'all') {
   UI.weirdProgress.textContent = `${state.weirdSkillsPurchased} / 20`;
 }
 
+function generateAutomationSkills() {
+  automationNodes = [
+    {
+      id: 'pulse-seed',
+      name: 'Pulse Seed',
+      tagline: 'Establish auto-click cadence (0.95s)',
+      position: { row: 3, col: 5 },
+      cost: { prestige: 2, lp: 3 },
+      prereqs: [],
+      effect: (statsObj) => {
+        statsObj.autoInterval *= 0.95;
+      },
+    },
+    {
+      id: 'dual-oscillator',
+      name: 'Dual Oscillator',
+      tagline: 'Split-beam sync (0.86s)',
+      position: { row: 2, col: 4 },
+      cost: { prestige: 4, lp: 6 },
+      prereqs: ['pulse-seed'],
+      effect: (statsObj) => {
+        statsObj.autoInterval *= 0.9;
+      },
+    },
+    {
+      id: 'quantum-cradle',
+      name: 'Quantum Cradle',
+      tagline: 'Phase-narrow loop (0.86s)',
+      position: { row: 2, col: 6 },
+      cost: { prestige: 4, lp: 6 },
+      prereqs: ['pulse-seed'],
+      effect: (statsObj) => {
+        statsObj.autoInterval *= 0.9;
+      },
+    },
+    {
+      id: 'overclock-halo',
+      name: 'Overclock Halo',
+      tagline: 'Harmonic glare (0.8s)',
+      position: { row: 1, col: 5 },
+      cost: { prestige: 6, lp: 9 },
+      prereqs: ['pulse-seed'],
+      effect: (statsObj) => {
+        statsObj.autoInterval *= 0.84;
+      },
+    },
+    {
+      id: 'resonance-spiral',
+      name: 'Resonance Spiral',
+      tagline: 'Feedback drift (0.72s)',
+      position: { row: 4, col: 3 },
+      cost: { prestige: 7, lp: 10 },
+      prereqs: ['dual-oscillator'],
+      effect: (statsObj) => {
+        statsObj.autoInterval *= 0.84;
+      },
+    },
+    {
+      id: 'singularity-dial',
+      name: 'Singularity Dial',
+      tagline: 'Tension fold (0.72s)',
+      position: { row: 4, col: 7 },
+      cost: { prestige: 7, lp: 10 },
+      prereqs: ['quantum-cradle'],
+      effect: (statsObj) => {
+        statsObj.autoInterval *= 0.84;
+      },
+    },
+    {
+      id: 'tachyon-loop',
+      name: 'Tachyon Loop',
+      tagline: 'Breach taps @0.5s',
+      position: { row: 5, col: 5 },
+      cost: { prestige: 12, lp: 16 },
+      prereqs: ['resonance-spiral', 'singularity-dial', 'overclock-halo'],
+      effect: (statsObj) => {
+        statsObj.autoInterval *= 0.7;
+      },
+    },
+  ];
+}
+
+function renderAutomationTree() {
+  if (!UI.automationTree) return;
+  UI.automationTree.innerHTML = '';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('automation-links');
+  UI.automationTree.appendChild(svg);
+  automationNodes.forEach((skill) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'automation-node';
+    button.dataset.skill = skill.id;
+    button.style.gridColumn = `${skill.position.col}`;
+    button.style.gridRow = `${skill.position.row}`;
+    const purchased = Boolean(state.automationSkills[skill.id]);
+    const unlocked = skill.prereqs.length === 0 || skill.prereqs.every((id) => state.automationSkills[id]);
+    const canAfford = state.prestige >= (skill.cost?.prestige || 0) && state.lp >= (skill.cost?.lp || 0);
+    if (purchased) {
+      button.classList.add('purchased');
+    } else if (!unlocked) {
+      button.classList.add('locked');
+    }
+    let costText = 'installed';
+    if (!purchased) {
+      const prestigeCost = skill.cost?.prestige || 0;
+      const lpCost = skill.cost?.lp || 0;
+      costText = `${prestigeCost} prestige · ${lpCost} LP`;
+    }
+    button.innerHTML = `
+      <strong>${skill.name}</strong>
+      <span>${skill.tagline}</span>
+      <div class="cost">${costText}</div>
+    `;
+    button.disabled = purchased || !unlocked || !canAfford;
+    button.addEventListener('click', () => purchaseAutomationSkill(skill));
+    UI.automationTree.appendChild(button);
+  });
+  requestAnimationFrame(drawAutomationConnectors);
+}
+
+function purchaseAutomationSkill(skill) {
+  if (!skill || state.automationSkills[skill.id]) return;
+  const unlocked = skill.prereqs.length === 0 || skill.prereqs.every((id) => state.automationSkills[id]);
+  if (!unlocked) return;
+  const prestigeCost = skill.cost?.prestige || 0;
+  const lpCost = skill.cost?.lp || 0;
+  if (state.prestige < prestigeCost || state.lp < lpCost) return;
+  state.prestige -= prestigeCost;
+  state.lp -= lpCost;
+  state.automationSkills[skill.id] = true;
+  updateStats();
+  updateResources();
+}
+
+function drawAutomationConnectors() {
+  if (!UI.automationTree) return;
+  const svg = UI.automationTree.querySelector('.automation-links');
+  if (!svg) return;
+  const rect = UI.automationTree.getBoundingClientRect();
+  svg.setAttribute('width', rect.width);
+  svg.setAttribute('height', rect.height);
+  svg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+  while (svg.firstChild) {
+    svg.firstChild.remove();
+  }
+  automationNodes.forEach((skill) => {
+    const child = UI.automationTree.querySelector(`[data-skill='${skill.id}']`);
+    if (!child) return;
+    const childRect = child.getBoundingClientRect();
+    const childCenter = {
+      x: childRect.left - rect.left + childRect.width / 2,
+      y: childRect.top - rect.top + childRect.height / 2,
+    };
+    skill.prereqs.forEach((parentId) => {
+      const parent = UI.automationTree.querySelector(`[data-skill='${parentId}']`);
+      if (!parent) return;
+      const parentRect = parent.getBoundingClientRect();
+      const parentCenter = {
+        x: parentRect.left - rect.left + parentRect.width / 2,
+        y: parentRect.top - rect.top + parentRect.height / 2,
+      };
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', parentCenter.x);
+      line.setAttribute('y1', parentCenter.y);
+      line.setAttribute('x2', childCenter.x);
+      line.setAttribute('y2', childCenter.y);
+      if (state.automationSkills[parentId] && state.automationSkills[skill.id]) {
+        line.setAttribute('stroke', 'rgba(118, 244, 198, 0.85)');
+      }
+      svg.appendChild(line);
+    });
+  });
+}
+
 function meetsRequirements(upgrade) {
   const level = state.upgrades[upgrade.id] || 0;
   if (level >= upgrade.maxLevel) {
@@ -834,13 +1018,28 @@ function updateLabUI() {
   UI.labSpeed.textContent = `${state.labSpeed.toFixed(3)} / sec`;
 }
 
-function setupGameplayControls() {
-  UI.levelReset.addEventListener('click', () => {
+function setupLevelDialog() {
+  if (!UI.levelDialog || !UI.levelContinue || !UI.levelReplay) return;
+  UI.levelContinue.addEventListener('click', () => {
+    hideLevelDialog();
+    resetLevel(true);
+  });
+  UI.levelReplay.addEventListener('click', () => {
+    hideLevelDialog();
     resetLevel(false);
   });
-  UI.autoNode.addEventListener('click', () => {
-    autoSpawnNode();
-  });
+}
+
+function showLevelDialog(summary) {
+  if (!UI.levelDialog || !UI.levelDialogSummary) return;
+  UI.levelDialogSummary.textContent = summary;
+  UI.levelDialog.classList.remove('hidden');
+  UI.levelContinue.focus();
+}
+
+function hideLevelDialog() {
+  if (!UI.levelDialog) return;
+  UI.levelDialog.classList.add('hidden');
 }
 
 function setupCursor() {
@@ -876,6 +1075,20 @@ function spawnCursorPulse(x, y) {
   pulse.style.top = `${y}px`;
   document.body.appendChild(pulse);
   pulse.addEventListener('animationend', () => pulse.remove());
+}
+
+function triggerCursorClickAnimation(x, y) {
+  if (!UI.customCursor) return;
+  UI.customCursor.classList.add('active');
+  if (cursorClickTimeout) {
+    clearTimeout(cursorClickTimeout);
+  }
+  cursorClickTimeout = setTimeout(() => {
+    if (UI.customCursor) {
+      UI.customCursor.classList.remove('active');
+    }
+  }, 140);
+  spawnCursorPulse(x, y);
 }
 
 function setupSkillCheck() {
@@ -938,6 +1151,7 @@ function startGameLoop() {
 function tick(delta) {
   updateLevel(delta);
   updateNodes(delta);
+  updateAutoClick(delta);
   updateBoss(delta);
   updateCrypto(delta);
   updateLab(delta);
@@ -952,9 +1166,12 @@ function tick(delta) {
 let nodeSpawnTimer = 0;
 const activeNodes = new Map();
 let activeBoss = null;
+let autoClickTimer = 0;
+let cursorClickTimeout;
 
 function updateNodes(delta) {
   if (!UI.nodeArea) return;
+  if (!state.currentLevel.active) return;
   nodeSpawnTimer -= delta;
   if (nodeSpawnTimer <= 0 && activeNodes.size < stats.maxNodes) {
     spawnNode();
@@ -981,6 +1198,60 @@ function updateNodes(delta) {
       activeNodes.delete(node.id);
     }
   });
+}
+
+function updateAutoClick(delta) {
+  if (!state.currentLevel.active) return;
+  autoClickTimer += delta;
+  const interval = Math.max(0.1, stats.autoInterval);
+  while (autoClickTimer >= interval) {
+    autoClickTimer -= interval;
+    performAutoClick();
+  }
+}
+
+function performAutoClick() {
+  if (!UI.nodeArea) return;
+  const areaRect = UI.nodeArea.getBoundingClientRect();
+  if (areaRect.width <= 0 || areaRect.height <= 0) return;
+  const inside =
+    cursorPosition.x >= areaRect.left &&
+    cursorPosition.x <= areaRect.right &&
+    cursorPosition.y >= areaRect.top &&
+    cursorPosition.y <= areaRect.bottom;
+  if (!inside) return;
+  const pointerX = cursorPosition.x;
+  const pointerY = cursorPosition.y;
+  if (state.currentLevel.bossActive && activeBoss?.el) {
+    const bossRect = activeBoss.el.getBoundingClientRect();
+    if (
+      pointerX >= bossRect.left &&
+      pointerX <= bossRect.right &&
+      pointerY >= bossRect.top &&
+      pointerY <= bossRect.bottom
+    ) {
+      triggerCursorClickAnimation(pointerX, pointerY);
+      damageBoss(0);
+      return;
+    }
+  }
+  let closestNode = null;
+  let closestDistance = Infinity;
+  activeNodes.forEach((node) => {
+    if (!node.el) return;
+    const rect = node.el.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const distance = Math.hypot(pointerX - centerX, pointerY - centerY);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestNode = node;
+    }
+  });
+  if (closestNode) {
+    triggerCursorClickAnimation(pointerX, pointerY);
+    strikeNode(closestNode);
+  }
 }
 
 function spawnNode() {
@@ -1044,11 +1315,14 @@ function spawnNode() {
   const el = document.createElement('div');
   el.className = `node ${type.color} skin-${state.skins.active}`;
   el.innerHTML = '<div class="core"></div><div class="hp"></div>';
-  el.addEventListener('click', () => strikeNode(node));
-  UI.nodeArea.appendChild(el);
+  el.style.transition = 'none';
   node.el = el;
   applyNodeTransform(node);
-  requestAnimationFrame(() => el.classList.add('pulse'));
+  UI.nodeArea.appendChild(el);
+  requestAnimationFrame(() => {
+    el.style.transition = '';
+    el.classList.add('pulse');
+  });
   setTimeout(() => el.classList.remove('pulse'), 600);
   activeNodes.set(node.id, node);
   updateNodeElement(node);
@@ -1204,53 +1478,23 @@ function collectBitToken(token) {
 }
 
 function configureBossPath(bossObj, initial = false) {
-  if (!bossObj || !UI.bossArea) return;
-  const width = UI.bossArea.clientWidth;
-  const height = UI.bossArea.clientHeight;
-  const margin = 200;
-  const side = Math.floor(Math.random() * 4);
-  let startX = 0;
-  let startY = 0;
-  let targetX = 0;
-  let targetY = 0;
-  switch (side) {
-    case 0:
-      startX = -margin;
-      startY = Math.random() * height * 0.7;
-      targetX = width + margin;
-      targetY = Math.random() * height * 0.8;
-      break;
-    case 1:
-      startX = width + margin;
-      startY = Math.random() * height * 0.7;
-      targetX = -margin;
-      targetY = Math.random() * height * 0.8;
-      break;
-    case 2:
-      startX = Math.random() * width * 0.8;
-      startY = -margin;
-      targetX = Math.random() * width * 0.8;
-      targetY = height + margin;
-      break;
-    default:
-      startX = Math.random() * width * 0.8;
-      startY = height + margin;
-      targetX = Math.random() * width * 0.8;
-      targetY = -margin;
-      break;
-  }
-  const travelTime = 18 + Math.random() * 10;
-  bossObj.velocity = {
-    x: (targetX - startX) / travelTime,
-    y: (targetY - startY) / travelTime,
-  };
-  bossObj.position.x = startX;
-  bossObj.position.y = startY;
-  bossObj.rotationSpeed = (Math.random() - 0.5) * 12;
-  bossObj.bounds = margin;
+  if (!bossObj || !UI.nodeArea) return;
+  const width = UI.nodeArea.clientWidth || UI.nodeArea.getBoundingClientRect().width;
+  const height = UI.nodeArea.clientHeight || UI.nodeArea.getBoundingClientRect().height;
+  bossObj.size = 144;
   if (initial) {
+    bossObj.position.x = Math.max(0, (width - bossObj.size) / 2);
+    bossObj.position.y = Math.max(0, (height - bossObj.size) / 2);
     bossObj.rotation = Math.random() * 360;
   }
+  const speed = 40 + Math.random() * 55;
+  const angle = Math.random() * Math.PI * 2;
+  bossObj.velocity = {
+    x: Math.cos(angle) * speed,
+    y: Math.sin(angle) * speed,
+  };
+  bossObj.rotationSpeed = (Math.random() - 0.5) * 18;
+  bossObj.bounds = { width, height };
   applyBossTransform(bossObj);
 }
 
@@ -1274,12 +1518,16 @@ function updateLevel(delta) {
 }
 
 function resetLevel(increase = true) {
+  hideLevelDialog();
   activeNodes.forEach((node) => node.el.remove());
   activeNodes.clear();
+  if (activeBoss?.el) {
+    activeBoss.el.remove();
+  }
+  autoClickTimer = 0;
   state.currentLevel.timer = BOSS_TIMER;
   state.currentLevel.active = true;
   state.currentLevel.bossActive = false;
-  UI.bossArea.innerHTML = '';
   activeBoss = null;
   if (increase) {
     state.currentLevel.index += 1;
@@ -1293,27 +1541,25 @@ function resetLevel(increase = true) {
 }
 
 function spawnBoss() {
-  const bossHP = Math.ceil((200 + state.currentLevel.index * 40) * stats.bossHPFactor);
+  const bossHP = Math.ceil((600 + state.currentLevel.index * 160) * stats.bossHPFactor);
   state.currentLevel.bossActive = true;
   state.currentLevel.bossHP = bossHP;
   state.currentLevel.bossMaxHP = bossHP;
-  UI.bossArea.innerHTML = '';
   const boss = document.createElement('div');
-  boss.className = 'boss';
+  boss.className = 'boss-node';
   const name = bossNames[state.currentLevel.index % bossNames.length];
   boss.innerHTML = `
-    <div>${name}</div>
+    <div class="boss-name">${name}</div>
     <div class="hp-bar"><div class="hp-fill"></div></div>
   `;
-  boss.addEventListener('click', () => damageBoss(25));
-  UI.bossArea.appendChild(boss);
+  UI.nodeArea.appendChild(boss);
   activeBoss = {
     el: boss,
     position: { x: 0, y: 0 },
     velocity: { x: 0, y: 0 },
     rotation: Math.random() * 360,
     rotationSpeed: (Math.random() - 0.5) * 18,
-    bounds: 200,
+    size: 144,
   };
   configureBossPath(activeBoss, true);
 }
@@ -1329,7 +1575,7 @@ function damageBoss(playerDamage) {
 }
 
 function updateBoss(delta) {
-  if (!state.currentLevel.bossActive) return;
+  if (!state.currentLevel.bossActive || !activeBoss || !UI.nodeArea) return;
   const damage = Math.max(0, 5 + state.currentLevel.index * 1.5 - stats.defense);
   state.health = Math.max(0, state.health - damage * delta);
   if (state.health <= 0) {
@@ -1340,27 +1586,27 @@ function updateBoss(delta) {
   }
   updateBossBar();
   UI.health.textContent = `${Math.round(state.health)} / ${Math.round(state.maxHealth)}`;
-  if (activeBoss && UI.bossArea) {
-    activeBoss.position.x += activeBoss.velocity.x * delta;
-    activeBoss.position.y += activeBoss.velocity.y * delta;
-    activeBoss.rotation += activeBoss.rotationSpeed * delta;
-    applyBossTransform(activeBoss);
-    const width = UI.bossArea.clientWidth;
-    const height = UI.bossArea.clientHeight;
-    const bounds = activeBoss.bounds;
-    if (
-      activeBoss.position.x < -bounds ||
-      activeBoss.position.x > width + bounds ||
-      activeBoss.position.y < -bounds ||
-      activeBoss.position.y > height + bounds
-    ) {
-      configureBossPath(activeBoss);
-    }
+  activeBoss.position.x += activeBoss.velocity.x * delta;
+  activeBoss.position.y += activeBoss.velocity.y * delta;
+  activeBoss.rotation += activeBoss.rotationSpeed * delta;
+  const width = UI.nodeArea.clientWidth || UI.nodeArea.getBoundingClientRect().width;
+  const height = UI.nodeArea.clientHeight || UI.nodeArea.getBoundingClientRect().height;
+  const maxX = Math.max(0, width - activeBoss.size);
+  const maxY = Math.max(0, height - activeBoss.size);
+  if (activeBoss.position.x <= 0 || activeBoss.position.x >= maxX) {
+    activeBoss.velocity.x *= -1;
+    activeBoss.position.x = Math.min(Math.max(activeBoss.position.x, 0), maxX);
   }
+  if (activeBoss.position.y <= 0 || activeBoss.position.y >= maxY) {
+    activeBoss.velocity.y *= -1;
+    activeBoss.position.y = Math.min(Math.max(activeBoss.position.y, 0), maxY);
+  }
+  applyBossTransform(activeBoss);
 }
 
 function updateBossBar() {
-  const bossEl = UI.bossArea.querySelector('.boss');
+  if (!UI.nodeArea) return;
+  const bossEl = UI.nodeArea.querySelector('.boss-node');
   if (!bossEl) return;
   const fill = bossEl.querySelector('.hp-fill');
   const ratio = Math.max(0, state.currentLevel.bossHP) / state.currentLevel.bossMaxHP;
@@ -1369,23 +1615,23 @@ function updateBossBar() {
 
 function defeatBoss() {
   state.currentLevel.bossActive = false;
+  state.currentLevel.active = false;
   state.bossKills += 1;
-  UI.bossArea.innerHTML = '';
+  if (activeBoss?.el) {
+    activeBoss.el.remove();
+  }
   activeBoss = null;
-  const rewardBits = 500 * state.currentLevel.index * stats.bitGain;
+  const rewardBits = Math.round(500 * state.currentLevel.index * stats.bitGain);
   const prestige = 1 * stats.prestigeGain;
   const xp = 120 * stats.xpGain;
   state.bits += rewardBits;
   gainXP(xp);
   grantPrestige(prestige);
-  resetLevel(true);
-}
-
-function autoSpawnNode() {
-  if (activeNodes.size >= stats.maxNodes) {
-    return;
-  }
-  spawnNode();
+  activeNodes.forEach((node) => node.el.remove());
+  activeNodes.clear();
+  const summary = `Recovered ${Math.round(rewardBits).toLocaleString()} bits, ${xp.toFixed(0)} XP, ${prestige.toFixed(0)} prestige.`;
+  updateResources();
+  showLevelDialog(summary);
 }
 
 function updateStats() {
@@ -1413,9 +1659,19 @@ function updateStats() {
       upgrade.effect(stats, level);
     }
   });
+  applyAutomationBonuses();
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
   UI.health.textContent = `${Math.round(state.health)} / ${Math.round(state.maxHealth)}`;
+}
+
+function applyAutomationBonuses() {
+  automationNodes.forEach((skill) => {
+    if (state.automationSkills[skill.id] && typeof skill.effect === 'function') {
+      skill.effect(stats);
+    }
+  });
+  stats.autoInterval = Math.max(0.08, stats.autoInterval);
 }
 
 function updateResources() {
@@ -1428,6 +1684,7 @@ function updateResources() {
   UI.currentLevel.textContent = state.currentLevel.index;
   updateCryptoUI();
   updateLabUI();
+  renderAutomationTree();
 }
 
 function gainXP(amount) {
@@ -1479,4 +1736,5 @@ function totalNodesDestroyed() {
 
 window.addEventListener('resize', () => {
   activeNodes.forEach((node) => updateNodeElement(node));
+  drawAutomationConnectors();
 });
