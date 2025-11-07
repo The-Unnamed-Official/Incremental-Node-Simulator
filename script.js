@@ -1,5 +1,6 @@
 const TICK_RATE = 1000 / 60;
 const BOSS_TIMER = 60;
+const NODE_SIZE = 82;
 
 const state = {
   bits: 0,
@@ -60,6 +61,7 @@ const stats = {
   critMultiplier: 2,
   autoDamage: 0,
   autoInterval: 1,
+  pointerSize: 32,
   bitGain: 1,
   xpGain: 1,
   prestigeGain: 1,
@@ -1050,6 +1052,7 @@ function hideLevelDialog() {
 function setupCursor() {
   if (!UI.customCursor) return;
   const cursor = UI.customCursor;
+  cursor.style.setProperty('--cursor-size', `${getPointerSize()}px`);
   const updateCursorPosition = (x, y) => {
     cursorPosition.x = x;
     cursorPosition.y = y;
@@ -1120,6 +1123,7 @@ function spawnCursorPulse(x, y) {
   pulse.style.left = `${x}px`;
   pulse.style.top = `${y}px`;
   pulse.style.imageRendering = 'pixelated';
+  pulse.style.setProperty('--cursor-size', `${getPointerSize()}px`);
   document.body.appendChild(pulse);
   pulse.addEventListener('animationend', () => pulse.remove());
 }
@@ -1257,6 +1261,102 @@ function updateAutoClick(delta) {
   }
 }
 
+function getPointerSize() {
+  return Math.max(8, stats.pointerSize || 0);
+}
+
+function getPointerRect(x, y) {
+  const size = getPointerSize();
+  const half = size / 2;
+  return {
+    left: x - half,
+    right: x + half,
+    top: y - half,
+    bottom: y + half,
+  };
+}
+
+function pointerIntersectsRect(pointerRect, rect) {
+  return (
+    pointerRect.left <= rect.right &&
+    pointerRect.right >= rect.left &&
+    pointerRect.top <= rect.bottom &&
+    pointerRect.bottom >= rect.top
+  );
+}
+
+function getPointerPolygon(rect) {
+  return [
+    { x: rect.left, y: rect.top },
+    { x: rect.right, y: rect.top },
+    { x: rect.right, y: rect.bottom },
+    { x: rect.left, y: rect.bottom },
+  ];
+}
+
+function getNodePolygon(node, areaRect) {
+  const size = (node.el && node.el.offsetWidth) || NODE_SIZE;
+  const half = size / 2;
+  let centerX = areaRect.left + node.position.x + half;
+  let centerY = areaRect.top + node.position.y + half;
+  if (node.el) {
+    const rect = node.el.getBoundingClientRect();
+    centerX = rect.left + rect.width / 2;
+    centerY = rect.top + rect.height / 2;
+  }
+  const angle = ((node.rotation || 0) * Math.PI) / 180;
+  const sin = Math.sin(angle);
+  const cos = Math.cos(angle);
+  const corners = [
+    { x: -half, y: -half },
+    { x: half, y: -half },
+    { x: half, y: half },
+    { x: -half, y: half },
+  ];
+  return corners.map((corner) => ({
+    x: centerX + corner.x * cos - corner.y * sin,
+    y: centerY + corner.x * sin + corner.y * cos,
+  }));
+}
+
+function getPolygonAxes(polygon) {
+  const axes = [];
+  for (let i = 0; i < polygon.length; i += 1) {
+    const current = polygon[i];
+    const next = polygon[(i + 1) % polygon.length];
+    const edgeX = next.x - current.x;
+    const edgeY = next.y - current.y;
+    const axis = { x: -edgeY, y: edgeX };
+    const length = Math.hypot(axis.x, axis.y);
+    if (length === 0) continue;
+    axes.push({ x: axis.x / length, y: axis.y / length });
+  }
+  return axes;
+}
+
+function projectPolygon(axis, polygon) {
+  let min = Infinity;
+  let max = -Infinity;
+  polygon.forEach((point) => {
+    const projection = point.x * axis.x + point.y * axis.y;
+    if (projection < min) min = projection;
+    if (projection > max) max = projection;
+  });
+  return { min, max };
+}
+
+function polygonsIntersect(polygonA, polygonB) {
+  const axes = [...getPolygonAxes(polygonA), ...getPolygonAxes(polygonB)];
+  for (const axis of axes) {
+    const projectionA = projectPolygon(axis, polygonA);
+    const projectionB = projectPolygon(axis, polygonB);
+    if (projectionA.max < projectionB.min || projectionB.max < projectionA.min) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function performAutoClick() {
   if (!UI.nodeArea) return;
   const areaRect = UI.nodeArea.getBoundingClientRect();
@@ -1269,35 +1369,27 @@ function performAutoClick() {
   if (!inside) return;
   const pointerX = cursorPosition.x;
   const pointerY = cursorPosition.y;
+  const pointerRect = getPointerRect(pointerX, pointerY);
+  const pointerPolygon = getPointerPolygon(pointerRect);
   if (state.currentLevel.bossActive && activeBoss?.el) {
     const bossRect = activeBoss.el.getBoundingClientRect();
-    if (
-      pointerX >= bossRect.left &&
-      pointerX <= bossRect.right &&
-      pointerY >= bossRect.top &&
-      pointerY <= bossRect.bottom
-    ) {
+    if (pointerIntersectsRect(pointerRect, bossRect)) {
       triggerCursorClickAnimation(pointerX, pointerY);
       damageBoss(0);
       return;
     }
   }
-  let closestNode = null;
-  let closestDistance = Infinity;
+  const nodesHit = [];
   activeNodes.forEach((node) => {
     if (!node.el) return;
-    const rect = node.el.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const distance = Math.hypot(pointerX - centerX, pointerY - centerY);
-    if (distance < closestDistance) {
-      closestDistance = distance;
-      closestNode = node;
+    const nodePolygon = getNodePolygon(node, areaRect);
+    if (polygonsIntersect(pointerPolygon, nodePolygon)) {
+      nodesHit.push(node);
     }
   });
-  if (closestNode) {
+  if (nodesHit.length > 0) {
     triggerCursorClickAnimation(pointerX, pointerY);
-    strikeNode(closestNode);
+    nodesHit.forEach((node) => strikeNode(node));
   }
 }
 

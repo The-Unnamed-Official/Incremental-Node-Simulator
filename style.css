@@ -1086,8 +1086,9 @@ button.automation-node {
 
 #custom-cursor {
   position: fixed;
-  width: 32px;
-  height: 32px;
+  --cursor-size: 32px;
+  width: var(--cursor-size);
+  height: var(--cursor-size);
   pointer-events: none;
   transform: translate(-50%, -50%);
   z-index: 100;
@@ -1096,36 +1097,43 @@ button.automation-node {
   image-rendering: pixelated;
 }
 
-.cursor-core {
-  width: 10px;
-  height: 10px;
+.cursor-square {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: var(--pixel-border) solid rgba(127, 255, 214, 0.55);
+  background: rgba(7, 10, 18, 0.18);
+  transition: transform var(--transition-fast) ease, border-color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease;
+}
+
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
   background: var(--accent);
   border: var(--pixel-border) solid rgba(4, 8, 18, 0.8);
-  transition: transform var(--transition-fast) ease;
+  transition: transform var(--transition-fast) ease, background-color var(--transition-fast) ease;
 }
 
-.cursor-ring {
-  width: 32px;
-  height: 32px;
-  border: var(--pixel-border) solid rgba(127, 255, 214, 0.45);
-  transition: transform var(--transition-fast) ease, border-color var(--transition-fast) ease, opacity var(--transition-fast) ease;
+#custom-cursor.active .cursor-square {
+  transform: scale(0.9);
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(127, 255, 214, 0.35);
 }
 
-#custom-cursor.active .cursor-ring {
-  transform: scale(0.85);
-  border-color: rgba(255, 255, 255, 0.6);
-}
-
-#custom-cursor.active .cursor-core {
-  transform: scale(1.2);
+#custom-cursor.active .cursor-dot {
+  transform: scale(1.25);
+  background: #fff;
 }
 
 .cursor-pulse {
   position: fixed;
-  width: 22px;
-  height: 22px;
+  width: var(--cursor-size, 32px);
+  height: var(--cursor-size, 32px);
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.55);
-  transform: translate(-50%, -50%) scale(0.6);
+  background: rgba(127, 255, 214, 0.2);
+  transform: translate(-50%, -50%) scale(0.7);
   animation: cursor-pulse 0.4s steps(4, end) forwards;
   pointer-events: none;
   z-index: 99;
