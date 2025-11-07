@@ -2259,14 +2259,13 @@ function damageBoss() {
 
 function updateBoss(delta) {
   if (!state.currentLevel.bossActive || !activeBoss || !UI.nodeArea) return;
-  const damage = Math.max(0, 5 + state.currentLevel.index * 1.5 - stats.defense);
-  state.health = Math.max(0, state.health - damage * delta);
-  if (state.health <= 0) {
-    // fail level
-    state.health = state.maxHealth;
-    state.currentLevel.index = Math.max(1, state.currentLevel.index - 1);
-    resetLevel(false);
-  }
+
+  // Allow boss encounters to last indefinitely until the player wins.
+  // Previously the player would automatically lose once their health reached
+  // zero which occurred after a short, unavoidable timer. This reset the
+  // level mid-fight, causing the boss and node area to disappear. By removing
+  // the passive damage tick we keep the encounter active until the boss is
+  // defeated manually.
   updateBossBar();
   activeBoss.position.x += activeBoss.velocity.x * delta;
   activeBoss.position.y += activeBoss.velocity.y * delta;
