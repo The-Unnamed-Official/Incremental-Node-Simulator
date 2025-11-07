@@ -17,7 +17,10 @@
   <div id="app">
     <header class="top-bar">
       <div class="title">
-        <h1>incremental node simulator</h1>
+        <div class="title-heading">
+          <h1>incremental node simulator</h1>
+          <span id="version-display" class="version-tag">v0.324</span>
+        </div>
         <button id="toggle-crt" class="pill">CRT ON</button>
       </div>
       <div class="resource-bar">
@@ -35,13 +38,6 @@
         <div class="level-readout">
           <div>Level <span id="current-level">1</span></div>
           <div class="health">HP <span id="health-display">100 / 100</span></div>
-        </div>
-        <div class="progress-wrapper">
-          <div class="progress-label">boss breach in</div>
-          <div class="progress-bar">
-            <div id="boss-progress" class="progress-fill"></div>
-          </div>
-          <div class="progress-timer" id="boss-timer">60.0s</div>
         </div>
         <div class="node-area" id="node-area">
           <div id="particle-layer" aria-hidden="true"></div>
@@ -234,10 +230,9 @@
     </div>
   </div>
   <div id="custom-cursor" aria-hidden="true">
-    <div class="cursor-ring">
-      <div class="cursor-core"></div>
+    <div class="cursor-square">
+      <div class="cursor-dot"></div>
     </div>
-    <div class="cursor-tail"></div>
   </div>
   <audio id="bgm" src="files/bg_music.mp3" preload="auto" loop></audio>
   <script src="script.js"></script>

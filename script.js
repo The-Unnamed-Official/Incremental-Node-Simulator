@@ -1,6 +1,20 @@
 const TICK_RATE = 1000 / 60;
-const BOSS_TIMER = 60;
+const BASE_LEVEL_DURATION = 60;
+const LEVEL_DURATION_INCREMENT = 10;
+const BASE_BOSS_HP = 200;
+const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
+const GAME_VERSION = 'v0.324';
+
+function getLevelDuration(levelIndex = 1) {
+  const safeIndex = Math.max(1, levelIndex);
+  return BASE_LEVEL_DURATION + (safeIndex - 1) * LEVEL_DURATION_INCREMENT;
+}
+
+function getBossBaseHP(levelIndex = 1) {
+  const safeIndex = Math.max(1, levelIndex);
+  return BASE_BOSS_HP + (safeIndex - 1) * BOSS_HP_INCREMENT;
+}
 
 function createInitialState() {
   return {
@@ -22,7 +36,7 @@ function createInitialState() {
     bossKills: 0,
     currentLevel: {
       index: 1,
-      timer: BOSS_TIMER,
+      timer: getLevelDuration(1),
       active: true,
       bossActive: false,
       bossHP: 0,
@@ -208,10 +222,12 @@ function cacheElements() {
   UI.nodeArea = document.getElementById('node-area');
   UI.particleLayer = document.getElementById('particle-layer');
   UI.bitLayer = document.getElementById('bit-layer');
-  UI.bossProgress = document.getElementById('boss-progress');
-  UI.bossTimer = document.getElementById('boss-timer');
   UI.currentLevel = document.getElementById('current-level');
   UI.health = document.getElementById('health-display');
+  UI.versionDisplay = document.getElementById('version-display');
+  if (UI.versionDisplay) {
+    UI.versionDisplay.textContent = GAME_VERSION;
+  }
   UI.milestoneList = document.getElementById('milestone-list');
   UI.achievementGrid = document.getElementById('achievement-grid');
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
@@ -314,6 +330,9 @@ function loadGame() {
   }
   hydrateState(data || {});
   syncLabVisibility();
+  if (UI.versionDisplay) {
+    UI.versionDisplay.textContent = GAME_VERSION;
+  }
 }
 
 function hydrateState(source = {}) {
@@ -353,6 +372,8 @@ function hydrateState(source = {}) {
     bossHP: Number.isFinite(Number(mergedLevel.bossHP)) ? Number(mergedLevel.bossHP) : defaults.currentLevel.bossHP,
     bossMaxHP: Number.isFinite(Number(mergedLevel.bossMaxHP)) ? Number(mergedLevel.bossMaxHP) : defaults.currentLevel.bossMaxHP,
   };
+  const expectedTimer = getLevelDuration(state.currentLevel.index);
+  state.currentLevel.timer = Math.min(expectedTimer, Math.max(0, state.currentLevel.timer || expectedTimer));
   const sanitizedUpgrades = {};
   Object.entries(mergedUpgrades).forEach(([id, level]) => {
     const numeric = Number(level);
@@ -526,7 +547,7 @@ function startNewGame() {
   activeBoss = null;
   nodeSpawnTimer = 0;
   autoClickTimer = 0;
-  state.currentLevel.timer = BOSS_TIMER;
+  state.currentLevel.timer = getLevelDuration(state.currentLevel.index);
   state.currentLevel.active = true;
   state.currentLevel.bossActive = false;
   state.health = state.maxHealth;
@@ -1502,7 +1523,7 @@ function hideLevelDialog() {
 function setupCursor() {
   if (!UI.customCursor) return;
   const cursor = UI.customCursor;
-  cursor.style.setProperty('--cursor-size', `${getPointerSize()}px`);
+  applyCursorSize();
   const updateCursorPosition = (x, y) => {
     cursorPosition.x = x;
     cursorPosition.y = y;
@@ -1713,6 +1734,12 @@ function updateAutoClick(delta) {
 
 function getPointerSize() {
   return Math.max(8, stats.pointerSize || 0);
+}
+
+function applyCursorSize() {
+  if (UI.customCursor) {
+    UI.customCursor.style.setProperty('--cursor-size', `${getPointerSize()}px`);
+  }
 }
 
 function getPointerRect(x, y) {
@@ -2114,14 +2141,10 @@ function applyBossTransform(bossObj) {
 function updateLevel(delta) {
   const level = state.currentLevel;
   if (!level.active) return;
-  level.timer -= delta;
-  if (!level.bossActive) {
-    const progress = Math.max(0, level.timer) / BOSS_TIMER;
-    UI.bossProgress.style.width = `${(1 - progress) * 100}%`;
-    UI.bossTimer.textContent = `${Math.max(0, level.timer).toFixed(1)}s`;
-    if (level.timer <= 0) {
-      spawnBoss();
-    }
+  if (level.bossActive) return;
+  level.timer = Math.max(0, level.timer - delta);
+  if (level.timer <= 0) {
+    spawnBoss();
   }
 }
 
@@ -2133,7 +2156,6 @@ function resetLevel(increase = true) {
     activeBoss.el.remove();
   }
   autoClickTimer = 0;
-  state.currentLevel.timer = BOSS_TIMER;
   state.currentLevel.active = true;
   state.currentLevel.bossActive = false;
   activeBoss = null;
@@ -2143,13 +2165,15 @@ function resetLevel(increase = true) {
     gainXP(50 * state.currentLevel.index);
     state.lp += 1;
   }
+  state.currentLevel.timer = getLevelDuration(state.currentLevel.index);
   UI.currentLevel.textContent = state.currentLevel.index;
   updateStats();
   updateResources();
 }
 
 function spawnBoss() {
-  const bossHP = Math.ceil((600 + state.currentLevel.index * 160) * stats.bossHPFactor);
+  const baseHP = getBossBaseHP(state.currentLevel.index);
+  const bossHP = Math.ceil(baseHP * stats.bossHPFactor);
   state.currentLevel.bossActive = true;
   state.currentLevel.bossHP = bossHP;
   state.currentLevel.bossMaxHP = bossHP;
@@ -2222,7 +2246,8 @@ function updateBossBar() {
   const bossEl = UI.nodeArea.querySelector('.boss-node');
   if (!bossEl) return;
   const fill = bossEl.querySelector('.hp-fill');
-  const ratio = Math.max(0, state.currentLevel.bossHP) / state.currentLevel.bossMaxHP;
+  const denominator = state.currentLevel.bossMaxHP || 1;
+  const ratio = Math.max(0, state.currentLevel.bossHP) / denominator;
   fill.style.width = `${ratio * 100}%`;
 }
 
@@ -2260,7 +2285,7 @@ function updateStats() {
   stats.nodeSpawnDelay = 2;
   stats.maxNodes = 4;
   stats.nodeHPFactor = 1 + state.currentLevel.index * 0.03;
-  stats.bossHPFactor = 1 + state.currentLevel.index * 0.05;
+  stats.bossHPFactor = 1;
   stats.defense = 0;
   stats.regen = 0;
   stats.healthDamageBonus = 0;
@@ -2277,6 +2302,7 @@ function updateStats() {
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
   UI.health.textContent = `${Math.round(state.health)} / ${Math.round(state.maxHealth)}`;
+  applyCursorSize();
 }
 
 function applyAutomationBonuses() {
