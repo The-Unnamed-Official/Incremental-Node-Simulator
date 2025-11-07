@@ -2,8 +2,7 @@ const TICK_RATE = 1000 / 60;
 const BOSS_TIMER = 60;
 
 const state = {
-  bits: 0,
-  netcoins: 0,
+  bits: 0,cryptcoins: 0,
   prestige: 0,
   xp: 0,
   level: 1,
@@ -102,7 +101,7 @@ const nodeTypes = [
     name: 'Gold Node',
     color: 'gold',
     reward(level) {
-      return { bits: 80 + level * 12, netcoins: 1 + level * 0.1 };
+      return { bits: 80 + level * 12, cryptcoins: 1 + level * 0.1 };
     },
     hp(level) {
       return 50 + level * 10;
@@ -153,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function cacheElements() {
   UI.bits = document.getElementById('bits-display');
-  UI.netcoins = document.getElementById('netcoin-display');
+  UI.cryptcoins = document.getElementById('cryptcoin-display');
   UI.prestige = document.getElementById('prestige-display');
   UI.xp = document.getElementById('xp-display');
   UI.level = document.getElementById('level-display');
@@ -550,7 +549,7 @@ function generateMilestones() {
   const milestonesExtra = [
     { type: 'red', goal: 2000, reward: () => grantBits(2500) },
     { type: 'blue', goal: 2000, reward: () => grantBits(2500) },
-    { type: 'gold', goal: 500, reward: () => grantNetcoins(50) },
+    { type: 'gold', goal: 500, reward: () => grantcryptcoins(50) },
     { type: 'boss', goal: 25, reward: () => grantPrestige(25) },
   ];
   milestonesExtra.forEach((entry, index) => {
@@ -615,7 +614,7 @@ function generateAchievements() {
     { id: 'upgrade-200', label: 'Tree Diver', description: 'Purchase 200 upgrades.', goal: 200, stat: () => Object.keys(state.upgrades).length },
     { id: 'weird-10', label: 'Weird Whisperer', description: 'Purchase 10 weird upgrades.', goal: 10, stat: () => state.weirdSkillsPurchased },
     { id: 'lab-unlock', label: 'Researcher', description: 'Assemble the lab.', goal: 1, stat: () => (state.labUnlocked ? 1 : 0) },
-    { id: 'crypto-hoard', label: 'Miner 49k', description: 'Accumulate 50k netcoins.', goal: 50000, stat: () => state.netcoins },
+    { id: 'crypto-hoard', label: 'Miner 49k', description: 'Accumulate 50k cryptcoins.', goal: 50000, stat: () => state.cryptcoins },
   ];
 }
 
@@ -692,8 +691,8 @@ function setupLabControls() {
   document.getElementById('lab-confirm').addEventListener('click', () => {
     if (!state.labUnlocked) return;
     const amount = Number(document.getElementById('lab-deposit').value);
-    if (Number.isFinite(amount) && amount > 0 && state.netcoins >= amount) {
-      state.netcoins -= amount;
+    if (Number.isFinite(amount) && amount > 0 && state.cryptcoins >= amount) {
+      state.cryptcoins -= amount;
       state.labDeposited += amount;
       state.labSpeed = Math.sqrt(state.labDeposited) / 5 + state.weirdSkillsPurchased * 0.25;
       updateLabUI();
@@ -852,8 +851,8 @@ function dropRewards(type) {
   if (rewards.xp) {
     gainXP(rewards.xp * stats.xpGain);
   }
-  if (rewards.netcoins) {
-    state.netcoins += rewards.netcoins;
+  if (rewards.cryptcoins) {
+    state.cryptcoins += rewards.cryptcoins;
   }
   updateResources();
 }
@@ -993,7 +992,7 @@ function updateStats() {
 
 function updateResources() {
   UI.bits.textContent = Math.floor(state.bits).toLocaleString();
-  UI.netcoins.textContent = Math.floor(state.netcoins).toLocaleString();
+  UI.cryptcoins.textContent = Math.floor(state.cryptcoins).toLocaleString();
   UI.prestige.textContent = Math.floor(state.prestige).toLocaleString();
   UI.xp.textContent = `${Math.floor(state.xp).toLocaleString()} (${Math.floor(state.levelXP)}/${Math.floor(state.xpForNext)})`;
   UI.level.textContent = state.level;
@@ -1020,8 +1019,8 @@ function grantBits(amount) {
   state.bits += amount;
 }
 
-function grantNetcoins(amount) {
-  state.netcoins += amount;
+function grantCryptcoins(amount) {
+  state.cryptcoins += amount;
 }
 
 function grantPrestige(amount) {
@@ -1032,7 +1031,7 @@ function updateCrypto(delta) {
   if (state.crypto.deposit <= 0 || state.crypto.rate <= 0) return;
   state.crypto.timeRemaining = Math.max(0, state.crypto.timeRemaining - delta);
   const generated = state.crypto.rate * delta;
-  state.netcoins += generated;
+  state.cryptcoins += generated;
   if (state.crypto.timeRemaining <= 0) {
     state.crypto.deposit = 0;
     state.crypto.rate = 0;

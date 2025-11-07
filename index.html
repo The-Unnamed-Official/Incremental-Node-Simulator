@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nodebuster Simulator</title>
+  <title>Incremental Node Simulator</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,12 +14,12 @@
   <div id="app">
     <header class="top-bar">
       <div class="title">
-        <h1>nodebuster : redux</h1>
+        <h1>incremental node simulator</h1>
         <button id="toggle-crt" class="pill">CRT ON</button>
       </div>
       <div class="resource-bar">
         <div class="resource">Bits <span id="bits-display">0</span></div>
-        <div class="resource">Netcoins <span id="netcoin-display">0</span></div>
+        <div class="resource">Cryptcoins <span id="cryptcoin-display">0</span></div>
         <div class="resource">Prestige <span id="prestige-display">0</span></div>
         <div class="resource">XP <span id="xp-display">0</span></div>
         <div class="resource">Level <span id="level-display">1</span></div>
@@ -85,7 +85,7 @@
 
         <section id="tab-crypto" class="tab-content">
           <h2>Crypto Mine</h2>
-          <p>Invest Bits into the quantum miners to produce Netcoins.</p>
+          <p>Invest Bits into the quantum miners to produce Cryptcoins.</p>
           <div class="crypto-panel">
             <label>Deposit amount</label>
             <div class="pill-group">
@@ -103,7 +103,7 @@
               <span id="crypto-deposited">0</span>
             </div>
             <div class="field">
-              <label>Netcoin returns</label>
+              <label>Cryptcoin returns</label>
               <span id="crypto-returns">0 / sec</span>
             </div>
             <div class="field">
@@ -121,7 +121,7 @@
           </div>
           <div id="lab-panel" class="hidden">
             <h2>godvirus research lab</h2>
-            <p>Invest Netcoin into developing the godvirus.</p>
+            <p>Invest Cryptcoin into developing the godvirus.</p>
             <div class="lab-progress">
               <label>Research progress</label>
               <div class="progress-bar">
@@ -134,7 +134,7 @@
             <div class="lab-controls">
               <div class="field">
                 <label>Deposit</label>
-                <input type="number" id="lab-deposit" min="0" placeholder="netcoins" />
+                <input type="number" id="lab-deposit" min="0" placeholder="cryptcoins" />
                 <button id="lab-confirm" class="pill">fund</button>
               </div>
               <div class="field">
