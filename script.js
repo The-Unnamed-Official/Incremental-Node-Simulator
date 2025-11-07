@@ -2098,21 +2098,64 @@ function collectBitToken(token) {
   const clampedX = Math.min(Math.max(targetX, 16), areaRect.width - 16);
   const clampedY = Math.min(Math.max(targetY, 16), areaRect.height - 16);
   token.classList.add('collecting');
-  token.style.left = `${clampedX}px`;
-  token.style.top = `${clampedY}px`;
-  token.style.transform = 'translate(-50%, -50%) scale(0.2)';
+  token.style.pointerEvents = 'none';
   const value = Number(token.dataset.value) || 1;
   state.bits += value;
   gainXP(Math.ceil(value * 0.4));
   updateResources();
-  token.addEventListener(
-    'transitionend',
-    () => {
-      createFloatText(UI.customCursor || document.body, `+${value} bits`, '#ffd166');
-      token.remove();
-    },
-    { once: true }
-  );
+  animateTokenToCursor(token, areaRect, clampedX, clampedY, () => {
+    createFloatText(UI.customCursor || document.body, `+${value} bits`, '#ffd166');
+    token.remove();
+  });
+}
+
+function animateTokenToCursor(token, areaRect, fallbackX, fallbackY, onComplete) {
+  if (!token) return;
+  const finish = () => {
+    token.__animationFrame = null;
+    if (typeof onComplete === 'function') onComplete();
+  };
+  if (state.settings.reducedAnimation) {
+    token.style.left = `${fallbackX}px`;
+    token.style.top = `${fallbackY}px`;
+    token.style.transform = 'translate(-50%, -50%) scale(0.35)';
+    token.style.opacity = '0';
+    requestAnimationFrame(finish);
+    return;
+  }
+
+  const initialX = Number.parseFloat(token.style.left) || fallbackX;
+  const initialY = Number.parseFloat(token.style.top) || fallbackY;
+  const duration = 320;
+  let startTime = null;
+
+  const step = (timestamp) => {
+    if (!token.isConnected) {
+      finish();
+      return;
+    }
+    if (startTime === null) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const pointerX = Math.min(Math.max(cursorPosition.x - areaRect.left, 16), areaRect.width - 16);
+    const pointerY = Math.min(Math.max(cursorPosition.y - areaRect.top, 16), areaRect.height - 16);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const currentX = initialX + (pointerX - initialX) * ease;
+    const currentY = initialY + (pointerY - initialY) * ease;
+    token.style.left = `${currentX}px`;
+    token.style.top = `${currentY}px`;
+    const scale = Math.max(0.35, 1 - ease * 0.65);
+    token.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    token.style.opacity = `${Math.max(0, 1 - ease * 0.85)}`;
+    if (progress < 1) {
+      token.__animationFrame = requestAnimationFrame(step);
+    } else {
+      token.style.opacity = '0';
+      finish();
+    }
+  };
+
+  token.__animationFrame = requestAnimationFrame(step);
 }
 
 function configureBossPath(bossObj, initial = false) {
