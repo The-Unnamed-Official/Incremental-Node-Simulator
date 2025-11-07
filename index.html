@@ -62,8 +62,7 @@
         <section id="tab-upgrades" class="tab-content active">
           <div class="tab-toolbar">
             <div class="pill-group">
-              <button class="pill filter active" data-filter="all">all</button>
-              <button class="pill filter" data-filter="damage">damage</button>
+              <button class="pill filter active" data-filter="damage">damage</button>
               <button class="pill filter" data-filter="crit">crit</button>
               <button class="pill filter" data-filter="economy">economy</button>
               <button class="pill filter" data-filter="control">control</button>
@@ -195,6 +194,15 @@
           <div class="skin-panel">
             <h3>Node skins</h3>
             <div id="skin-grid" class="skin-grid"></div>
+          </div>
+          <div class="save-controls">
+            <h3>Progress</h3>
+            <div class="save-actions">
+              <button id="save-game" class="pill">Save Game</button>
+              <button id="new-game" class="pill danger">New Game</button>
+            </div>
+            <div id="save-status" class="save-status" aria-live="polite"></div>
+            <div class="save-timestamp">Last saved: <span id="save-timestamp">never</span></div>
           </div>
         </section>
       </aside>

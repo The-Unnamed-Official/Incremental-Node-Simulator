@@ -45,6 +45,52 @@ body {
   image-rendering: pixelated;
 }
 
+body,
+.skill-tree,
+.achievement-grid,
+.milestone-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(118, 244, 198, 0.45) rgba(9, 14, 30, 0.85);
+}
+
+body::-webkit-scrollbar,
+.skill-tree::-webkit-scrollbar,
+.achievement-grid::-webkit-scrollbar,
+.milestone-list::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body::-webkit-scrollbar-track,
+.skill-tree::-webkit-scrollbar-track,
+.achievement-grid::-webkit-scrollbar-track,
+.milestone-list::-webkit-scrollbar-track {
+  background: rgba(9, 14, 30, 0.85);
+  border: var(--pixel-border) solid rgba(127, 255, 214, 0.18);
+}
+
+body::-webkit-scrollbar-thumb,
+.skill-tree::-webkit-scrollbar-thumb,
+.achievement-grid::-webkit-scrollbar-thumb,
+.milestone-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(118, 244, 198, 0.85), rgba(70, 210, 170, 0.75));
+  border: var(--pixel-border) solid rgba(6, 12, 22, 0.95);
+}
+
+body::-webkit-scrollbar-thumb:hover,
+.skill-tree::-webkit-scrollbar-thumb:hover,
+.achievement-grid::-webkit-scrollbar-thumb:hover,
+.milestone-list::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(118, 244, 198, 0.95), rgba(70, 210, 170, 0.9));
+}
+
+body::-webkit-scrollbar-corner,
+.skill-tree::-webkit-scrollbar-corner,
+.achievement-grid::-webkit-scrollbar-corner,
+.milestone-list::-webkit-scrollbar-corner {
+  background: rgba(9, 14, 30, 0.85);
+}
+
 body.reduced-motion * {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
@@ -396,6 +442,12 @@ body.disable-scanlines #crt-overlay {
 .pill.accent {
   background: repeating-linear-gradient(135deg, rgba(118, 244, 198, 0.8) 0 10px, rgba(70, 210, 170, 0.9) 10px 20px);
   color: #04100c;
+}
+
+.pill.danger {
+  background: repeating-linear-gradient(135deg, rgba(255, 102, 142, 0.9) 0 10px, rgba(186, 32, 76, 0.9) 10px 20px);
+  border-color: rgba(255, 140, 170, 0.85);
+  color: #140308;
 }
 
 .pill:hover,
@@ -818,6 +870,59 @@ button.automation-node {
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.22);
   box-shadow: var(--pixel-shadow);
   image-rendering: pixelated;
+}
+
+.save-controls {
+  display: grid;
+  gap: 12px;
+  background: repeating-linear-gradient(135deg, rgba(9, 14, 30, 0.82) 0 10px, rgba(14, 20, 36, 0.82) 10px 20px);
+  padding: 20px;
+  border: var(--pixel-border) solid rgba(127, 255, 214, 0.22);
+  box-shadow: var(--pixel-shadow);
+  image-rendering: pixelated;
+}
+
+.save-controls h3 {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+
+.save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.save-status {
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  min-height: 1.2em;
+  opacity: 0;
+  transition: opacity var(--transition-slow) ease;
+}
+
+.save-status.visible {
+  opacity: 1;
+}
+
+.save-status.error {
+  color: var(--warning);
+}
+
+.save-timestamp {
+  font-size: 0.68rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(241, 248, 255, 0.6);
+  min-height: 1.2em;
+}
+
+.save-timestamp span {
+  color: var(--accent);
 }
 
 .field {
