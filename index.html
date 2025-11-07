@@ -24,12 +24,12 @@
         <button id="toggle-crt" class="pill">CRT ON</button>
       </div>
       <div class="resource-bar">
-        <div class="resource">Bits <span id="bits-display">0</span></div>
-        <div class="resource">Cryptcoins <span id="cryptcoin-display">0</span></div>
-        <div class="resource">Prestige <span id="prestige-display">0</span></div>
-        <div class="resource">XP <span id="xp-display">0</span></div>
-        <div class="resource">Level <span id="level-display">1</span></div>
-        <div class="resource">LP <span id="lp-display">0</span></div>
+        <div class="resource"><span class="resource-label">Bits</span><span class="resource-value" id="bits-display">0</span></div>
+        <div class="resource"><span class="resource-label">Cryptcoins</span><span class="resource-value" id="cryptcoin-display">0</span></div>
+        <div class="resource"><span class="resource-label">Prestige</span><span class="resource-value" id="prestige-display">0</span></div>
+        <div class="resource"><span class="resource-label">XP</span><span class="resource-value" id="xp-display">0</span></div>
+        <div class="resource"><span class="resource-label">Level</span><span class="resource-value" id="level-display">1</span></div>
+        <div class="resource"><span class="resource-label">LP</span><span class="resource-value" id="lp-display">0</span></div>
       </div>
     </header>
 
@@ -57,13 +57,13 @@
         <section id="tab-upgrades" class="tab-content active">
           <div class="tab-toolbar">
             <div class="pill-group">
-              <button class="pill filter active" data-filter="damage">damage</button>
-              <button class="pill filter" data-filter="crit">crit</button>
-              <button class="pill filter" data-filter="economy">economy</button>
-              <button class="pill filter" data-filter="control">control</button>
-              <button class="pill filter" data-filter="defense">defense</button>
-              <button class="pill filter" data-filter="ability">ability</button>
-              <button class="pill filter" data-filter="weird">weird</button>
+              <button class="toggle-switch filter active" data-filter="damage" aria-pressed="true">damage</button>
+              <button class="toggle-switch filter" data-filter="crit" aria-pressed="false">crit</button>
+              <button class="toggle-switch filter" data-filter="economy" aria-pressed="false">economy</button>
+              <button class="toggle-switch filter" data-filter="control" aria-pressed="false">control</button>
+              <button class="toggle-switch filter" data-filter="defense" aria-pressed="false">defense</button>
+              <button class="toggle-switch filter" data-filter="ability" aria-pressed="false">ability</button>
+              <button class="toggle-switch filter" data-filter="weird" aria-pressed="false">weird</button>
             </div>
             <div class="upgrade-summary">
               <span>Purchased <span id="upgrade-count">0</span> / 400</span>
