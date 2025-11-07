@@ -570,83 +570,111 @@ function renderUpgrades(filter = 'all') {
 function generateAutomationSkills() {
   automationNodes = [
     {
-      id: 'pulse-seed',
-      name: 'Pulse Seed',
-      tagline: 'Establish auto-click cadence (0.95s)',
-      position: { row: 3, col: 5 },
+      id: 'sync-core',
+      name: 'Sync Core',
+      tagline: 'Kickstarts automation (-8% interval)',
+      position: { row: 2, col: 5 },
       cost: { prestige: 2, lp: 3 },
       prereqs: [],
       effect: (statsObj) => {
-        statsObj.autoInterval *= 0.95;
+        statsObj.autoInterval *= 0.92;
       },
     },
     {
-      id: 'dual-oscillator',
-      name: 'Dual Oscillator',
-      tagline: 'Split-beam sync (0.86s)',
-      position: { row: 2, col: 4 },
-      cost: { prestige: 4, lp: 6 },
-      prereqs: ['pulse-seed'],
+      id: 'signal-doubler',
+      name: 'Signal Doubler',
+      tagline: 'Split the control beam (-10%)',
+      position: { row: 3, col: 3 },
+      cost: { prestige: 4, lp: 4 },
+      prereqs: ['sync-core'],
       effect: (statsObj) => {
         statsObj.autoInterval *= 0.9;
       },
     },
     {
-      id: 'quantum-cradle',
-      name: 'Quantum Cradle',
-      tagline: 'Phase-narrow loop (0.86s)',
-      position: { row: 2, col: 6 },
-      cost: { prestige: 4, lp: 6 },
-      prereqs: ['pulse-seed'],
+      id: 'frequency-gate',
+      name: 'Frequency Gate',
+      tagline: 'Phase locks cadence (-10%)',
+      position: { row: 3, col: 7 },
+      cost: { prestige: 4, lp: 5 },
+      prereqs: ['sync-core'],
       effect: (statsObj) => {
         statsObj.autoInterval *= 0.9;
       },
     },
     {
-      id: 'overclock-halo',
-      name: 'Overclock Halo',
-      tagline: 'Harmonic glare (0.8s)',
-      position: { row: 1, col: 5 },
-      cost: { prestige: 6, lp: 9 },
-      prereqs: ['pulse-seed'],
+      id: 'servo-cluster',
+      name: 'Servo Cluster',
+      tagline: 'Staggered actuators (-8%)',
+      position: { row: 4, col: 2 },
+      cost: { prestige: 6, lp: 7 },
+      prereqs: ['signal-doubler'],
       effect: (statsObj) => {
-        statsObj.autoInterval *= 0.84;
+        statsObj.autoInterval *= 0.92;
       },
     },
     {
-      id: 'resonance-spiral',
-      name: 'Resonance Spiral',
-      tagline: 'Feedback drift (0.72s)',
-      position: { row: 4, col: 3 },
-      cost: { prestige: 7, lp: 10 },
-      prereqs: ['dual-oscillator'],
+      id: 'phase-weaver',
+      name: 'Phase Weaver',
+      tagline: 'Braids both channels (-12%)',
+      position: { row: 4, col: 5 },
+      cost: { prestige: 8, lp: 9 },
+      prereqs: ['signal-doubler', 'frequency-gate'],
       effect: (statsObj) => {
-        statsObj.autoInterval *= 0.84;
+        statsObj.autoInterval *= 0.88;
       },
     },
     {
-      id: 'singularity-dial',
-      name: 'Singularity Dial',
-      tagline: 'Tension fold (0.72s)',
-      position: { row: 4, col: 7 },
-      cost: { prestige: 7, lp: 10 },
-      prereqs: ['quantum-cradle'],
+      id: 'quantum-latch',
+      name: 'Quantum Latch',
+      tagline: 'Stabilises drift (-10%)',
+      position: { row: 4, col: 8 },
+      cost: { prestige: 8, lp: 9 },
+      prereqs: ['frequency-gate'],
       effect: (statsObj) => {
-        statsObj.autoInterval *= 0.84;
+        statsObj.autoInterval *= 0.9;
       },
     },
     {
       id: 'tachyon-loop',
       name: 'Tachyon Loop',
-      tagline: 'Breach taps @0.5s',
-      position: { row: 5, col: 5 },
-      cost: { prestige: 12, lp: 16 },
-      prereqs: ['resonance-spiral', 'singularity-dial', 'overclock-halo'],
+      tagline: 'Propels cadence (-18%)',
+      position: { row: 5, col: 4 },
+      cost: { prestige: 12, lp: 13 },
+      prereqs: ['servo-cluster', 'phase-weaver'],
       effect: (statsObj) => {
-        statsObj.autoInterval *= 0.7;
+        statsObj.autoInterval *= 0.82;
+      },
+    },
+    {
+      id: 'singularity-array',
+      name: 'Singularity Array',
+      tagline: 'Locks temporal echo (-15%)',
+      position: { row: 5, col: 6 },
+      cost: { prestige: 12, lp: 13 },
+      prereqs: ['phase-weaver', 'quantum-latch'],
+      effect: (statsObj) => {
+        statsObj.autoInterval *= 0.85;
+      },
+    },
+    {
+      id: 'autonomy-core',
+      name: 'Autonomy Core',
+      tagline: 'Full automation (-25%)',
+      position: { row: 6, col: 5 },
+      cost: { prestige: 18, lp: 18 },
+      prereqs: ['tachyon-loop', 'singularity-array'],
+      effect: (statsObj) => {
+        statsObj.autoInterval *= 0.75;
       },
     },
   ];
+  const validSkillIds = new Set(automationNodes.map((skill) => skill.id));
+  Object.keys(state.automationSkills).forEach((id) => {
+    if (!validSkillIds.has(id)) {
+      delete state.automationSkills[id];
+    }
+  });
 }
 
 function renderAutomationTree() {
