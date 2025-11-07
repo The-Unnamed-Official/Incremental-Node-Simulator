@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nodebuster Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+</head>
+<body class="vhs">
+  <div id="crt-overlay"></div>
+  <div id="app">
+    <header class="top-bar">
+      <div class="title">
+        <h1>nodebuster : redux</h1>
+        <button id="toggle-crt" class="pill">CRT ON</button>
+      </div>
+      <div class="resource-bar">
+        <div class="resource">Bits <span id="bits-display">0</span></div>
+        <div class="resource">Netcoins <span id="netcoin-display">0</span></div>
+        <div class="resource">Prestige <span id="prestige-display">0</span></div>
+        <div class="resource">XP <span id="xp-display">0</span></div>
+        <div class="resource">Level <span id="level-display">1</span></div>
+        <div class="resource">LP <span id="lp-display">0</span></div>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <section class="gameplay">
+        <div class="level-readout">
+          <div>Level <span id="current-level">1</span></div>
+          <div class="health">HP <span id="health-display">100 / 100</span></div>
+        </div>
+        <div class="progress-wrapper">
+          <div class="progress-label">boss breach in</div>
+          <div class="progress-bar">
+            <div id="boss-progress" class="progress-fill"></div>
+          </div>
+          <div class="progress-timer" id="boss-timer">60.0s</div>
+        </div>
+        <div class="node-area" id="node-area"></div>
+        <div class="boss-area" id="boss-area"></div>
+        <div class="controls">
+          <button id="auto-node" class="pill">Auto spawn</button>
+          <button id="level-reset" class="pill">Breach Again</button>
+        </div>
+      </section>
+
+      <aside class="side-panel">
+        <nav class="tabs">
+          <button class="tab-button active" data-tab="upgrades">Upgrades</button>
+          <button class="tab-button" data-tab="milestones">Milestones</button>
+          <button class="tab-button" data-tab="crypto">Crypto Mine</button>
+          <button class="tab-button" data-tab="lab">Lab</button>
+          <button class="tab-button" data-tab="settings">Settings</button>
+        </nav>
+
+        <section id="tab-upgrades" class="tab-content active">
+          <div class="tab-toolbar">
+            <div class="pill-group">
+              <button class="pill filter active" data-filter="all">all</button>
+              <button class="pill filter" data-filter="damage">damage</button>
+              <button class="pill filter" data-filter="crit">crit</button>
+              <button class="pill filter" data-filter="economy">economy</button>
+              <button class="pill filter" data-filter="control">control</button>
+              <button class="pill filter" data-filter="defense">defense</button>
+              <button class="pill filter" data-filter="ability">ability</button>
+              <button class="pill filter" data-filter="weird">weird</button>
+            </div>
+            <div class="upgrade-summary">
+              <span>Purchased <span id="upgrade-count">0</span> / 400</span>
+              <span>Weird resonance <span id="weird-progress">0 / 20</span></span>
+            </div>
+          </div>
+          <div id="upgrade-grid" class="upgrade-grid"></div>
+        </section>
+
+        <section id="tab-milestones" class="tab-content">
+          <h2>Milestones</h2>
+          <p>Push the simulacrum to earn rewards for your dedication.</p>
+          <div id="milestone-list" class="milestone-list"></div>
+        </section>
+
+        <section id="tab-crypto" class="tab-content">
+          <h2>Crypto Mine</h2>
+          <p>Invest Bits into the quantum miners to produce Netcoins.</p>
+          <div class="crypto-panel">
+            <label>Deposit amount</label>
+            <div class="pill-group">
+              <button class="pill deposit" data-amount="100">+100</button>
+              <button class="pill deposit" data-amount="1000">+1k</button>
+              <button class="pill deposit" data-amount="10000">+10k</button>
+              <button class="pill deposit" data-amount="100000">+100k</button>
+            </div>
+            <div class="field">
+              <input type="number" id="custom-deposit" min="0" placeholder="custom bits" />
+              <button id="confirm-deposit" class="pill">deposit</button>
+            </div>
+            <div class="field">
+              <label>Deposited</label>
+              <span id="crypto-deposited">0</span>
+            </div>
+            <div class="field">
+              <label>Netcoin returns</label>
+              <span id="crypto-returns">0 / sec</span>
+            </div>
+            <div class="field">
+              <label>Time remaining</label>
+              <span id="crypto-timer">00:00</span>
+            </div>
+            <button id="withdraw-crypto" class="pill">withdraw</button>
+          </div>
+        </section>
+
+        <section id="tab-lab" class="tab-content">
+          <div id="lab-locked">
+            <h2>???</h2>
+            <p>The lab interface is assembling from broken realities. Purchase more weird skills to stabilise it.</p>
+          </div>
+          <div id="lab-panel" class="hidden">
+            <h2>godvirus research lab</h2>
+            <p>Invest Netcoin into developing the godvirus.</p>
+            <div class="lab-progress">
+              <label>Research progress</label>
+              <div class="progress-bar">
+                <div id="lab-progress-fill" class="progress-fill"></div>
+              </div>
+              <div class="field">
+                <span id="lab-progress-text">0.000 / 1000.000</span>
+              </div>
+            </div>
+            <div class="lab-controls">
+              <div class="field">
+                <label>Deposit</label>
+                <input type="number" id="lab-deposit" min="0" placeholder="netcoins" />
+                <button id="lab-confirm" class="pill">fund</button>
+              </div>
+              <div class="field">
+                <label>Speed</label>
+                <span id="lab-speed">0 / sec</span>
+              </div>
+            </div>
+            <button id="breach-lab" class="pill">Breach</button>
+          </div>
+        </section>
+
+        <section id="tab-settings" class="tab-content">
+          <h2>Settings</h2>
+          <div class="settings-grid">
+            <label>Screen shake <input type="range" id="screen-shake" min="0" max="100" value="50" /></label>
+            <label>CRT effect <input type="checkbox" id="crt-toggle" checked /></label>
+            <label>Palette
+              <select id="palette-select">
+                <option value="default">default</option>
+                <option value="violet">violet</option>
+                <option value="emerald">emerald</option>
+              </select>
+            </label>
+            <label>BGM volume <input type="range" id="bgm-volume" min="0" max="100" value="50" /></label>
+            <label>SFX volume <input type="range" id="sfx-volume" min="0" max="100" value="70" /></label>
+            <label>Scanlines <input type="checkbox" id="scanline-toggle" checked /></label>
+          </div>
+          <div class="skin-panel">
+            <h3>Node skins</h3>
+            <div id="skin-grid" class="skin-grid"></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <section class="achievements">
+      <h2>Achievements &amp; Milestones</h2>
+      <div id="achievement-grid" class="achievement-grid"></div>
+    </section>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
