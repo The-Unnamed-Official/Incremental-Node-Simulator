@@ -44,16 +44,12 @@
           <div id="particle-layer" aria-hidden="true"></div>
           <div id="bit-layer" aria-live="polite"></div>
         </div>
-        <div class="boss-area" id="boss-area"></div>
-        <div class="controls">
-          <button id="auto-node" class="pill">Auto spawn</button>
-          <button id="level-reset" class="pill">Breach Again</button>
-        </div>
       </section>
 
       <aside class="side-panel">
         <nav class="tabs">
           <button class="tab-button active" data-tab="upgrades">Upgrades</button>
+          <button class="tab-button" data-tab="automation">Automation</button>
           <button class="tab-button" data-tab="milestones">Milestones</button>
           <button class="tab-button" data-tab="crypto">Crypto Mine</button>
           <button class="tab-button" data-tab="lab">Lab</button>
@@ -78,6 +74,14 @@
             </div>
           </div>
           <div id="skill-tree" class="skill-tree" role="list"></div>
+        </section>
+
+        <section id="tab-automation" class="tab-content">
+          <div class="automation-header">
+            <h2>Pulse Driver Lattice</h2>
+            <p>Invest prestige insight and LP to accelerate the auto-pointer cadence.</p>
+          </div>
+          <div id="automation-tree" class="automation-tree" role="list"></div>
         </section>
 
         <section id="tab-milestones" class="tab-content">
@@ -152,19 +156,38 @@
         <section id="tab-settings" class="tab-content">
           <h2>Settings</h2>
           <div class="settings-grid">
-            <label>Screen shake <input type="range" id="screen-shake" min="0" max="100" value="50" /></label>
-            <label>CRT effect <input type="checkbox" id="crt-toggle" checked /></label>
-            <label>Palette
+            <label class="setting">
+              <span>Screen shake</span>
+              <input type="range" id="screen-shake" min="0" max="100" value="50" />
+            </label>
+            <label class="setting">
+              <span>CRT effect</span>
+              <input type="checkbox" id="crt-toggle" checked />
+            </label>
+            <label class="setting">
+              <span>Palette</span>
               <select id="palette-select">
                 <option value="default">default</option>
                 <option value="violet">violet</option>
                 <option value="emerald">emerald</option>
               </select>
             </label>
-            <label>BGM volume <input type="range" id="bgm-volume" min="0" max="100" value="50" /></label>
-            <label>SFX volume <input type="range" id="sfx-volume" min="0" max="100" value="70" /></label>
-            <label>Scanlines <input type="checkbox" id="scanline-toggle" checked /></label>
-            <label>Reduce animation <input type="checkbox" id="reduce-animation" /></label>
+            <label class="setting">
+              <span>BGM volume</span>
+              <input type="range" id="bgm-volume" min="0" max="100" value="50" />
+            </label>
+            <label class="setting">
+              <span>SFX volume</span>
+              <input type="range" id="sfx-volume" min="0" max="100" value="70" />
+            </label>
+            <label class="setting">
+              <span>Scanlines</span>
+              <input type="checkbox" id="scanline-toggle" checked />
+            </label>
+            <label class="setting">
+              <span>Reduce animation</span>
+              <input type="checkbox" id="reduce-animation" />
+            </label>
           </div>
           <div class="skin-panel">
             <h3>Node skins</h3>
@@ -187,6 +210,16 @@
         <div id="skill-check-progress"></div>
       </div>
       <button id="skill-check-action" class="pill">Resolve</button>
+    </div>
+  </div>
+  <div id="level-dialog" class="level-dialog hidden" role="dialog" aria-modal="true" aria-live="assertive">
+    <div class="level-dialog-panel">
+      <h2>Boss neutralised</h2>
+      <p id="level-dialog-summary">Loot tallied.</p>
+      <div class="level-dialog-actions">
+        <button id="level-replay" class="pill">Re-run breach</button>
+        <button id="level-continue" class="pill accent">Advance</button>
+      </div>
     </div>
   </div>
   <div id="custom-cursor" aria-hidden="true">
