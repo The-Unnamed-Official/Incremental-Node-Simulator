@@ -1204,9 +1204,9 @@ button.automation-node {
 .cursor-dot {
   width: 6px;
   height: 6px;
-  border: var(--pixel-border) solid rgba(4, 8, 18, 0.9);
-  background: rgba(127, 255, 214, 0.85);
-  box-shadow: 0 0 6px rgba(127, 255, 214, 0.6);
+  border: var(--pixel-border) solid #abffe4d9;
+  background: #7fffd6d9;
+  box-shadow: 0 0 6px #7fffd699;
   transition: transform var(--transition-fast) ease, background var(--transition-fast) ease,
     box-shadow var(--transition-fast) ease;
 }
