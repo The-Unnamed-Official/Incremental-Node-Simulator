@@ -2,7 +2,8 @@ const TICK_RATE = 1000 / 60;
 const BOSS_TIMER = 60;
 
 const state = {
-  bits: 0,cryptcoins: 0,
+  bits: 0,
+  cryptcoins: 0,
   prestige: 0,
   xp: 0,
   level: 1,
@@ -47,6 +48,7 @@ const state = {
     bgm: 0.5,
     sfx: 0.7,
     palette: 'default',
+    reducedAnimation: false,
   },
 };
 
@@ -120,6 +122,12 @@ const bossNames = [
   'Graviton Oracle',
 ];
 
+const SKILL_CHECK_DIFFICULTIES = {
+  easy: 4.2,
+  normal: 3.1,
+  hard: 2.4,
+};
+
 let upgrades = [];
 let milestones = [];
 let achievements = [];
@@ -128,6 +136,15 @@ let tooltipEl;
 let achievementTimer = 0;
 
 const UI = {};
+const skillCheckState = {
+  active: false,
+  timer: 0,
+  duration: 0,
+  resolve: null,
+  reward: null,
+};
+
+const cursorPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
@@ -146,6 +163,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCryptoControls();
   setupLabControls();
   setupGameplayControls();
+  setupCursor();
+  setupSkillCheck();
   updateResources();
   startGameLoop();
 });
@@ -157,10 +176,12 @@ function cacheElements() {
   UI.xp = document.getElementById('xp-display');
   UI.level = document.getElementById('level-display');
   UI.lp = document.getElementById('lp-display');
-  UI.upgradeGrid = document.getElementById('upgrade-grid');
+  UI.skillTree = document.getElementById('skill-tree');
   UI.upgradeCount = document.getElementById('upgrade-count');
   UI.weirdProgress = document.getElementById('weird-progress');
   UI.nodeArea = document.getElementById('node-area');
+  UI.particleLayer = document.getElementById('particle-layer');
+  UI.bitLayer = document.getElementById('bit-layer');
   UI.bossArea = document.getElementById('boss-area');
   UI.bossProgress = document.getElementById('boss-progress');
   UI.bossTimer = document.getElementById('boss-timer');
@@ -180,6 +201,12 @@ function cacheElements() {
   UI.labSpeed = document.getElementById('lab-speed');
   UI.toggleCRT = document.getElementById('toggle-crt');
   UI.skinGrid = document.getElementById('skin-grid');
+  UI.customCursor = document.getElementById('custom-cursor');
+  UI.skillCheck = document.getElementById('skill-check');
+  UI.skillCheckProgress = document.getElementById('skill-check-progress');
+  UI.skillCheckAction = document.getElementById('skill-check-action');
+  UI.skillCheckTitle = document.getElementById('skill-check-title');
+  UI.skillCheckDescription = document.getElementById('skill-check-description');
 }
 
 function setupTabs() {
@@ -210,25 +237,35 @@ function setupFilters() {
 function setupSettings() {
   UI.toggleCRT.addEventListener('click', () => {
     state.settings.crt = !state.settings.crt;
-    document.body.classList.toggle('no-crt', !state.settings.crt);
     UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
+    applyDisplaySettings();
   });
   const screenShake = document.getElementById('screen-shake');
+  screenShake.value = state.settings.screenShake;
   screenShake.addEventListener('input', (e) => {
     state.settings.screenShake = Number(e.target.value);
   });
   const crtToggle = document.getElementById('crt-toggle');
+  crtToggle.checked = state.settings.crt;
   crtToggle.addEventListener('change', (e) => {
     state.settings.crt = e.target.checked;
-    document.body.classList.toggle('no-crt', !state.settings.crt);
     UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
+    applyDisplaySettings();
   });
   const scanlineToggle = document.getElementById('scanline-toggle');
+  scanlineToggle.checked = state.settings.scanlines;
   scanlineToggle.addEventListener('change', (e) => {
     state.settings.scanlines = e.target.checked;
-    document.body.classList.toggle('no-crt', !state.settings.scanlines);
+    applyDisplaySettings();
+  });
+  const reduceAnimationToggle = document.getElementById('reduce-animation');
+  reduceAnimationToggle.checked = state.settings.reducedAnimation;
+  reduceAnimationToggle.addEventListener('change', (e) => {
+    state.settings.reducedAnimation = e.target.checked;
+    applyDisplaySettings();
   });
   const paletteSelect = document.getElementById('palette-select');
+  paletteSelect.value = state.settings.palette;
   paletteSelect.addEventListener('change', (e) => {
     document.body.classList.remove('palette-default', 'palette-violet', 'palette-emerald');
     const palette = e.target.value;
@@ -237,12 +274,28 @@ function setupSettings() {
       document.body.classList.add(`palette-${palette}`);
     }
   });
-  document.getElementById('bgm-volume').addEventListener('input', (e) => {
+  const bgmVolume = document.getElementById('bgm-volume');
+  bgmVolume.value = Math.round(state.settings.bgm * 100);
+  bgmVolume.addEventListener('input', (e) => {
     state.settings.bgm = Number(e.target.value) / 100;
   });
-  document.getElementById('sfx-volume').addEventListener('input', (e) => {
+  const sfxVolume = document.getElementById('sfx-volume');
+  sfxVolume.value = Math.round(state.settings.sfx * 100);
+  sfxVolume.addEventListener('input', (e) => {
     state.settings.sfx = Number(e.target.value) / 100;
   });
+  applyDisplaySettings();
+}
+
+function applyDisplaySettings() {
+  document.body.classList.toggle('disable-crt', !state.settings.crt);
+  document.body.classList.toggle('disable-scanlines', !state.settings.scanlines);
+  document.body.classList.toggle('reduced-motion', state.settings.reducedAnimation);
+  document.body.classList.remove('palette-violet', 'palette-emerald');
+  if (state.settings.palette && state.settings.palette !== 'default') {
+    document.body.classList.add(`palette-${state.settings.palette}`);
+  }
+  UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
 }
 
 function generateSkins() {
@@ -427,40 +480,72 @@ function romanNumeral(num) {
 }
 
 function renderUpgrades(filter = 'all') {
-  UI.upgradeGrid.innerHTML = '';
+  if (!UI.skillTree) return;
+  UI.skillTree.innerHTML = '';
   const fragment = document.createDocumentFragment();
-  let purchased = 0;
+  const branchMap = new Map();
+  const branchCounters = new Map();
   upgrades.forEach((upgrade) => {
     if (filter !== 'all' && upgrade.category !== filter) {
       return;
     }
     const level = state.upgrades[upgrade.id] || 0;
-    if (level >= upgrade.maxLevel) {
-      purchased += 1;
+    const counter = branchCounters.get(upgrade.category) || 0;
+    const tier = Math.floor(counter / 6);
+    const branch = branchMap.get(upgrade.category) || [];
+    if (!branch[tier]) {
+      branch[tier] = [];
     }
-    const card = document.createElement('div');
-    card.className = 'upgrade-card';
-    card.dataset.id = upgrade.id;
-    card.dataset.category = upgrade.category;
-    if (level >= upgrade.maxLevel) {
-      card.classList.add('purchased');
-    }
-    if (!meetsRequirements(upgrade)) {
-      card.classList.add('locked');
-    }
-    card.innerHTML = `
-      <div class="core"></div>
-      <div class="title">${upgrade.name}</div>
-      <div class="desc">${upgrade.description}</div>
-      <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
-      <div class="cost">Cost: <span>${formatCost(upgrade, level)}</span> ${upgrade.currency}</div>
-    `;
-    card.addEventListener('click', () => attemptPurchase(upgrade));
-    card.addEventListener('mousemove', (event) => showUpgradeTooltip(event, upgrade));
-    card.addEventListener('mouseleave', hideTooltip);
-    fragment.appendChild(card);
+    branch[tier].push({ upgrade, level });
+    branchMap.set(upgrade.category, branch);
+    branchCounters.set(upgrade.category, counter + 1);
   });
-  UI.upgradeGrid.appendChild(fragment);
+
+  branchMap.forEach((tiers, category) => {
+    const branchEl = document.createElement('section');
+    branchEl.className = 'skill-branch';
+    branchEl.dataset.category = category;
+    branchEl.setAttribute('role', 'listitem');
+    const title = document.createElement('div');
+    title.className = 'branch-title';
+    const totalNodes = tiers.reduce((acc, tierNodes) => acc + tierNodes.length, 0);
+    title.innerHTML = `<span>${category.toUpperCase()}</span><span>${totalNodes} nodes</span>`;
+    const track = document.createElement('div');
+    track.className = 'branch-track';
+    tiers.forEach((tierNodes, tierIndex) => {
+      tierNodes.forEach(({ upgrade, level }) => {
+        const nodeEl = document.createElement('button');
+        nodeEl.type = 'button';
+        nodeEl.className = 'skill-node';
+        if (tierIndex === 0) {
+          nodeEl.classList.add('origin');
+        }
+        nodeEl.dataset.id = upgrade.id;
+        nodeEl.dataset.category = upgrade.category;
+        nodeEl.innerHTML = `
+          <div class="title">${upgrade.name}</div>
+          <div class="desc">${upgrade.description}</div>
+          <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
+          <div class="cost">Cost: <span>${formatCost(upgrade, level)}</span> ${upgrade.currency}</div>
+        `;
+        if (level >= upgrade.maxLevel) {
+          nodeEl.classList.add('purchased');
+        }
+        if (!meetsRequirements(upgrade)) {
+          nodeEl.classList.add('locked');
+        }
+        nodeEl.addEventListener('click', () => attemptPurchase(upgrade));
+        nodeEl.addEventListener('mousemove', (event) => showUpgradeTooltip(event, upgrade));
+        nodeEl.addEventListener('mouseleave', hideTooltip);
+        track.appendChild(nodeEl);
+      });
+    });
+    branchEl.appendChild(title);
+    branchEl.appendChild(track);
+    fragment.appendChild(branchEl);
+  });
+
+  UI.skillTree.appendChild(fragment);
   const totalPurchased = Object.keys(state.upgrades).length;
   UI.upgradeCount.textContent = `${totalPurchased}`;
   UI.weirdProgress.textContent = `${state.weirdSkillsPurchased} / 20`;
@@ -510,7 +595,30 @@ function attemptPurchase(upgrade) {
     updateStats();
     updateResources();
     renderUpgrades(document.querySelector('.filter.active').dataset.filter);
+    maybeStartSkillCheck(upgrade, cost);
   }
+}
+
+function maybeStartSkillCheck(upgrade, cost) {
+  if (skillCheckState.active) return;
+  const baseChance = 0.18;
+  const bonusChance = upgrade.category === 'weird' ? 0.12 : upgrade.category === 'ability' ? 0.08 : 0;
+  if (Math.random() > baseChance + bonusChance) {
+    return;
+  }
+  const difficulty = upgrade.category === 'damage' ? 'easy' : upgrade.category === 'weird' ? 'hard' : 'normal';
+  const rewardBits = Math.ceil(cost * (difficulty === 'hard' ? 0.95 : difficulty === 'normal' ? 0.7 : 0.45));
+  const rewardXP = Math.ceil(15 * (difficulty === 'hard' ? 2.2 : difficulty === 'normal' ? 1.4 : 1));
+  startSkillCheck({
+    upgrade,
+    difficulty,
+    reward: () => {
+      state.bits += rewardBits;
+      gainXP(rewardXP);
+      createFloatText(UI.customCursor || document.body, `+${rewardBits} bits`, '#ffd166');
+      updateResources();
+    },
+  });
 }
 
 function showUpgradeTooltip(event, upgrade) {
@@ -735,6 +843,86 @@ function setupGameplayControls() {
   });
 }
 
+function setupCursor() {
+  if (!UI.customCursor) return;
+  const cursor = UI.customCursor;
+  const updateCursorPosition = (x, y) => {
+    cursorPosition.x = x;
+    cursorPosition.y = y;
+    cursor.style.left = `${x}px`;
+    cursor.style.top = `${y}px`;
+  };
+  updateCursorPosition(cursorPosition.x, cursorPosition.y);
+  document.addEventListener('pointermove', (event) => {
+    updateCursorPosition(event.clientX, event.clientY);
+  });
+  document.addEventListener('pointerdown', (event) => {
+    cursor.classList.add('active');
+    spawnCursorPulse(event.clientX, event.clientY);
+  });
+  document.addEventListener('pointerup', () => {
+    cursor.classList.remove('active');
+  });
+  document.addEventListener('pointerleave', () => {
+    cursor.classList.remove('active');
+  });
+}
+
+function spawnCursorPulse(x, y) {
+  if (state.settings.reducedAnimation) return;
+  const pulse = document.createElement('div');
+  pulse.className = 'cursor-pulse';
+  pulse.style.left = `${x}px`;
+  pulse.style.top = `${y}px`;
+  document.body.appendChild(pulse);
+  pulse.addEventListener('animationend', () => pulse.remove());
+}
+
+function setupSkillCheck() {
+  if (!UI.skillCheck || !UI.skillCheckAction || !UI.skillCheckProgress) return;
+  UI.skillCheckAction.addEventListener('click', () => {
+    if (skillCheckState.active) {
+      resolveSkillCheck(true);
+    }
+  });
+}
+
+function startSkillCheck({ upgrade, difficulty, reward }) {
+  if (!UI.skillCheck) return;
+  const duration = SKILL_CHECK_DIFFICULTIES[difficulty] || SKILL_CHECK_DIFFICULTIES.normal;
+  skillCheckState.active = true;
+  skillCheckState.timer = 0;
+  skillCheckState.duration = duration;
+  skillCheckState.reward = reward;
+  UI.skillCheckTitle.textContent = `${difficulty.toUpperCase()} skill check`;
+  UI.skillCheckDescription.textContent = `Stabilise ${upgrade.name} by resolving before reality fractures.`;
+  UI.skillCheck.classList.remove('hidden');
+  UI.skillCheckAction.focus();
+}
+
+function resolveSkillCheck(success) {
+  if (!skillCheckState.active) return;
+  skillCheckState.active = false;
+  UI.skillCheck.classList.add('hidden');
+  if (success && typeof skillCheckState.reward === 'function') {
+    skillCheckState.reward();
+  } else if (!success) {
+    createFloatText(document.body, 'Skill check failed', '#ff6ea8');
+  }
+  skillCheckState.reward = null;
+  UI.skillCheckProgress.style.width = '0%';
+}
+
+function updateSkillCheck(delta) {
+  if (!skillCheckState.active || !UI.skillCheckProgress) return;
+  skillCheckState.timer += delta;
+  const progress = Math.min(1, skillCheckState.timer / skillCheckState.duration);
+  UI.skillCheckProgress.style.width = `${progress * 100}%`;
+  if (skillCheckState.timer >= skillCheckState.duration) {
+    resolveSkillCheck(false);
+  }
+}
+
 function startGameLoop() {
   updateStats();
   let last = performance.now();
@@ -753,6 +941,7 @@ function tick(delta) {
   updateBoss(delta);
   updateCrypto(delta);
   updateLab(delta);
+  updateSkillCheck(delta);
   achievementTimer += delta;
   if (achievementTimer >= 1) {
     renderAchievements();
@@ -762,21 +951,82 @@ function tick(delta) {
 
 let nodeSpawnTimer = 0;
 const activeNodes = new Map();
+let activeBoss = null;
 
 function updateNodes(delta) {
+  if (!UI.nodeArea) return;
   nodeSpawnTimer -= delta;
   if (nodeSpawnTimer <= 0 && activeNodes.size < stats.maxNodes) {
     spawnNode();
     nodeSpawnTimer = Math.max(0.35, stats.nodeSpawnDelay - stats.weirdSynergy * 0.2);
   }
+  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const width = UI.nodeArea.clientWidth || areaRect.width;
+  const height = UI.nodeArea.clientHeight || areaRect.height;
   activeNodes.forEach((node) => {
     node.hp = Math.min(node.maxHP, node.hp + stats.regen * delta);
+    node.position.x += node.velocity.x * delta;
+    node.position.y += node.velocity.y * delta;
+    node.rotation += node.rotationSpeed * delta;
+    applyNodeTransform(node);
     updateNodeElement(node);
+    const bounds = node.bounds;
+    if (
+      node.position.x < -bounds ||
+      node.position.x > width + bounds ||
+      node.position.y < -bounds ||
+      node.position.y > height + bounds
+    ) {
+      node.el.remove();
+      activeNodes.delete(node.id);
+    }
   });
 }
 
 function spawnNode() {
-  const area = UI.nodeArea.getBoundingClientRect();
+  if (!UI.nodeArea) return;
+  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const width = UI.nodeArea.clientWidth || areaRect.width;
+  const height = UI.nodeArea.clientHeight || areaRect.height;
+  const margin = 120;
+  const side = Math.floor(Math.random() * 4);
+  let startX = 0;
+  let startY = 0;
+  let targetX = 0;
+  let targetY = 0;
+  switch (side) {
+    case 0:
+      startX = -margin;
+      startY = Math.random() * height;
+      targetX = width + margin;
+      targetY = Math.random() * height;
+      break;
+    case 1:
+      startX = width + margin;
+      startY = Math.random() * height;
+      targetX = -margin;
+      targetY = Math.random() * height;
+      break;
+    case 2:
+      startX = Math.random() * width;
+      startY = -margin;
+      targetX = Math.random() * width;
+      targetY = height + margin;
+      break;
+    default:
+      startX = Math.random() * width;
+      startY = height + margin;
+      targetX = Math.random() * width;
+      targetY = -margin;
+      break;
+  }
+
+  const travelTime = 10 + Math.random() * 6;
+  const velocity = {
+    x: (targetX - startX) / travelTime,
+    y: (targetY - startY) / travelTime,
+  };
+
   const type = weightedNodeType();
   const level = state.currentLevel.index;
   const hp = Math.ceil(type.hp(level) * stats.nodeHPFactor);
@@ -785,16 +1035,23 @@ function spawnNode() {
     type,
     hp,
     maxHP: hp,
+    position: { x: startX, y: startY },
+    velocity,
+    rotation: Math.random() * 360,
+    rotationSpeed: (Math.random() - 0.5) * 45,
+    bounds: margin,
   };
   const el = document.createElement('div');
   el.className = `node ${type.color} skin-${state.skins.active}`;
-  el.style.left = `${Math.random() * (area.width - 90) + 10}px`;
-  el.style.top = `${Math.random() * (area.height - 90) + 10}px`;
   el.innerHTML = '<div class="core"></div><div class="hp"></div>';
   el.addEventListener('click', () => strikeNode(node));
   UI.nodeArea.appendChild(el);
   node.el = el;
+  applyNodeTransform(node);
+  requestAnimationFrame(() => el.classList.add('pulse'));
+  setTimeout(() => el.classList.remove('pulse'), 600);
   activeNodes.set(node.id, node);
+  updateNodeElement(node);
 }
 
 function weightedNodeType() {
@@ -838,6 +1095,8 @@ function destroyNode(node) {
   dropRewards(node.type);
   const key = node.type.id;
   state.nodesDestroyed[key] = (state.nodesDestroyed[key] || 0) + 1;
+  createNodeExplosion(node);
+  spawnBitTokens(node);
   node.el.remove();
   activeNodes.delete(node.id);
   renderMilestones();
@@ -862,6 +1121,144 @@ function updateNodeElement(node) {
   node.el.querySelector('.hp').textContent = `${Math.max(0, Math.ceil(node.hp))}`;
 }
 
+function applyNodeTransform(node) {
+  if (!node.el) return;
+  node.el.style.transform = `translate3d(${node.position.x}px, ${node.position.y}px, 0) rotate(${node.rotation}deg)`;
+}
+
+function createNodeExplosion(node) {
+  if (!UI.particleLayer || !node.el) return;
+  if (state.settings.reducedAnimation) return;
+  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const nodeRect = node.el.getBoundingClientRect();
+  const x = nodeRect.left - areaRect.left + nodeRect.width / 2;
+  const y = nodeRect.top - areaRect.top + nodeRect.height / 2;
+  const explosion = document.createElement('div');
+  explosion.className = 'explosion';
+  explosion.style.left = `${x}px`;
+  explosion.style.top = `${y}px`;
+  explosion.style.transform = 'translate(-50%, -50%)';
+  UI.particleLayer.appendChild(explosion);
+  explosion.addEventListener('animationend', () => explosion.remove());
+}
+
+function spawnBitTokens(node) {
+  if (!UI.bitLayer || !node.el) return;
+  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const nodeRect = node.el.getBoundingClientRect();
+  const centerX = nodeRect.left - areaRect.left + nodeRect.width / 2;
+  const centerY = nodeRect.top - areaRect.top + nodeRect.height / 2;
+  const baseCount = 3 + Math.floor(Math.random() * 3);
+  const tokenCount = state.settings.reducedAnimation ? Math.max(1, Math.floor(baseCount / 2)) : baseCount;
+  const valueBase = Math.max(1, Math.round(4 + state.currentLevel.index * 1.2));
+  for (let i = 0; i < tokenCount; i += 1) {
+    const token = document.createElement('div');
+    token.className = 'bit-token';
+    const offsetX = (Math.random() - 0.5) * 160;
+    const offsetY = (Math.random() - 0.5) * 160;
+    token.style.left = `${centerX + offsetX}px`;
+    token.style.top = `${centerY + offsetY}px`;
+    token.dataset.value = `${valueBase + Math.floor(Math.random() * valueBase)}`;
+    token.tabIndex = 0;
+    token.addEventListener('pointerenter', () => collectBitToken(token));
+    token.addEventListener('click', () => collectBitToken(token));
+    token.addEventListener('focus', () => collectBitToken(token));
+    token.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        collectBitToken(token);
+      }
+    });
+    UI.bitLayer.appendChild(token);
+    requestAnimationFrame(() => token.classList.add('visible'));
+    setTimeout(() => {
+      if (!token.classList.contains('collecting')) {
+        token.remove();
+      }
+    }, 12000);
+  }
+}
+
+function collectBitToken(token) {
+  if (!token || token.classList.contains('collecting')) return;
+  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const targetX = cursorPosition.x - areaRect.left;
+  const targetY = cursorPosition.y - areaRect.top;
+  const clampedX = Math.min(Math.max(targetX, 16), areaRect.width - 16);
+  const clampedY = Math.min(Math.max(targetY, 16), areaRect.height - 16);
+  token.classList.add('collecting');
+  token.style.left = `${clampedX}px`;
+  token.style.top = `${clampedY}px`;
+  token.style.transform = 'translate(-50%, -50%) scale(0.2)';
+  const value = Number(token.dataset.value) || 1;
+  state.bits += value;
+  gainXP(Math.ceil(value * 0.4));
+  updateResources();
+  token.addEventListener(
+    'transitionend',
+    () => {
+      createFloatText(UI.customCursor || document.body, `+${value} bits`, '#ffd166');
+      token.remove();
+    },
+    { once: true }
+  );
+}
+
+function configureBossPath(bossObj, initial = false) {
+  if (!bossObj || !UI.bossArea) return;
+  const width = UI.bossArea.clientWidth;
+  const height = UI.bossArea.clientHeight;
+  const margin = 200;
+  const side = Math.floor(Math.random() * 4);
+  let startX = 0;
+  let startY = 0;
+  let targetX = 0;
+  let targetY = 0;
+  switch (side) {
+    case 0:
+      startX = -margin;
+      startY = Math.random() * height * 0.7;
+      targetX = width + margin;
+      targetY = Math.random() * height * 0.8;
+      break;
+    case 1:
+      startX = width + margin;
+      startY = Math.random() * height * 0.7;
+      targetX = -margin;
+      targetY = Math.random() * height * 0.8;
+      break;
+    case 2:
+      startX = Math.random() * width * 0.8;
+      startY = -margin;
+      targetX = Math.random() * width * 0.8;
+      targetY = height + margin;
+      break;
+    default:
+      startX = Math.random() * width * 0.8;
+      startY = height + margin;
+      targetX = Math.random() * width * 0.8;
+      targetY = -margin;
+      break;
+  }
+  const travelTime = 18 + Math.random() * 10;
+  bossObj.velocity = {
+    x: (targetX - startX) / travelTime,
+    y: (targetY - startY) / travelTime,
+  };
+  bossObj.position.x = startX;
+  bossObj.position.y = startY;
+  bossObj.rotationSpeed = (Math.random() - 0.5) * 12;
+  bossObj.bounds = margin;
+  if (initial) {
+    bossObj.rotation = Math.random() * 360;
+  }
+  applyBossTransform(bossObj);
+}
+
+function applyBossTransform(bossObj) {
+  if (!bossObj || !bossObj.el) return;
+  bossObj.el.style.transform = `translate3d(${bossObj.position.x}px, ${bossObj.position.y}px, 0) rotate(${bossObj.rotation}deg)`;
+}
+
 function updateLevel(delta) {
   const level = state.currentLevel;
   if (!level.active) return;
@@ -883,6 +1280,7 @@ function resetLevel(increase = true) {
   state.currentLevel.active = true;
   state.currentLevel.bossActive = false;
   UI.bossArea.innerHTML = '';
+  activeBoss = null;
   if (increase) {
     state.currentLevel.index += 1;
     state.level = Math.max(state.level, state.currentLevel.index);
@@ -909,6 +1307,15 @@ function spawnBoss() {
   `;
   boss.addEventListener('click', () => damageBoss(25));
   UI.bossArea.appendChild(boss);
+  activeBoss = {
+    el: boss,
+    position: { x: 0, y: 0 },
+    velocity: { x: 0, y: 0 },
+    rotation: Math.random() * 360,
+    rotationSpeed: (Math.random() - 0.5) * 18,
+    bounds: 200,
+  };
+  configureBossPath(activeBoss, true);
 }
 
 function damageBoss(playerDamage) {
@@ -933,6 +1340,23 @@ function updateBoss(delta) {
   }
   updateBossBar();
   UI.health.textContent = `${Math.round(state.health)} / ${Math.round(state.maxHealth)}`;
+  if (activeBoss && UI.bossArea) {
+    activeBoss.position.x += activeBoss.velocity.x * delta;
+    activeBoss.position.y += activeBoss.velocity.y * delta;
+    activeBoss.rotation += activeBoss.rotationSpeed * delta;
+    applyBossTransform(activeBoss);
+    const width = UI.bossArea.clientWidth;
+    const height = UI.bossArea.clientHeight;
+    const bounds = activeBoss.bounds;
+    if (
+      activeBoss.position.x < -bounds ||
+      activeBoss.position.x > width + bounds ||
+      activeBoss.position.y < -bounds ||
+      activeBoss.position.y > height + bounds
+    ) {
+      configureBossPath(activeBoss);
+    }
+  }
 }
 
 function updateBossBar() {
@@ -947,6 +1371,7 @@ function defeatBoss() {
   state.currentLevel.bossActive = false;
   state.bossKills += 1;
   UI.bossArea.innerHTML = '';
+  activeBoss = null;
   const rewardBits = 500 * state.currentLevel.index * stats.bitGain;
   const prestige = 1 * stats.prestigeGain;
   const xp = 120 * stats.xpGain;
@@ -957,6 +1382,9 @@ function defeatBoss() {
 }
 
 function autoSpawnNode() {
+  if (activeNodes.size >= stats.maxNodes) {
+    return;
+  }
   spawnNode();
 }
 

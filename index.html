@@ -40,7 +40,10 @@
           </div>
           <div class="progress-timer" id="boss-timer">60.0s</div>
         </div>
-        <div class="node-area" id="node-area"></div>
+        <div class="node-area" id="node-area">
+          <div id="particle-layer" aria-hidden="true"></div>
+          <div id="bit-layer" aria-live="polite"></div>
+        </div>
         <div class="boss-area" id="boss-area"></div>
         <div class="controls">
           <button id="auto-node" class="pill">Auto spawn</button>
@@ -74,7 +77,7 @@
               <span>Weird resonance <span id="weird-progress">0 / 20</span></span>
             </div>
           </div>
-          <div id="upgrade-grid" class="upgrade-grid"></div>
+          <div id="skill-tree" class="skill-tree" role="list"></div>
         </section>
 
         <section id="tab-milestones" class="tab-content">
@@ -161,6 +164,7 @@
             <label>BGM volume <input type="range" id="bgm-volume" min="0" max="100" value="50" /></label>
             <label>SFX volume <input type="range" id="sfx-volume" min="0" max="100" value="70" /></label>
             <label>Scanlines <input type="checkbox" id="scanline-toggle" checked /></label>
+            <label>Reduce animation <input type="checkbox" id="reduce-animation" /></label>
           </div>
           <div class="skin-panel">
             <h3>Node skins</h3>
@@ -174,6 +178,20 @@
       <h2>Achievements &amp; Milestones</h2>
       <div id="achievement-grid" class="achievement-grid"></div>
     </section>
+  </div>
+  <div id="skill-check" class="skill-check hidden" role="dialog" aria-modal="true" aria-live="assertive">
+    <div class="skill-check-panel">
+      <h2 id="skill-check-title">Skill Check!</h2>
+      <p id="skill-check-description">Stabilise the upgrade stream before it collapses.</p>
+      <div class="skill-check-meter">
+        <div id="skill-check-progress"></div>
+      </div>
+      <button id="skill-check-action" class="pill">Resolve</button>
+    </div>
+  </div>
+  <div id="custom-cursor" aria-hidden="true">
+    <div class="cursor-core"></div>
+    <div class="cursor-ring"></div>
   </div>
   <script src="script.js"></script>
 </body>
