@@ -147,6 +147,8 @@ const skillCheckState = {
 };
 
 const cursorPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+let bgmAudio;
+let audioUnlocked = false;
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
@@ -168,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupLabControls();
   setupLevelDialog();
   setupCursor();
+  setupAudio();
   setupSkillCheck();
   updateResources();
   startGameLoop();
@@ -287,6 +290,7 @@ function setupSettings() {
   bgmVolume.value = Math.round(state.settings.bgm * 100);
   bgmVolume.addEventListener('input', (e) => {
     state.settings.bgm = Number(e.target.value) / 100;
+    updateBGMVolume();
   });
   const sfxVolume = document.getElementById('sfx-volume');
   sfxVolume.value = Math.round(state.settings.sfx * 100);
@@ -294,6 +298,7 @@ function setupSettings() {
     state.settings.sfx = Number(e.target.value) / 100;
   });
   applyDisplaySettings();
+  updateBGMVolume();
 }
 
 function applyDisplaySettings() {
@@ -1056,6 +1061,10 @@ function setupCursor() {
     updateCursorPosition(event.clientX, event.clientY);
   });
   document.addEventListener('pointerdown', (event) => {
+    const insideNodeArea = !!UI.nodeArea && (event.target === UI.nodeArea || UI.nodeArea.contains(event.target));
+    if (insideNodeArea) {
+      return;
+    }
     cursor.classList.add('active');
     spawnCursorPulse(event.clientX, event.clientY);
   });
@@ -1067,12 +1076,50 @@ function setupCursor() {
   });
 }
 
+function setupAudio() {
+  bgmAudio = document.getElementById('bgm');
+  if (!bgmAudio) return;
+  const handleUnlock = () => {
+    document.removeEventListener('pointerdown', handleUnlock);
+    document.removeEventListener('keydown', handleUnlock);
+    if (!bgmAudio) return;
+    updateBGMVolume();
+    const playPromise = bgmAudio.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise
+        .then(() => {
+          audioUnlocked = true;
+        })
+        .catch(() => {
+          audioUnlocked = false;
+          attachListeners();
+        });
+    } else {
+      audioUnlocked = true;
+    }
+  };
+  const attachListeners = () => {
+    if (audioUnlocked) return;
+    document.addEventListener('pointerdown', handleUnlock, { once: true });
+    document.addEventListener('keydown', handleUnlock, { once: true });
+  };
+  attachListeners();
+  updateBGMVolume();
+}
+
+function updateBGMVolume() {
+  if (!bgmAudio) return;
+  const volume = Math.min(1, Math.max(0, state.settings.bgm));
+  bgmAudio.volume = volume;
+}
+
 function spawnCursorPulse(x, y) {
   if (state.settings.reducedAnimation) return;
   const pulse = document.createElement('div');
   pulse.className = 'cursor-pulse';
   pulse.style.left = `${x}px`;
   pulse.style.top = `${y}px`;
+  pulse.style.imageRendering = 'pixelated';
   document.body.appendChild(pulse);
   pulse.addEventListener('animationend', () => pulse.remove());
 }
@@ -1345,11 +1392,30 @@ function strikeNode(node) {
   }
   damage = Math.max(damage, 1);
   node.hp -= damage;
+  triggerNodeDamageEffect(node);
   createFloatText(node.el, `-${Math.round(damage)}`);
   if (node.hp <= 0) {
     destroyNode(node);
   } else {
     updateNodeElement(node);
+  }
+}
+
+function triggerNodeDamageEffect(node) {
+  if (!node || !node.el || state.settings.reducedAnimation) return;
+  const baseTransform = node.el.style.transform || '';
+  try {
+    node.el.animate(
+      [
+        { transform: baseTransform },
+        { transform: `${baseTransform} translate3d(-3px, 2px, 0)` },
+        { transform: `${baseTransform} translate3d(3px, -2px, 0)` },
+        { transform: baseTransform },
+      ],
+      { duration: 200, easing: 'steps(3, end)' }
+    );
+  } catch (err) {
+    node.el.style.transform = baseTransform;
   }
 }
 
