@@ -172,6 +172,26 @@ body.disable-scanlines #crt-overlay {
   color: var(--accent);
 }
 
+.title-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.version-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: var(--pixel-border) solid rgba(127, 255, 214, 0.45);
+  background: rgba(7, 12, 24, 0.65);
+  box-shadow: var(--pixel-shadow);
+}
+
 .resource-bar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -219,43 +239,6 @@ body.disable-scanlines #crt-overlay {
   font-size: 0.95rem;
   text-transform: uppercase;
   color: var(--muted);
-}
-
-.progress-wrapper {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 12px;
-  align-items: center;
-}
-
-.progress-label {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.progress-bar {
-  position: relative;
-  width: 100%;
-  height: 14px;
-  background: repeating-linear-gradient(90deg, rgba(6, 10, 18, 0.9) 0 6px, rgba(10, 16, 28, 0.9) 6px 12px);
-  border: var(--pixel-border) solid rgba(127, 255, 214, 0.26);
-  overflow: hidden;
-  image-rendering: pixelated;
-}
-
-.progress-fill {
-  height: 100%;
-  width: 0;
-  background: linear-gradient(90deg, rgba(118, 244, 198, 0.9), rgba(70, 234, 186, 0.9));
-  box-shadow: none;
-  transition: width var(--transition-fast) linear;
-}
-
-.progress-timer {
-  text-align: right;
-  width: 70px;
-  font-size: 0.88rem;
 }
 
 .node-area {
@@ -1205,116 +1188,66 @@ button.automation-node {
   image-rendering: pixelated;
 }
 
-.cursor-ring {
+.cursor-square {
   position: relative;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
-  border: var(--pixel-border) solid rgba(127, 255, 214, 0.55);
-  background: radial-gradient(circle, rgba(127, 255, 214, 0.2) 0%, rgba(7, 10, 18, 0.15) 55%, rgba(7, 10, 18, 0.05) 100%);
-  transition: border-color var(--transition-fast) ease, transform var(--transition-fast) ease,
-    background var(--transition-fast) ease;
+  border: var(--pixel-border) solid rgba(127, 255, 214, 0.75);
+  background: transparent;
   display: grid;
   place-items: center;
-  overflow: visible;
+  box-shadow: 0 0 10px rgba(127, 255, 214, 0.4);
+  transition: border-color var(--transition-fast) ease, box-shadow var(--transition-fast) ease,
+    transform var(--transition-fast) ease, background var(--transition-fast) ease;
 }
 
-.cursor-ring::before,
-.cursor-ring::after {
-  content: '';
-  position: absolute;
-  background: rgba(127, 255, 214, 0.4);
-  transition: opacity var(--transition-fast) ease;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.cursor-ring::before {
-  width: 50%;
-  height: 2px;
-}
-
-.cursor-ring::after {
-  width: 2px;
-  height: 50%;
-}
-
-.cursor-core {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: var(--pixel-border) solid rgba(4, 8, 18, 0.8);
-  background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
-  box-shadow: 0 0 8px rgba(127, 255, 214, 0.65);
-  transition: transform var(--transition-fast) ease, box-shadow var(--transition-fast) ease,
-    background var(--transition-fast) ease;
-}
-
-.cursor-tail {
-  position: absolute;
-  bottom: -24%;
-  left: 50%;
-  width: 10px;
-  height: 42%;
-  transform: translateX(-50%);
-  border-radius: 6px;
-  border: var(--pixel-border) solid rgba(127, 255, 214, 0.5);
-  background: linear-gradient(180deg, rgba(127, 255, 214, 0.3) 0%, rgba(15, 24, 36, 0.8) 100%);
-  box-shadow: 0 4px 8px rgba(3, 10, 18, 0.6);
-  transition: border-color var(--transition-fast) ease, background var(--transition-fast) ease,
+.cursor-dot {
+  width: 6px;
+  height: 6px;
+  border: var(--pixel-border) solid rgba(4, 8, 18, 0.9);
+  background: rgba(127, 255, 214, 0.85);
+  box-shadow: 0 0 6px rgba(127, 255, 214, 0.6);
+  transition: transform var(--transition-fast) ease, background var(--transition-fast) ease,
     box-shadow var(--transition-fast) ease;
-  z-index: -1;
 }
 
-.cursor-tail::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  width: 14px;
-  height: 14px;
-  transform: translate(-50%, -30%) rotate(45deg);
-  border-radius: 4px;
-  border: var(--pixel-border) solid rgba(127, 255, 214, 0.5);
-  background: linear-gradient(135deg, rgba(127, 255, 214, 0.4) 0%, rgba(7, 12, 24, 0.85) 100%);
-  box-shadow: 0 0 6px rgba(127, 255, 214, 0.45);
+#custom-cursor.active .cursor-square {
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.7);
+  transform: scale(0.94);
+  background: rgba(127, 255, 214, 0.1);
 }
 
-#custom-cursor.active .cursor-ring {
-  transform: scale(0.92);
-  border-color: rgba(255, 255, 255, 0.7);
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0%, rgba(127, 255, 214, 0.24) 55%, rgba(7, 10, 18, 0.08) 100%);
-}
-
-#custom-cursor.active .cursor-core {
-  transform: scale(1.2);
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
+#custom-cursor.active .cursor-dot {
   background: #ffffff;
-}
-
-#custom-cursor.active .cursor-ring::before,
-#custom-cursor.active .cursor-ring::after {
-  background: rgba(255, 255, 255, 0.65);
-}
-
-#custom-cursor.active .cursor-tail {
-  border-color: rgba(255, 255, 255, 0.6);
-  background: linear-gradient(180deg, rgba(127, 255, 214, 0.45) 0%, rgba(15, 24, 36, 0.85) 100%);
-  box-shadow: 0 6px 12px rgba(3, 10, 18, 0.75);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  transform: scale(1.2);
 }
 
 .cursor-pulse {
   position: fixed;
   width: var(--cursor-size, 32px);
   height: var(--cursor-size, 32px);
-  border-radius: 50%;
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.45);
-  background: radial-gradient(circle, rgba(127, 255, 214, 0.35) 0%, rgba(127, 255, 214, 0.08) 60%, rgba(127, 255, 214, 0) 100%);
-  transform: translate(-50%, -50%) scale(0.7);
+  background: transparent;
+  transform: translate(-50%, -50%) scale(0.8);
   animation: cursor-pulse 0.4s steps(4, end) forwards;
   pointer-events: none;
   z-index: 99;
+  image-rendering: pixelated;
+}
+
+.cursor-pulse::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  border: var(--pixel-border) solid rgba(4, 8, 18, 0.8);
+  background: rgba(127, 255, 214, 0.7);
+  opacity: 0.9;
 }
 
 .tooltip {
