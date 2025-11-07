@@ -2,57 +2,70 @@ const TICK_RATE = 1000 / 60;
 const BOSS_TIMER = 60;
 const NODE_SIZE = 82;
 
-const state = {
-  bits: 0,
-  cryptcoins: 0,
-  prestige: 0,
-  xp: 0,
-  level: 1,
-  lp: 0,
-  levelXP: 0,
-  xpForNext: 100,
-  health: 100,
-  maxHealth: 100,
-  nodesDestroyed: {
-    red: 0,
-    blue: 0,
-    gold: 0,
-  },
-  bossKills: 0,
-  currentLevel: {
-    index: 1,
-    timer: BOSS_TIMER,
-    active: true,
-    bossActive: false,
-    bossHP: 0,
-    bossMaxHP: 0,
-  },
-  upgrades: {},
-  weirdSkillsPurchased: 0,
-  labUnlocked: false,
-  labProgress: 0,
-  labSpeed: 0,
-  labDeposited: 0,
-  crypto: {
-    deposit: 0,
-    rate: 0,
-    timeRemaining: 0,
-  },
-  skins: {
-    owned: new Set(['default']),
-    active: 'default',
-  },
-  automationSkills: {},
-  settings: {
-    crt: true,
-    scanlines: true,
-    screenShake: 50,
-    bgm: 0.5,
-    sfx: 0.7,
-    palette: 'default',
-    reducedAnimation: false,
-  },
-};
+function createInitialState() {
+  return {
+    bits: 0,
+    cryptcoins: 0,
+    prestige: 0,
+    xp: 0,
+    level: 1,
+    lp: 0,
+    levelXP: 0,
+    xpForNext: 100,
+    health: 100,
+    maxHealth: 100,
+    nodesDestroyed: {
+      red: 0,
+      blue: 0,
+      gold: 0,
+    },
+    bossKills: 0,
+    currentLevel: {
+      index: 1,
+      timer: BOSS_TIMER,
+      active: true,
+      bossActive: false,
+      bossHP: 0,
+      bossMaxHP: 0,
+    },
+    upgrades: {},
+    weirdSkillsPurchased: 0,
+    labUnlocked: false,
+    labProgress: 0,
+    labSpeed: 0,
+    labDeposited: 0,
+    crypto: {
+      deposit: 0,
+      rate: 0,
+      timeRemaining: 0,
+    },
+    skins: {
+      owned: new Set(['default']),
+      active: 'default',
+    },
+    automationSkills: {},
+    settings: {
+      crt: true,
+      scanlines: true,
+      screenShake: 50,
+      bgm: 0.5,
+      sfx: 0.7,
+      palette: 'default',
+      reducedAnimation: false,
+    },
+    selectedUpgradeFilter: 'damage',
+    lastSavedAt: null,
+  };
+}
+
+const state = createInitialState();
+
+const SAVE_KEY = 'ins-progress-v1';
+const AUTO_SAVE_INTERVAL = 15000;
+const DEFAULT_STATE_SERIALIZED = JSON.stringify(createInitialState(), stateReplacer);
+let autoSaveHandle = null;
+let saveTimeout = null;
+let saveStatusTimer = null;
 
 const stats = {
   baseDamage: 5,
@@ -154,19 +167,20 @@ let audioUnlocked = false;
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
-  setupTabs();
-  setupFilters();
-  setupSettings();
   generateSkins();
   generateUpgrades();
   generateAutomationSkills();
   generateMilestones();
   generateAchievements();
+  loadGame();
+  setupTabs();
+  setupFilters();
+  applySavedUpgradeFilter();
+  setupSettings();
   renderSkins();
-  renderUpgrades();
-  renderAutomationTree();
   renderMilestones();
   renderAchievements();
+  renderAutomationTree();
   initTooltip();
   setupCryptoControls();
   setupLabControls();
@@ -174,7 +188,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCursor();
   setupAudio();
   setupSkillCheck();
+  syncLabVisibility();
+  updateStats();
   updateResources();
+  setupPersistence();
   startGameLoop();
 });
 
@@ -208,6 +225,10 @@ function cacheElements() {
   UI.toggleCRT = document.getElementById('toggle-crt');
   UI.skinGrid = document.getElementById('skin-grid');
   UI.automationTree = document.getElementById('automation-tree');
+  UI.saveGame = document.getElementById('save-game');
+  UI.newGame = document.getElementById('new-game');
+  UI.saveStatus = document.getElementById('save-status');
+  UI.saveTimestamp = document.getElementById('save-timestamp');
   UI.customCursor = document.getElementById('custom-cursor');
   UI.skillCheck = document.getElementById('skill-check');
   UI.skillCheckProgress = document.getElementById('skill-check-progress');
@@ -218,6 +239,328 @@ function cacheElements() {
   UI.levelDialogSummary = document.getElementById('level-dialog-summary');
   UI.levelContinue = document.getElementById('level-continue');
   UI.levelReplay = document.getElementById('level-replay');
+}
+
+function setupPersistence() {
+  if (UI.saveGame) {
+    UI.saveGame.addEventListener('click', () => {
+      saveGame({ notify: true });
+    });
+  }
+  if (UI.newGame) {
+    UI.newGame.addEventListener('click', () => {
+      const confirmed = window.confirm('Start a new simulation? This will erase your current progress.');
+      if (!confirmed) return;
+      startNewGame();
+    });
+  }
+  if (!autoSaveHandle) {
+    autoSaveHandle = setInterval(() => saveGame(), AUTO_SAVE_INTERVAL);
+  }
+  window.addEventListener('beforeunload', () => {
+    flushSaveQueue();
+    saveGame();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushSaveQueue();
+      saveGame();
+    }
+  });
+}
+
+function applySavedUpgradeFilter() {
+  const buttons = Array.from(document.querySelectorAll('.filter'));
+  if (buttons.length === 0) {
+    renderUpgrades('damage');
+    return;
+  }
+  const desired = state.selectedUpgradeFilter || 'damage';
+  let matched = false;
+  buttons.forEach((btn) => {
+    if (btn.dataset.filter === desired) {
+      btn.classList.add('active');
+      matched = true;
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  const activeFilter = matched ? desired : buttons[0].dataset.filter;
+  if (!matched) {
+    buttons.forEach((btn, index) => {
+      if (index === 0) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    state.selectedUpgradeFilter = activeFilter;
+    queueSave();
+  }
+  renderUpgrades(activeFilter);
+}
+
+function loadGame() {
+  let data = null;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) {
+        data = JSON.parse(raw);
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load save data', error);
+  }
+  hydrateState(data || {});
+  syncLabVisibility();
+}
+
+function hydrateState(source = {}) {
+  const defaults = getDefaultState();
+  const mergedNodes = { ...defaults.nodesDestroyed, ...(source.nodesDestroyed || {}) };
+  const mergedLevel = { ...defaults.currentLevel, ...(source.currentLevel || {}) };
+  const mergedCrypto = { ...defaults.crypto, ...(source.crypto || {}) };
+  const mergedSettings = { ...defaults.settings, ...(source.settings || {}) };
+  const mergedAutomation = { ...defaults.automationSkills, ...(source.automationSkills || {}) };
+  const mergedUpgrades = { ...(defaults.upgrades || {}), ...(source.upgrades || {}) };
+  const mergedSkins = {
+    active: (source.skins && source.skins.active) || defaults.skins.active,
+    owned: (source.skins && source.skins.owned) || defaults.skins.owned,
+  };
+
+  state.bits = Number.isFinite(Number(source.bits)) ? Number(source.bits) : defaults.bits;
+  state.cryptcoins = Number.isFinite(Number(source.cryptcoins)) ? Number(source.cryptcoins) : defaults.cryptcoins;
+  state.prestige = Number.isFinite(Number(source.prestige)) ? Number(source.prestige) : defaults.prestige;
+  state.xp = Number.isFinite(Number(source.xp)) ? Number(source.xp) : defaults.xp;
+  state.level = Math.max(1, Number.isFinite(Number(source.level)) ? Number(source.level) : defaults.level);
+  state.lp = Number.isFinite(Number(source.lp)) ? Number(source.lp) : defaults.lp;
+  state.levelXP = Number.isFinite(Number(source.levelXP)) ? Number(source.levelXP) : defaults.levelXP;
+  state.xpForNext = Math.max(1, Number.isFinite(Number(source.xpForNext)) ? Number(source.xpForNext) : defaults.xpForNext);
+  state.health = Number.isFinite(Number(source.health)) ? Number(source.health) : defaults.health;
+  state.maxHealth = Number.isFinite(Number(source.maxHealth)) ? Number(source.maxHealth) : defaults.maxHealth;
+  state.nodesDestroyed = {
+    red: Math.max(0, Number.isFinite(Number(mergedNodes.red)) ? Number(mergedNodes.red) : defaults.nodesDestroyed.red),
+    blue: Math.max(0, Number.isFinite(Number(mergedNodes.blue)) ? Number(mergedNodes.blue) : defaults.nodesDestroyed.blue),
+    gold: Math.max(0, Number.isFinite(Number(mergedNodes.gold)) ? Number(mergedNodes.gold) : defaults.nodesDestroyed.gold),
+  };
+  state.bossKills = Number.isFinite(Number(source.bossKills)) ? Number(source.bossKills) : defaults.bossKills;
+  state.currentLevel = {
+    index: Math.max(1, Number.isFinite(Number(mergedLevel.index)) ? Number(mergedLevel.index) : defaults.currentLevel.index),
+    timer: Number.isFinite(Number(mergedLevel.timer)) ? Number(mergedLevel.timer) : defaults.currentLevel.timer,
+    active: coerceBoolean(mergedLevel.active, defaults.currentLevel.active),
+    bossActive: coerceBoolean(mergedLevel.bossActive, defaults.currentLevel.bossActive),
+    bossHP: Number.isFinite(Number(mergedLevel.bossHP)) ? Number(mergedLevel.bossHP) : defaults.currentLevel.bossHP,
+    bossMaxHP: Number.isFinite(Number(mergedLevel.bossMaxHP)) ? Number(mergedLevel.bossMaxHP) : defaults.currentLevel.bossMaxHP,
+  };
+  const sanitizedUpgrades = {};
+  Object.entries(mergedUpgrades).forEach(([id, level]) => {
+    const numeric = Number(level);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      sanitizedUpgrades[id] = numeric;
+    }
+  });
+  state.upgrades = sanitizedUpgrades;
+  state.weirdSkillsPurchased = Math.max(
+    0,
+    Number.isFinite(Number(source.weirdSkillsPurchased)) ? Number(source.weirdSkillsPurchased) : defaults.weirdSkillsPurchased,
+  );
+  state.labUnlocked = coerceBoolean(source.labUnlocked, defaults.labUnlocked);
+  state.labProgress = Math.max(0, Number.isFinite(Number(source.labProgress)) ? Number(source.labProgress) : defaults.labProgress);
+  state.labSpeed = Math.max(0, Number.isFinite(Number(source.labSpeed)) ? Number(source.labSpeed) : defaults.labSpeed);
+  state.labDeposited = Math.max(0, Number.isFinite(Number(source.labDeposited)) ? Number(source.labDeposited) : defaults.labDeposited);
+  state.crypto = {
+    deposit: Math.max(0, Number.isFinite(Number(mergedCrypto.deposit)) ? Number(mergedCrypto.deposit) : defaults.crypto.deposit),
+    rate: Math.max(0, Number.isFinite(Number(mergedCrypto.rate)) ? Number(mergedCrypto.rate) : defaults.crypto.rate),
+    timeRemaining: Math.max(
+      0,
+      Number.isFinite(Number(mergedCrypto.timeRemaining)) ? Number(mergedCrypto.timeRemaining) : defaults.crypto.timeRemaining,
+    ),
+  };
+  state.skins = {
+    active: typeof mergedSkins.active === 'string' ? mergedSkins.active : defaults.skins.active,
+    owned: new Set(Array.isArray(mergedSkins.owned) ? mergedSkins.owned : defaults.skins.owned),
+  };
+  if (!state.skins.owned.has('default')) {
+    state.skins.owned.add('default');
+  }
+  const sanitizedAutomation = {};
+  Object.entries(mergedAutomation).forEach(([id, purchased]) => {
+    if (purchased) {
+      sanitizedAutomation[id] = true;
+    }
+  });
+  state.automationSkills = sanitizedAutomation;
+  state.settings = {
+    crt: coerceBoolean(mergedSettings.crt, defaults.settings.crt),
+    scanlines: coerceBoolean(mergedSettings.scanlines, defaults.settings.scanlines),
+    screenShake: Number.isFinite(Number(mergedSettings.screenShake))
+      ? Number(mergedSettings.screenShake)
+      : defaults.settings.screenShake,
+    bgm: Number.isFinite(Number(mergedSettings.bgm)) ? Number(mergedSettings.bgm) : defaults.settings.bgm,
+    sfx: Number.isFinite(Number(mergedSettings.sfx)) ? Number(mergedSettings.sfx) : defaults.settings.sfx,
+    palette: typeof mergedSettings.palette === 'string' ? mergedSettings.palette : defaults.settings.palette,
+    reducedAnimation: coerceBoolean(mergedSettings.reducedAnimation, defaults.settings.reducedAnimation),
+  };
+  state.selectedUpgradeFilter = typeof source.selectedUpgradeFilter === 'string'
+    ? source.selectedUpgradeFilter
+    : defaults.selectedUpgradeFilter;
+  const lastSavedCandidate = Number(source.lastSavedAt);
+  state.lastSavedAt = Number.isFinite(lastSavedCandidate) && lastSavedCandidate > 0 ? lastSavedCandidate : defaults.lastSavedAt;
+  state.health = Math.min(state.maxHealth, Math.max(0, state.health));
+  updateSaveTimestamp();
+}
+
+function getDefaultState() {
+  try {
+    return JSON.parse(DEFAULT_STATE_SERIALIZED);
+  } catch (error) {
+    console.warn('Failed to parse default state snapshot', error);
+    return JSON.parse(JSON.stringify(createInitialState(), stateReplacer));
+  }
+}
+
+function stateReplacer(key, value) {
+  if (value instanceof Set) {
+    return Array.from(value);
+  }
+  return value;
+}
+
+function coerceBoolean(value, fallback) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase();
+    if (lower === 'true') return true;
+    if (lower === 'false') return false;
+  }
+  return fallback;
+}
+
+function saveGame(options = {}) {
+  const { notify = false, message } = options;
+  const previous = state.lastSavedAt;
+  try {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    const now = Date.now();
+    state.lastSavedAt = now;
+    const payload = JSON.stringify(state, stateReplacer);
+    localStorage.setItem(SAVE_KEY, payload);
+    updateSaveTimestamp();
+    if (notify) {
+      showSaveStatus(message || 'Progress saved');
+    }
+  } catch (error) {
+    state.lastSavedAt = previous;
+    updateSaveTimestamp();
+    console.warn('Failed to save game', error);
+    if (notify) {
+      showSaveStatus('Save failed', 'error');
+    }
+  }
+}
+
+function queueSave(delay = 1000) {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+  }
+  saveTimeout = setTimeout(() => {
+    saveTimeout = null;
+    saveGame();
+  }, delay);
+}
+
+function flushSaveQueue() {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+}
+
+function showSaveStatus(text, type = 'info') {
+  if (!UI.saveStatus) return;
+  UI.saveStatus.textContent = text;
+  UI.saveStatus.classList.toggle('error', type === 'error');
+  UI.saveStatus.classList.add('visible');
+  if (saveStatusTimer) {
+    clearTimeout(saveStatusTimer);
+  }
+  saveStatusTimer = setTimeout(() => {
+    if (UI.saveStatus) {
+      UI.saveStatus.classList.remove('visible');
+    }
+    saveStatusTimer = null;
+  }, 3200);
+}
+
+function updateSaveTimestamp() {
+  if (!UI.saveTimestamp) {
+    return;
+  }
+  if (!state.lastSavedAt) {
+    UI.saveTimestamp.textContent = 'never';
+    UI.saveTimestamp.removeAttribute('title');
+    return;
+  }
+  const date = new Date(state.lastSavedAt);
+  if (Number.isNaN(date.getTime())) {
+    UI.saveTimestamp.textContent = 'never';
+    UI.saveTimestamp.removeAttribute('title');
+    return;
+  }
+  UI.saveTimestamp.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  UI.saveTimestamp.title = date.toLocaleString();
+}
+
+function startNewGame() {
+  hydrateState(getDefaultState());
+  activeNodes.forEach((node) => node.el.remove());
+  activeNodes.clear();
+  if (activeBoss?.el) {
+    activeBoss.el.remove();
+  }
+  activeBoss = null;
+  nodeSpawnTimer = 0;
+  autoClickTimer = 0;
+  state.currentLevel.timer = BOSS_TIMER;
+  state.currentLevel.active = true;
+  state.currentLevel.bossActive = false;
+  state.health = state.maxHealth;
+  hideLevelDialog();
+  applySavedUpgradeFilter();
+  renderSkins();
+  renderMilestones();
+  renderAchievements();
+  renderAutomationTree();
+  syncLabVisibility();
+  applySettingsToControls();
+  applyDisplaySettings();
+  updateBGMVolume();
+  updateStats();
+  updateResources();
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(SAVE_KEY);
+    }
+  } catch (error) {
+    console.warn('Failed to clear save data', error);
+  }
+  saveGame({ notify: true, message: 'Progress reset' });
+}
+
+function syncLabVisibility() {
+  if (!UI.labLocked || !UI.labPanel) return;
+  if (state.labUnlocked) {
+    UI.labLocked.classList.add('hidden');
+    UI.labPanel.classList.remove('hidden');
+  } else {
+    UI.labLocked.classList.remove('hidden');
+    UI.labPanel.classList.add('hidden');
+  }
 }
 
 function setupTabs() {
@@ -243,62 +586,86 @@ function setupFilters() {
       filters.forEach((f) => f.classList.remove('active'));
       filter.classList.add('active');
       const value = filter.dataset.filter;
+      if (state.selectedUpgradeFilter !== value) {
+        state.selectedUpgradeFilter = value;
+        queueSave();
+      }
       renderUpgrades(value);
     });
   });
 }
 
 function setupSettings() {
-  UI.toggleCRT.addEventListener('click', () => {
-    state.settings.crt = !state.settings.crt;
-    UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
-    applyDisplaySettings();
-  });
+  if (UI.toggleCRT) {
+    UI.toggleCRT.addEventListener('click', () => {
+      state.settings.crt = !state.settings.crt;
+      const crtToggle = document.getElementById('crt-toggle');
+      if (crtToggle) {
+        crtToggle.checked = state.settings.crt;
+      }
+      UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
+      applyDisplaySettings();
+      queueSave();
+    });
+  }
   const screenShake = document.getElementById('screen-shake');
-  screenShake.value = state.settings.screenShake;
-  screenShake.addEventListener('input', (e) => {
-    state.settings.screenShake = Number(e.target.value);
-  });
+  if (screenShake) {
+    screenShake.addEventListener('input', (e) => {
+      state.settings.screenShake = Number(e.target.value);
+      queueSave();
+    });
+  }
   const crtToggle = document.getElementById('crt-toggle');
-  crtToggle.checked = state.settings.crt;
-  crtToggle.addEventListener('change', (e) => {
-    state.settings.crt = e.target.checked;
-    UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
-    applyDisplaySettings();
-  });
+  if (crtToggle) {
+    crtToggle.addEventListener('change', (e) => {
+      state.settings.crt = e.target.checked;
+      if (UI.toggleCRT) {
+        UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
+      }
+      applyDisplaySettings();
+      queueSave();
+    });
+  }
   const scanlineToggle = document.getElementById('scanline-toggle');
-  scanlineToggle.checked = state.settings.scanlines;
-  scanlineToggle.addEventListener('change', (e) => {
-    state.settings.scanlines = e.target.checked;
-    applyDisplaySettings();
-  });
+  if (scanlineToggle) {
+    scanlineToggle.addEventListener('change', (e) => {
+      state.settings.scanlines = e.target.checked;
+      applyDisplaySettings();
+      queueSave();
+    });
+  }
   const reduceAnimationToggle = document.getElementById('reduce-animation');
-  reduceAnimationToggle.checked = state.settings.reducedAnimation;
-  reduceAnimationToggle.addEventListener('change', (e) => {
-    state.settings.reducedAnimation = e.target.checked;
-    applyDisplaySettings();
-  });
+  if (reduceAnimationToggle) {
+    reduceAnimationToggle.addEventListener('change', (e) => {
+      state.settings.reducedAnimation = e.target.checked;
+      applyDisplaySettings();
+      queueSave();
+    });
+  }
   const paletteSelect = document.getElementById('palette-select');
-  paletteSelect.value = state.settings.palette;
-  paletteSelect.addEventListener('change', (e) => {
-    document.body.classList.remove('palette-default', 'palette-violet', 'palette-emerald');
-    const palette = e.target.value;
-    state.settings.palette = palette;
-    if (palette !== 'default') {
-      document.body.classList.add(`palette-${palette}`);
-    }
-  });
+  if (paletteSelect) {
+    paletteSelect.addEventListener('change', (e) => {
+      state.settings.palette = e.target.value;
+      applyDisplaySettings();
+      queueSave();
+    });
+  }
   const bgmVolume = document.getElementById('bgm-volume');
-  bgmVolume.value = Math.round(state.settings.bgm * 100);
-  bgmVolume.addEventListener('input', (e) => {
-    state.settings.bgm = Number(e.target.value) / 100;
-    updateBGMVolume();
-  });
+  if (bgmVolume) {
+    bgmVolume.addEventListener('input', (e) => {
+      state.settings.bgm = Number(e.target.value) / 100;
+      updateBGMVolume();
+      queueSave();
+    });
+  }
   const sfxVolume = document.getElementById('sfx-volume');
-  sfxVolume.value = Math.round(state.settings.sfx * 100);
-  sfxVolume.addEventListener('input', (e) => {
-    state.settings.sfx = Number(e.target.value) / 100;
-  });
+  if (sfxVolume) {
+    sfxVolume.addEventListener('input', (e) => {
+      state.settings.sfx = Number(e.target.value) / 100;
+      queueSave();
+    });
+  }
+  applySettingsToControls();
   applyDisplaySettings();
   updateBGMVolume();
 }
@@ -312,6 +679,40 @@ function applyDisplaySettings() {
     document.body.classList.add(`palette-${state.settings.palette}`);
   }
   UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
+}
+
+function applySettingsToControls() {
+  const screenShake = document.getElementById('screen-shake');
+  if (screenShake) {
+    screenShake.value = state.settings.screenShake;
+  }
+  const crtToggle = document.getElementById('crt-toggle');
+  if (crtToggle) {
+    crtToggle.checked = state.settings.crt;
+  }
+  const scanlineToggle = document.getElementById('scanline-toggle');
+  if (scanlineToggle) {
+    scanlineToggle.checked = state.settings.scanlines;
+  }
+  const reduceAnimationToggle = document.getElementById('reduce-animation');
+  if (reduceAnimationToggle) {
+    reduceAnimationToggle.checked = state.settings.reducedAnimation;
+  }
+  const paletteSelect = document.getElementById('palette-select');
+  if (paletteSelect) {
+    paletteSelect.value = state.settings.palette;
+  }
+  const bgmVolume = document.getElementById('bgm-volume');
+  if (bgmVolume) {
+    bgmVolume.value = Math.round(state.settings.bgm * 100);
+  }
+  const sfxVolume = document.getElementById('sfx-volume');
+  if (sfxVolume) {
+    sfxVolume.value = Math.round(state.settings.sfx * 100);
+  }
+  if (UI.toggleCRT) {
+    UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
+  }
 }
 
 function generateSkins() {
@@ -359,10 +760,12 @@ function renderSkins() {
           state.skins.active = skin.id;
           renderSkins();
           updateResources();
+          queueSave();
         }
       } else {
         state.skins.active = skin.id;
         renderSkins();
+        queueSave();
       }
     });
     card.append(preview, title, desc, cost, button);
@@ -495,14 +898,17 @@ function romanNumeral(num) {
   return result;
 }
 
-function renderUpgrades(filter = 'all') {
+function renderUpgrades(filter) {
   if (!UI.skillTree) return;
+  const buttonFilter = document.querySelector('.filter.active')?.dataset.filter;
+  const activeFilter = filter || state.selectedUpgradeFilter || buttonFilter || 'damage';
+  state.selectedUpgradeFilter = activeFilter;
   UI.skillTree.innerHTML = '';
   const fragment = document.createDocumentFragment();
   const branchMap = new Map();
   const branchCounters = new Map();
   upgrades.forEach((upgrade) => {
-    if (filter !== 'all' && upgrade.category !== filter) {
+    if (activeFilter !== 'all' && upgrade.category !== activeFilter) {
       return;
     }
     const level = state.upgrades[upgrade.id] || 0;
@@ -728,6 +1134,7 @@ function purchaseAutomationSkill(skill) {
   state.automationSkills[skill.id] = true;
   updateStats();
   updateResources();
+  queueSave();
 }
 
 function drawAutomationConnectors() {
@@ -815,6 +1222,7 @@ function attemptPurchase(upgrade) {
     updateResources();
     renderUpgrades(document.querySelector('.filter.active').dataset.filter);
     maybeStartSkillCheck(upgrade, cost);
+    queueSave();
   }
 }
 
@@ -986,6 +1394,7 @@ function setupCryptoControls() {
       state.crypto.timeRemaining = 0;
       updateCryptoUI();
       updateResources();
+      queueSave();
     }
   });
 }
@@ -998,6 +1407,7 @@ function depositToCrypto(amount) {
     state.crypto.timeRemaining = Math.max(10, Math.log(state.crypto.deposit + 1) * 30);
     updateCryptoUI();
     updateResources();
+    queueSave();
   }
 }
 
@@ -1024,6 +1434,7 @@ function setupLabControls() {
       state.labSpeed = Math.sqrt(state.labDeposited) / 5 + state.weirdSkillsPurchased * 0.25;
       updateLabUI();
       updateResources();
+      queueSave();
     }
   });
   document.getElementById('breach-lab').addEventListener('click', () => {
@@ -1034,15 +1445,16 @@ function setupLabControls() {
       state.labSpeed = 0;
       updateLabUI();
       updateResources();
+      queueSave();
     }
   });
 }
 
 function unlockLab() {
   state.labUnlocked = true;
-  UI.labLocked.classList.add('hidden');
-  UI.labPanel.classList.remove('hidden');
+  syncLabVisibility();
   renderAchievements();
+  queueSave();
 }
 
 function updateLabUI() {
@@ -1833,6 +2245,7 @@ function defeatBoss() {
   const summary = `Recovered ${Math.round(rewardBits).toLocaleString()} bits, ${xp.toFixed(0)} XP, ${prestige.toFixed(0)} prestige.`;
   updateResources();
   showLevelDialog(summary);
+  queueSave();
 }
 
 function updateStats() {
@@ -1911,6 +2324,7 @@ function grantCryptcoins(amount) {
 
 function grantPrestige(amount) {
   state.prestige += amount;
+  queueSave();
 }
 
 function updateCrypto(delta) {
@@ -1921,6 +2335,7 @@ function updateCrypto(delta) {
   if (state.crypto.timeRemaining <= 0) {
     state.crypto.deposit = 0;
     state.crypto.rate = 0;
+    queueSave();
   }
   updateCryptoUI();
 }
