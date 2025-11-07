@@ -1026,6 +1026,10 @@ function updateLabUI() {
 }
 
 function setupLevelDialog() {
+  if (!UI.levelDialog) UI.levelDialog = document.getElementById('level-dialog');
+  if (!UI.levelDialogSummary) UI.levelDialogSummary = document.getElementById('level-dialog-summary');
+  if (!UI.levelContinue) UI.levelContinue = document.getElementById('level-continue');
+  if (!UI.levelReplay) UI.levelReplay = document.getElementById('level-replay');
   if (!UI.levelDialog || !UI.levelContinue || !UI.levelReplay) return;
   UI.levelContinue.addEventListener('click', () => {
     hideLevelDialog();
@@ -1038,13 +1042,19 @@ function setupLevelDialog() {
 }
 
 function showLevelDialog(summary) {
+  if (!UI.levelDialog) UI.levelDialog = document.getElementById('level-dialog');
+  if (!UI.levelDialogSummary) UI.levelDialogSummary = document.getElementById('level-dialog-summary');
+  if (!UI.levelContinue) UI.levelContinue = document.getElementById('level-continue');
   if (!UI.levelDialog || !UI.levelDialogSummary) return;
   UI.levelDialogSummary.textContent = summary;
   UI.levelDialog.classList.remove('hidden');
-  UI.levelContinue.focus();
+  if (UI.levelContinue) {
+    UI.levelContinue.focus({ preventScroll: true });
+  }
 }
 
 function hideLevelDialog() {
+  if (!UI.levelDialog) UI.levelDialog = document.getElementById('level-dialog');
   if (!UI.levelDialog) return;
   UI.levelDialog.classList.add('hidden');
 }
@@ -1375,7 +1385,7 @@ function performAutoClick() {
     const bossRect = activeBoss.el.getBoundingClientRect();
     if (pointerIntersectsRect(pointerRect, bossRect)) {
       triggerCursorClickAnimation(pointerX, pointerY);
-      damageBoss(0);
+      damageBoss();
       return;
     }
   }
@@ -1722,9 +1732,14 @@ function spawnBoss() {
   configureBossPath(activeBoss, true);
 }
 
-function damageBoss(playerDamage) {
+function getBossCursorDamage() {
+  // Boss damage is fixed to the base cursor power so upgrades and automation do not apply.
+  return Math.max(1, stats.baseDamage);
+}
+
+function damageBoss() {
   if (!state.currentLevel.bossActive) return;
-  const bossDamage = (stats.damage + playerDamage + stats.autoDamage) * (1 + stats.weirdSynergy);
+  const bossDamage = getBossCursorDamage();
   state.currentLevel.bossHP -= bossDamage;
   updateBossBar();
   if (state.currentLevel.bossHP <= 0) {

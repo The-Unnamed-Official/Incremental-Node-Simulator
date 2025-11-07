@@ -497,7 +497,10 @@ body.disable-scanlines #crt-overlay {
   grid-auto-columns: minmax(240px, 1fr);
   gap: 32px;
   padding: 14px 10px 18px 14px;
+  max-height: clamp(280px, 55vh, 520px);
   overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   image-rendering: pixelated;
 }
 
