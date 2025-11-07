@@ -223,7 +223,6 @@ function cacheElements() {
   UI.particleLayer = document.getElementById('particle-layer');
   UI.bitLayer = document.getElementById('bit-layer');
   UI.currentLevel = document.getElementById('current-level');
-  UI.health = document.getElementById('health-display');
   UI.versionDisplay = document.getElementById('version-display');
   if (UI.versionDisplay) {
     UI.versionDisplay.textContent = GAME_VERSION;
@@ -1972,7 +1971,8 @@ function strikeNode(node) {
 
 function triggerNodeDamageEffect(node) {
   if (!node || !node.el || state.settings.reducedAnimation) return;
-  const baseTransform = node.el.style.transform || '';
+  const baseTransform =
+    node.el.style.transform || window.getComputedStyle(node.el).transform || '';
   try {
     node.el.animate(
       [
@@ -2032,6 +2032,9 @@ function updateNodeElement(node) {
 
 function applyNodeTransform(node) {
   if (!node.el) return;
+  node.el.style.setProperty('--node-x', `${node.position.x}px`);
+  node.el.style.setProperty('--node-y', `${node.position.y}px`);
+  node.el.style.setProperty('--node-rotation', `${node.rotation}deg`);
   node.el.style.transform = `translate3d(${node.position.x}px, ${node.position.y}px, 0) rotate(${node.rotation}deg)`;
 }
 
@@ -2222,7 +2225,6 @@ function updateBoss(delta) {
     resetLevel(false);
   }
   updateBossBar();
-  UI.health.textContent = `${Math.round(state.health)} / ${Math.round(state.maxHealth)}`;
   activeBoss.position.x += activeBoss.velocity.x * delta;
   activeBoss.position.y += activeBoss.velocity.y * delta;
   activeBoss.rotation += activeBoss.rotationSpeed * delta;
@@ -2301,7 +2303,6 @@ function updateStats() {
   applyAutomationBonuses();
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
-  UI.health.textContent = `${Math.round(state.health)} / ${Math.round(state.maxHealth)}`;
   applyCursorSize();
 }
 
