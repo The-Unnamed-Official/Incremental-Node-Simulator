@@ -274,6 +274,10 @@ body.disable-scanlines #crt-overlay {
   will-change: transform;
   pointer-events: none;
   image-rendering: pixelated;
+  --node-x: 0px;
+  --node-y: 0px;
+  --node-rotation: 0deg;
+  transform: translate3d(var(--node-x), var(--node-y), 0) rotate(var(--node-rotation));
 }
 
 .node .core {
@@ -358,13 +362,13 @@ body.disable-scanlines #crt-overlay {
 
 @keyframes node-pulse {
   0% {
-    transform: scale(1);
+    transform: translate3d(var(--node-x), var(--node-y), 0) rotate(var(--node-rotation)) scale(1);
   }
   50% {
-    transform: scale(1.04);
+    transform: translate3d(var(--node-x), var(--node-y), 0) rotate(var(--node-rotation)) scale(1.04);
   }
   100% {
-    transform: scale(1);
+    transform: translate3d(var(--node-x), var(--node-y), 0) rotate(var(--node-rotation)) scale(1);
   }
 }
 
