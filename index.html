@@ -19,7 +19,7 @@
       <div class="title">
         <div class="title-heading">
           <h1>incremental node simulator</h1>
-          <span id="version-display" class="version-tag">v0.396</span>
+          <span id="version-display" class="version-tag">v0.401</span>
         </div>
         <button id="toggle-crt" class="pill">CRT ON</button>
       </div>
@@ -48,6 +48,7 @@
         <nav class="tabs">
           <button class="tab-button active" data-tab="upgrades">Upgrades</button>
           <button class="tab-button" data-tab="area">Damage Area</button>
+          <button class="tab-button" data-tab="spawn">Spawn Matrix</button>
           <button class="tab-button" data-tab="automation">Automation</button>
           <button class="tab-button" data-tab="milestones">Milestones</button>
           <button class="tab-button" data-tab="crypto">Crypto Mine</button>
@@ -80,6 +81,14 @@
             <p>Expand the pointer lattice so a single sweep can rake across more nodes at once.</p>
           </div>
           <div id="area-upgrade-grid" class="area-upgrade-grid" role="list"></div>
+        </section>
+
+        <section id="tab-spawn" class="tab-content">
+          <div class="area-header">
+            <h2>Spawn Matrix</h2>
+            <p>Refine the conduit that feeds new nodes into the field, amplifying spawn cadence and density.</p>
+          </div>
+          <div id="spawn-upgrade-grid" class="area-upgrade-grid" role="list"></div>
         </section>
 
         <section id="tab-automation" class="tab-content">
