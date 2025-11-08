@@ -383,6 +383,9 @@ function loadGame() {
   }
   hydrateState(data || {});
   syncLabVisibility();
+  if (state.currentLevel.bossActive) {
+    spawnBoss({ restore: true });
+  }
   if (UI.versionDisplay) {
     UI.versionDisplay.textContent = GAME_VERSION;
   }
@@ -429,7 +432,9 @@ function hydrateState(source = {}) {
   };
   const expectedTimer = getLevelDuration(state.currentLevel.index);
   state.currentLevel.timer = Math.min(expectedTimer, Math.max(0, state.currentLevel.timer || expectedTimer));
-  if (!state.currentLevel.bossActive && !state.currentLevel.active) {
+  if (state.currentLevel.bossActive) {
+    state.currentLevel.active = true;
+  } else if (!state.currentLevel.active) {
     state.currentLevel.active = true;
     if (state.currentLevel.timer <= 0) {
       state.currentLevel.timer = expectedTimer;
@@ -2729,12 +2734,32 @@ function resetLevel(increase = true) {
   updateResources();
 }
 
-function spawnBoss() {
-  const baseHP = getBossBaseHP(state.currentLevel.index);
-  const bossHP = Math.ceil(baseHP * stats.bossHPFactor);
-  state.currentLevel.bossActive = true;
-  state.currentLevel.bossHP = bossHP;
-  state.currentLevel.bossMaxHP = bossHP;
+function spawnBoss(options = {}) {
+  const { restore = false } = options;
+  let bossHP;
+  let bossMaxHP;
+  if (restore) {
+    bossMaxHP = Number.isFinite(Number(state.currentLevel.bossMaxHP))
+      ? Math.max(1, Number(state.currentLevel.bossMaxHP))
+      : NaN;
+    if (!Number.isFinite(bossMaxHP) || bossMaxHP <= 0) {
+      const baseHP = getBossBaseHP(state.currentLevel.index);
+      bossMaxHP = Math.ceil(baseHP * Math.max(1, stats.bossHPFactor || 1));
+    }
+    bossHP = Number.isFinite(Number(state.currentLevel.bossHP))
+      ? Math.max(0, Number(state.currentLevel.bossHP))
+      : bossMaxHP;
+    state.currentLevel.bossActive = true;
+    state.currentLevel.bossMaxHP = bossMaxHP;
+    state.currentLevel.bossHP = Math.min(bossMaxHP, bossHP);
+  } else {
+    const baseHP = getBossBaseHP(state.currentLevel.index);
+    bossHP = Math.ceil(baseHP * stats.bossHPFactor);
+    bossMaxHP = bossHP;
+    state.currentLevel.bossActive = true;
+    state.currentLevel.bossHP = bossHP;
+    state.currentLevel.bossMaxHP = bossMaxHP;
+  }
   const boss = document.createElement('div');
   boss.className = 'boss-node';
   const name = bossNames[(state.currentLevel.index - 1) % bossNames.length];
@@ -2752,6 +2777,7 @@ function spawnBoss() {
     size: 144,
   };
   configureBossPath(activeBoss, true);
+  updateBossBar();
 }
 
 function getBossCursorDamage() {
