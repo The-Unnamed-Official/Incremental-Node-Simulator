@@ -4,7 +4,7 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.324';
+const GAME_VERSION = 'v0.396';
 
 function getLevelDuration(levelIndex = 1) {
   const safeIndex = Math.max(1, levelIndex);
@@ -43,6 +43,7 @@ function createInitialState() {
       bossMaxHP: 0,
     },
     upgrades: {},
+    areaUpgrades: {},
     weirdSkillsPurchased: 0,
     labUnlocked: false,
     labProgress: 0,
@@ -159,6 +160,7 @@ const SKILL_CHECK_DIFFICULTIES = {
 };
 
 let upgrades = [];
+let areaUpgradeDefs = [];
 let milestones = [];
 let achievements = [];
 let skins = [];
@@ -183,17 +185,20 @@ document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
   generateSkins();
   generateUpgrades();
+  generateAreaUpgrades();
   generateAutomationSkills();
   generateMilestones();
   generateAchievements();
   loadGame();
   setupTabs();
   setupFilters();
+  setupProgressDock();
   applySavedUpgradeFilter();
   setupSettings();
   renderSkins();
   renderMilestones();
   renderAchievements();
+  renderAreaUpgrades();
   renderAutomationTree();
   initTooltip();
   setupCryptoControls();
@@ -229,6 +234,8 @@ function cacheElements() {
   }
   UI.milestoneList = document.getElementById('milestone-list');
   UI.achievementGrid = document.getElementById('achievement-grid');
+  UI.areaUpgradeGrid = document.getElementById('area-upgrade-grid');
+  UI.milestoneDock = document.getElementById('milestone-dock');
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
   UI.cryptoReturns = document.getElementById('crypto-returns');
   UI.cryptoTimer = document.getElementById('crypto-timer');
@@ -327,6 +334,7 @@ function hydrateState(source = {}) {
   const mergedSettings = { ...defaults.settings, ...(source.settings || {}) };
   const mergedAutomation = { ...defaults.automationSkills, ...(source.automationSkills || {}) };
   const mergedUpgrades = { ...(defaults.upgrades || {}), ...(source.upgrades || {}) };
+  const mergedArea = { ...(defaults.areaUpgrades || {}), ...(source.areaUpgrades || {}) };
   const mergedSkins = {
     active: (source.skins && source.skins.active) || defaults.skins.active,
     owned: (source.skins && source.skins.owned) || defaults.skins.owned,
@@ -366,6 +374,14 @@ function hydrateState(source = {}) {
     }
   });
   state.upgrades = sanitizedUpgrades;
+  const sanitizedArea = {};
+  Object.entries(mergedArea).forEach(([id, level]) => {
+    const numeric = Number(level);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      sanitizedArea[id] = numeric;
+    }
+  });
+  state.areaUpgrades = sanitizedArea;
   state.weirdSkillsPurchased = Math.max(
     0,
     Number.isFinite(Number(source.weirdSkillsPurchased)) ? Number(source.weirdSkillsPurchased) : defaults.weirdSkillsPurchased,
@@ -540,6 +556,7 @@ function startNewGame() {
   renderSkins();
   renderMilestones();
   renderAchievements();
+  renderAreaUpgrades();
   renderAutomationTree();
   syncLabVisibility();
   applySettingsToControls();
@@ -579,6 +596,8 @@ function setupTabs() {
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
       if (btn.dataset.tab === 'automation') {
         requestAnimationFrame(drawAutomationConnectors);
+      } else if (btn.dataset.tab === 'area') {
+        renderAreaUpgrades();
       }
     });
   });
@@ -609,6 +628,33 @@ function setupFilters() {
   if (currentFilter) {
     syncFilterButtons(currentFilter);
   }
+}
+
+function setupProgressDock() {
+  const tabs = document.querySelectorAll('.progress-tab');
+  const panels = document.querySelectorAll('.progress-panel');
+  if (tabs.length === 0) {
+    return;
+  }
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.progressTab;
+      tabs.forEach((button) => {
+        const isActive = button === tab;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      panels.forEach((panel) => {
+        const match = panel.id === `progress-${target}`;
+        panel.classList.toggle('active', match);
+        if (match) {
+          panel.removeAttribute('aria-hidden');
+        } else {
+          panel.setAttribute('aria-hidden', 'true');
+        }
+      });
+    });
+  });
 }
 
 function setupSettings() {
@@ -885,6 +931,120 @@ function describeUpgrade(category, perLevel, maxLevel) {
     default:
       return '';
   }
+}
+
+function generateAreaUpgrades() {
+  areaUpgradeDefs = [
+    {
+      id: 'phase-halo',
+      name: 'Phase Halo',
+      description: 'Expands the manual pointer radius by 6px per level for broader sweeps.',
+      maxLevel: 10,
+      costBase: 250,
+      costScale: 1.35,
+      currency: 'bits',
+      sizePerLevel: 6,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.pointerSize += upgrade.sizePerLevel * level;
+      },
+    },
+    {
+      id: 'vector-manifold',
+      name: 'Vector Manifold',
+      description: 'Diffuses strike vectors, adding 8px radius per level and amplifying multi-target damage.',
+      maxLevel: 8,
+      costBase: 1200,
+      costScale: 1.45,
+      currency: 'bits',
+      sizePerLevel: 8,
+      damageBonus: 0.012,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.pointerSize += upgrade.sizePerLevel * level;
+        statsObj.nodeCountDamageBonus += upgrade.damageBonus * level;
+      },
+    },
+    {
+      id: 'quantum-bloom',
+      name: 'Quantum Bloom',
+      description: 'Catalyses a sweeping bloom, adding 14px radius per level while easing spawn congestion.',
+      maxLevel: 5,
+      costBase: 5200,
+      costScale: 1.65,
+      currency: 'bits',
+      sizePerLevel: 14,
+      spawnBonus: 0.04,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.pointerSize += upgrade.sizePerLevel * level;
+        statsObj.nodeSpawnDelay = Math.max(0.25, statsObj.nodeSpawnDelay - upgrade.spawnBonus * level);
+      },
+    },
+  ];
+}
+
+function getAreaUpgradeCost(upgrade, level) {
+  if (!upgrade || level >= upgrade.maxLevel) {
+    return 0;
+  }
+  return Math.ceil(upgrade.costBase * upgrade.costScale ** level);
+}
+
+function renderAreaUpgrades() {
+  if (!UI.areaUpgradeGrid) return;
+  UI.areaUpgradeGrid.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  areaUpgradeDefs.forEach((upgrade) => {
+    const level = state.areaUpgrades[upgrade.id] || 0;
+    const maxed = level >= upgrade.maxLevel;
+    const cost = getAreaUpgradeCost(upgrade, level);
+    const percent = Math.min(100, (level / upgrade.maxLevel) * 100);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'area-upgrade';
+    button.dataset.id = upgrade.id;
+    button.setAttribute('role', 'listitem');
+    if (maxed) {
+      button.classList.add('maxed');
+    }
+    button.innerHTML = `
+      <div class="title">${upgrade.name}</div>
+      <div class="desc">${upgrade.description}</div>
+      <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
+      <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
+      <div class="cost">${maxed ? 'Fully synced' : `Cost: <span>${cost.toLocaleString()}</span> ${upgrade.currency}`}</div>
+    `;
+    const affordable = !maxed && state[upgrade.currency] >= cost;
+    button.classList.toggle('available', affordable);
+    button.disabled = maxed || !affordable;
+    button.addEventListener('click', () => attemptAreaPurchase(upgrade));
+    fragment.appendChild(button);
+  });
+  UI.areaUpgradeGrid.appendChild(fragment);
+}
+
+function attemptAreaPurchase(upgrade) {
+  if (!upgrade) return;
+  const level = state.areaUpgrades[upgrade.id] || 0;
+  if (level >= upgrade.maxLevel) {
+    return;
+  }
+  const cost = getAreaUpgradeCost(upgrade, level);
+  if (state[upgrade.currency] < cost) {
+    return;
+  }
+  state[upgrade.currency] -= cost;
+  state.areaUpgrades[upgrade.id] = level + 1;
+  updateStats();
+  updateResources();
+  queueSave();
+}
+
+function applyAreaUpgrades(statsObj) {
+  areaUpgradeDefs.forEach((upgrade) => {
+    const level = state.areaUpgrades[upgrade.id] || 0;
+    if (level > 0 && typeof upgrade.effect === 'function') {
+      upgrade.effect(statsObj, level, upgrade);
+    }
+  });
 }
 
 function romanNumeral(num) {
@@ -1317,31 +1477,82 @@ function generateMilestones() {
 }
 
 function renderMilestones() {
-  UI.milestoneList.innerHTML = '';
+  const containers = [];
+  if (UI.milestoneList) {
+    containers.push({ el: UI.milestoneList, variant: 'list' });
+  }
+  if (UI.milestoneDock) {
+    containers.push({ el: UI.milestoneDock, variant: 'dock' });
+  }
+  if (containers.length === 0) return;
+  containers.forEach(({ el }) => {
+    el.innerHTML = '';
+  });
   milestones.forEach((milestone) => {
     const progress = getMilestoneProgress(milestone);
-    const node = document.createElement('div');
-    node.className = 'milestone';
-    const info = document.createElement('div');
-    info.innerHTML = `<strong>${milestone.label}</strong><br/>Progress: ${progress.current.toLocaleString()} / ${milestone.goal.toLocaleString()}`;
-    const reward = document.createElement('div');
-    reward.className = 'progress';
-    reward.textContent = progress.claimed ? 'claimed' : progress.ready ? 'reward ready' : 'keep going';
-    const button = document.createElement('button');
-    button.className = 'pill';
-    button.textContent = progress.claimed ? 'claimed' : progress.ready ? 'claim' : 'locked';
-    button.disabled = progress.claimed || !progress.ready;
-    button.addEventListener('click', () => {
-      if (!progress.claimed && progress.ready) {
-        milestone.reward();
-        milestone.claimed = true;
-        renderMilestones();
-        updateResources();
-      }
+    containers.forEach(({ el, variant }) => {
+      el.appendChild(buildMilestoneElement(milestone, progress, variant));
     });
-    node.append(info, reward, button);
-    UI.milestoneList.appendChild(node);
   });
+}
+
+function buildMilestoneElement(milestone, progress, variant) {
+  const claimButton = document.createElement('button');
+  claimButton.type = 'button';
+  claimButton.className = 'pill';
+  claimButton.textContent = progress.claimed ? 'claimed' : progress.ready ? 'claim' : 'locked';
+  claimButton.disabled = progress.claimed || !progress.ready;
+  claimButton.addEventListener('click', () => claimMilestoneReward(milestone));
+
+  if (variant === 'dock') {
+    const card = document.createElement('div');
+    card.className = 'progress-card milestone-card';
+    card.setAttribute('role', 'listitem');
+    if (progress.claimed) {
+      card.classList.add('claimed');
+    } else if (progress.ready) {
+      card.classList.add('ready');
+    }
+    const statusClass = progress.claimed ? 'status claimed' : progress.ready ? 'status ready' : 'status';
+    const percent = Math.min(100, (progress.current / progress.goal) * 100);
+    card.innerHTML = `
+      <div class="card-header">
+        <strong>${milestone.label}</strong>
+        <span class="${statusClass}">${progress.claimed ? 'Claimed' : progress.ready ? 'Reward ready' : 'In progress'}</span>
+      </div>
+      <div class="card-body">${describeMilestone(milestone)}</div>
+      <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
+      <div class="card-metrics">${progress.current.toLocaleString()} / ${milestone.goal.toLocaleString()}</div>
+    `;
+    card.appendChild(claimButton);
+    return card;
+  }
+
+  const node = document.createElement('div');
+  node.className = 'milestone';
+  node.setAttribute('role', 'listitem');
+  const info = document.createElement('div');
+  info.innerHTML = `<strong>${milestone.label}</strong><br/>Progress: ${progress.current.toLocaleString()} / ${milestone.goal.toLocaleString()}`;
+  const reward = document.createElement('div');
+  reward.className = 'progress';
+  reward.textContent = progress.claimed ? 'claimed' : progress.ready ? 'reward ready' : 'keep going';
+  node.append(info, reward, claimButton);
+  return node;
+}
+
+function claimMilestoneReward(milestone) {
+  const current = getMilestoneProgress(milestone);
+  if (current.claimed || !current.ready) {
+    return;
+  }
+  if (typeof milestone.reward === 'function') {
+    milestone.reward();
+  }
+  milestone.claimed = true;
+  updateStats();
+  updateResources();
+  renderMilestones();
+  queueSave();
 }
 
 function getMilestoneProgress(milestone) {
@@ -1353,6 +1564,21 @@ function getMilestoneProgress(milestone) {
     claimed: Boolean(milestone.claimed),
     goal: milestone.goal,
   };
+}
+
+function describeMilestone(milestone) {
+  switch (milestone.type) {
+    case 'red':
+      return `Destroy ${milestone.goal.toLocaleString()} red nodes.`;
+    case 'blue':
+      return `Destroy ${milestone.goal.toLocaleString()} blue nodes.`;
+    case 'gold':
+      return `Destroy ${milestone.goal.toLocaleString()} gold nodes.`;
+    case 'boss':
+      return `Neutralise ${milestone.goal.toLocaleString()} bosses.`;
+    default:
+      return `Pursue ${milestone.goal.toLocaleString()} objectives.`;
+  }
 }
 
 function generateAchievements() {
@@ -1371,19 +1597,27 @@ function generateAchievements() {
 }
 
 function renderAchievements() {
+  if (!UI.achievementGrid) return;
   UI.achievementGrid.innerHTML = '';
   achievements.forEach((achievement) => {
     const current = achievement.stat();
-    const achieved = current >= achievement.goal;
+    const goalValue = Math.max(1, achievement.goal);
+    const percent = Math.min(100, (current / goalValue) * 100);
+    const achieved = current >= goalValue;
     const card = document.createElement('div');
-    card.className = 'achievement';
+    card.className = 'progress-card achievement';
+    card.setAttribute('role', 'listitem');
     if (achieved) {
-      card.classList.add('owned');
+      card.classList.add('completed');
     }
     card.innerHTML = `
-      <strong>${achievement.label}</strong>
-      <div>${achievement.description}</div>
-      <div class="progress">${Math.min(current, achievement.goal).toLocaleString()} / ${achievement.goal.toLocaleString()}</div>
+      <div class="card-header">
+        <strong>${achievement.label}</strong>
+        <span class="status ${achieved ? 'completed' : ''}">${achieved ? 'Completed' : `${Math.floor(percent)}%`}</span>
+      </div>
+      <div class="card-body">${achievement.description}</div>
+      <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
+      <div class="card-metrics">${Math.min(current, achievement.goal).toLocaleString()} / ${achievement.goal.toLocaleString()}</div>
     `;
     UI.achievementGrid.appendChild(card);
   });
@@ -2330,6 +2564,7 @@ function updateStats() {
   stats.critMultiplier = 2;
   stats.autoDamage = 0;
   stats.autoInterval = 1;
+  stats.pointerSize = 32;
   stats.bitGain = 1;
   stats.xpGain = 1;
   stats.prestigeGain = 1;
@@ -2349,6 +2584,7 @@ function updateStats() {
       upgrade.effect(stats, level);
     }
   });
+  applyAreaUpgrades(stats);
   applyAutomationBonuses();
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
@@ -2374,6 +2610,7 @@ function updateResources() {
   UI.currentLevel.textContent = state.currentLevel.index;
   updateCryptoUI();
   updateLabUI();
+  renderAreaUpgrades();
   renderAutomationTree();
 }
 

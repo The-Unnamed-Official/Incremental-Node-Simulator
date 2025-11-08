@@ -19,7 +19,7 @@
       <div class="title">
         <div class="title-heading">
           <h1>incremental node simulator</h1>
-          <span id="version-display" class="version-tag">v0.324</span>
+          <span id="version-display" class="version-tag">v0.396</span>
         </div>
         <button id="toggle-crt" class="pill">CRT ON</button>
       </div>
@@ -47,6 +47,7 @@
       <aside class="side-panel">
         <nav class="tabs">
           <button class="tab-button active" data-tab="upgrades">Upgrades</button>
+          <button class="tab-button" data-tab="area">Damage Area</button>
           <button class="tab-button" data-tab="automation">Automation</button>
           <button class="tab-button" data-tab="milestones">Milestones</button>
           <button class="tab-button" data-tab="crypto">Crypto Mine</button>
@@ -71,6 +72,14 @@
             </div>
           </div>
           <div id="skill-tree" class="skill-tree" role="list"></div>
+        </section>
+
+        <section id="tab-area" class="tab-content">
+          <div class="area-header">
+            <h2>Damage Field Array</h2>
+            <p>Expand the pointer lattice so a single sweep can rake across more nodes at once.</p>
+          </div>
+          <div id="area-upgrade-grid" class="area-upgrade-grid" role="list"></div>
         </section>
 
         <section id="tab-automation" class="tab-content">
@@ -203,9 +212,40 @@
       </aside>
     </main>
 
-    <section class="achievements">
-      <h2>Achievements &amp; Milestones</h2>
-      <div id="achievement-grid" class="achievement-grid"></div>
+    <section class="progress-dock" aria-labelledby="progress-heading">
+      <div class="progress-dock-header">
+        <h2 id="progress-heading">Progress Chronicle</h2>
+        <div class="progress-dock-tabs" role="tablist">
+          <button
+            class="progress-tab active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="progress-achievements"
+            data-progress-tab="achievements"
+          >
+            Achievements
+          </button>
+          <button
+            class="progress-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="progress-milestones"
+            data-progress-tab="milestones"
+          >
+            Milestones
+          </button>
+        </div>
+      </div>
+      <div class="progress-dock-panels">
+        <div id="progress-achievements" class="progress-panel active" role="tabpanel">
+          <div id="achievement-grid" class="achievement-grid" role="list"></div>
+        </div>
+        <div id="progress-milestones" class="progress-panel" role="tabpanel" aria-hidden="true">
+          <div id="milestone-dock" class="milestone-dock" role="list"></div>
+        </div>
+      </div>
     </section>
   </div>
   <div id="skill-check" class="skill-check hidden" role="dialog" aria-modal="true" aria-live="assertive">
