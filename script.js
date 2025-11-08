@@ -4,7 +4,7 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.396';
+const GAME_VERSION = 'v0.401';
 
 function getLevelDuration(levelIndex = 1) {
   const safeIndex = Math.max(1, levelIndex);
@@ -44,6 +44,7 @@ function createInitialState() {
     },
     upgrades: {},
     areaUpgrades: {},
+    spawnUpgrades: {},
     weirdSkillsPurchased: 0,
     labUnlocked: false,
     labProgress: 0,
@@ -161,6 +162,7 @@ const SKILL_CHECK_DIFFICULTIES = {
 
 let upgrades = [];
 let areaUpgradeDefs = [];
+let spawnUpgradeDefs = [];
 let milestones = [];
 let achievements = [];
 let skins = [];
@@ -181,11 +183,62 @@ const cursorPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 let bgmAudio;
 let audioUnlocked = false;
 
+const SFX_DEFINITIONS = {
+  pointerAtk: { src: 'files/pointer_atk.mp3', baseVolume: 0.65 },
+  pointerHitA: { src: 'files/pointer_hit.mp3', baseVolume: 0.38 },
+  pointerHitB: { src: 'files/pointer_hit2.mp3', baseVolume: 0.38 },
+  nodeDie: { src: 'files/node_die.mp3', baseVolume: 0.32 },
+  bossDie: { src: 'files/boss_die.mp3', baseVolume: 0.3 },
+  bitsGain: { src: 'files/bits_gain.mp3', baseVolume: 0.26 },
+};
+
+const sfxLibrary = new Map();
+let sfxLoaded = false;
+
+function loadSFX() {
+  if (sfxLoaded) return;
+  Object.entries(SFX_DEFINITIONS).forEach(([key, def]) => {
+    const audio = document.createElement('audio');
+    audio.src = def.src;
+    audio.preload = 'auto';
+    sfxLibrary.set(key, { def, audio });
+  });
+  sfxLoaded = true;
+}
+
+function getSFXVolume(baseVolume = 1) {
+  const userVolume = Math.min(1, Math.max(0, state.settings?.sfx ?? 0.7));
+  return Math.min(1, Math.max(0, baseVolume * userVolume));
+}
+
+function playSFX(key) {
+  if (!sfxLoaded) {
+    loadSFX();
+  }
+  if (!audioUnlocked) return;
+  const entry = sfxLibrary.get(key);
+  if (!entry) return;
+  const volume = getSFXVolume(entry.def.baseVolume);
+  if (volume <= 0) return;
+  const instance = entry.audio.cloneNode();
+  instance.volume = volume;
+  const playPromise = instance.play();
+  if (playPromise && typeof playPromise.catch === 'function') {
+    playPromise.catch(() => {});
+  }
+}
+
+function playPointerHitSFX() {
+  const key = Math.random() < 0.5 ? 'pointerHitA' : 'pointerHitB';
+  playSFX(key);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
   generateSkins();
   generateUpgrades();
   generateAreaUpgrades();
+  generateSpawnUpgrades();
   generateAutomationSkills();
   generateMilestones();
   generateAchievements();
@@ -199,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderMilestones();
   renderAchievements();
   renderAreaUpgrades();
+  renderSpawnUpgrades();
   renderAutomationTree();
   initTooltip();
   setupCryptoControls();
@@ -235,6 +289,7 @@ function cacheElements() {
   UI.milestoneList = document.getElementById('milestone-list');
   UI.achievementGrid = document.getElementById('achievement-grid');
   UI.areaUpgradeGrid = document.getElementById('area-upgrade-grid');
+  UI.spawnUpgradeGrid = document.getElementById('spawn-upgrade-grid');
   UI.milestoneDock = document.getElementById('milestone-dock');
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
   UI.cryptoReturns = document.getElementById('crypto-returns');
@@ -335,6 +390,7 @@ function hydrateState(source = {}) {
   const mergedAutomation = { ...defaults.automationSkills, ...(source.automationSkills || {}) };
   const mergedUpgrades = { ...(defaults.upgrades || {}), ...(source.upgrades || {}) };
   const mergedArea = { ...(defaults.areaUpgrades || {}), ...(source.areaUpgrades || {}) };
+  const mergedSpawn = { ...(defaults.spawnUpgrades || {}), ...(source.spawnUpgrades || {}) };
   const mergedSkins = {
     active: (source.skins && source.skins.active) || defaults.skins.active,
     owned: (source.skins && source.skins.owned) || defaults.skins.owned,
@@ -382,6 +438,14 @@ function hydrateState(source = {}) {
     }
   });
   state.areaUpgrades = sanitizedArea;
+  const sanitizedSpawn = {};
+  Object.entries(mergedSpawn).forEach(([id, level]) => {
+    const numeric = Number(level);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      sanitizedSpawn[id] = numeric;
+    }
+  });
+  state.spawnUpgrades = sanitizedSpawn;
   state.weirdSkillsPurchased = Math.max(
     0,
     Number.isFinite(Number(source.weirdSkillsPurchased)) ? Number(source.weirdSkillsPurchased) : defaults.weirdSkillsPurchased,
@@ -598,6 +662,8 @@ function setupTabs() {
         requestAnimationFrame(drawAutomationConnectors);
       } else if (btn.dataset.tab === 'area') {
         renderAreaUpgrades();
+      } else if (btn.dataset.tab === 'spawn') {
+        renderSpawnUpgrades();
       }
     });
   });
@@ -981,7 +1047,62 @@ function generateAreaUpgrades() {
   ];
 }
 
+function generateSpawnUpgrades() {
+  spawnUpgradeDefs = [
+    {
+      id: 'tachyon-injector',
+      name: 'Tachyon Injector',
+      description: 'Shears 0.12s off the node spawn cycle per level, keeping the arena saturated.',
+      maxLevel: 12,
+      costBase: 320,
+      costScale: 1.42,
+      currency: 'bits',
+      delayReduction: 0.12,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.nodeSpawnDelay = Math.max(0.2, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
+      },
+    },
+    {
+      id: 'replication-forge',
+      name: 'Replication Forge',
+      description: 'Stabilises parallel lattices, widening cap density while trimming spawn delay.',
+      maxLevel: 9,
+      costBase: 1800,
+      costScale: 1.55,
+      currency: 'bits',
+      delayReduction: 0.08,
+      nodeBonusInterval: 2,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.nodeSpawnDelay = Math.max(0.2, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
+        statsObj.maxNodes += Math.floor(level / upgrade.nodeBonusInterval);
+      },
+    },
+    {
+      id: 'entropy-splicer',
+      name: 'Entropy Splicer',
+      description: 'Funnels weird resonance, slashing spawn delay and amplifying anomaly synergy.',
+      maxLevel: 6,
+      costBase: 5200,
+      costScale: 1.7,
+      currency: 'prestige',
+      delayReduction: 0.15,
+      weirdBonus: 0.08,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.nodeSpawnDelay = Math.max(0.15, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
+        statsObj.weirdSynergy += upgrade.weirdBonus * level;
+      },
+    },
+  ];
+}
+
 function getAreaUpgradeCost(upgrade, level) {
+  if (!upgrade || level >= upgrade.maxLevel) {
+    return 0;
+  }
+  return Math.ceil(upgrade.costBase * upgrade.costScale ** level);
+}
+
+function getSpawnUpgradeCost(upgrade, level) {
   if (!upgrade || level >= upgrade.maxLevel) {
     return 0;
   }
@@ -1041,6 +1162,67 @@ function attemptAreaPurchase(upgrade) {
 function applyAreaUpgrades(statsObj) {
   areaUpgradeDefs.forEach((upgrade) => {
     const level = state.areaUpgrades[upgrade.id] || 0;
+    if (level > 0 && typeof upgrade.effect === 'function') {
+      upgrade.effect(statsObj, level, upgrade);
+    }
+  });
+}
+
+function renderSpawnUpgrades() {
+  if (!UI.spawnUpgradeGrid) return;
+  UI.spawnUpgradeGrid.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  spawnUpgradeDefs.forEach((upgrade) => {
+    const level = state.spawnUpgrades[upgrade.id] || 0;
+    const maxed = level >= upgrade.maxLevel;
+    const cost = getSpawnUpgradeCost(upgrade, level);
+    const percent = Math.min(100, (level / upgrade.maxLevel) * 100);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'area-upgrade';
+    button.dataset.id = upgrade.id;
+    button.setAttribute('role', 'listitem');
+    if (maxed) {
+      button.classList.add('maxed');
+    }
+    button.innerHTML = `
+      <div class="title">${upgrade.name}</div>
+      <div class="desc">${upgrade.description}</div>
+      <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
+      <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
+      <div class="cost">${maxed ? 'Fully synced' : `Cost: <span>${cost.toLocaleString()}</span> ${upgrade.currency}`}</div>
+    `;
+    const resourcePool = upgrade.currency === 'prestige' ? state.prestige : state.bits;
+    const affordable = !maxed && resourcePool >= cost;
+    button.classList.toggle('available', affordable);
+    button.disabled = maxed || !affordable;
+    button.addEventListener('click', () => attemptSpawnPurchase(upgrade));
+    fragment.appendChild(button);
+  });
+  UI.spawnUpgradeGrid.appendChild(fragment);
+}
+
+function attemptSpawnPurchase(upgrade) {
+  if (!upgrade) return;
+  const level = state.spawnUpgrades[upgrade.id] || 0;
+  if (level >= upgrade.maxLevel) {
+    return;
+  }
+  const cost = getSpawnUpgradeCost(upgrade, level);
+  const currency = upgrade.currency === 'prestige' ? 'prestige' : 'bits';
+  if (state[currency] < cost) {
+    return;
+  }
+  state[currency] -= cost;
+  state.spawnUpgrades[upgrade.id] = level + 1;
+  updateStats();
+  updateResources();
+  queueSave();
+}
+
+function applySpawnUpgrades(statsObj) {
+  spawnUpgradeDefs.forEach((upgrade) => {
+    const level = state.spawnUpgrades[upgrade.id] || 0;
     if (level > 0 && typeof upgrade.effect === 'function') {
       upgrade.effect(statsObj, level, upgrade);
     }
@@ -1781,8 +1963,12 @@ function setupCursor() {
 }
 
 function setupAudio() {
+  loadSFX();
   bgmAudio = document.getElementById('bgm');
-  if (!bgmAudio) return;
+  if (!bgmAudio) {
+    audioUnlocked = true;
+    return;
+  }
   const handleUnlock = () => {
     document.removeEventListener('pointerdown', handleUnlock);
     document.removeEventListener('keydown', handleUnlock);
@@ -1927,7 +2113,7 @@ function updateNodes(delta) {
   nodeSpawnTimer -= delta;
   if (nodeSpawnTimer <= 0 && activeNodes.size < stats.maxNodes) {
     spawnNode();
-    nodeSpawnTimer = Math.max(0.35, stats.nodeSpawnDelay - stats.weirdSynergy * 0.2);
+    nodeSpawnTimer = Math.max(0.15, stats.nodeSpawnDelay - stats.weirdSynergy * 0.2);
   }
   const areaRect = UI.nodeArea.getBoundingClientRect();
   const width = UI.nodeArea.clientWidth || areaRect.width;
@@ -2076,6 +2262,7 @@ function performAutoClick() {
   if (!inside) return;
   const pointerX = cursorPosition.x;
   const pointerY = cursorPosition.y;
+  playSFX('pointerAtk');
   const pointerRect = getPointerRect(pointerX, pointerY);
   const pointerPolygon = getPointerPolygon(pointerRect);
   let hitSomething = false;
@@ -2099,6 +2286,7 @@ function performAutoClick() {
     hitSomething = true;
   }
   if (hitSomething) {
+    playPointerHitSFX();
     triggerCursorClickAnimation(pointerX, pointerY);
   }
 }
@@ -2236,6 +2424,7 @@ function createFloatText(target, text, color = 'var(--accent-strong)') {
 
 function destroyNode(node) {
   dropRewards(node.type);
+  playSFX('nodeDie');
   const key = node.type.id;
   state.nodesDestroyed[key] = (state.nodesDestroyed[key] || 0) + 1;
   createNodeExplosion(node);
@@ -2340,6 +2529,7 @@ function collectBitToken(token) {
   const clampedY = Math.min(Math.max(targetY, 16), areaRect.height - 16);
   token.classList.add('collecting');
   token.style.pointerEvents = 'none';
+  playSFX('bitsGain');
   const value = Number(token.dataset.value) || 1;
   state.bits += value;
   gainXP(Math.ceil(value * 0.4));
@@ -2466,7 +2656,7 @@ function spawnBoss() {
   state.currentLevel.bossMaxHP = bossHP;
   const boss = document.createElement('div');
   boss.className = 'boss-node';
-  const name = bossNames[state.currentLevel.index % bossNames.length];
+  const name = bossNames[(state.currentLevel.index - 1) % bossNames.length];
   boss.innerHTML = `
     <div class="boss-name">${name}</div>
     <div class="hp-bar"><div class="hp-fill"></div></div>
@@ -2537,6 +2727,7 @@ function updateBossBar() {
 }
 
 function defeatBoss() {
+  playSFX('bossDie');
   state.currentLevel.bossActive = false;
   state.currentLevel.active = false;
   state.bossKills += 1;
@@ -2578,6 +2769,11 @@ function updateStats() {
   stats.nodeCountDamageBonus = 0;
   stats.weirdSynergy = 0;
   stats.maxHealth = 100 + state.level * 5;
+  const levelPressure = Math.max(0, state.currentLevel.index - 1);
+  const spawnAcceleration = Math.min(1.2, levelPressure * 0.04);
+  stats.nodeSpawnDelay = Math.max(0.6, stats.nodeSpawnDelay - spawnAcceleration);
+  stats.maxNodes += Math.floor(levelPressure / 5);
+  stats.bossHPFactor = 1 + levelPressure * 0.05;
   Object.entries(state.upgrades).forEach(([id, level]) => {
     const upgrade = upgrades.find((u) => u.id === id);
     if (upgrade) {
@@ -2585,7 +2781,9 @@ function updateStats() {
     }
   });
   applyAreaUpgrades(stats);
+  applySpawnUpgrades(stats);
   applyAutomationBonuses();
+  stats.nodeSpawnDelay = Math.max(0.15, stats.nodeSpawnDelay);
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
   applyCursorSize();
@@ -2611,6 +2809,7 @@ function updateResources() {
   updateCryptoUI();
   updateLabUI();
   renderAreaUpgrades();
+  renderSpawnUpgrades();
   renderAutomationTree();
 }
 
