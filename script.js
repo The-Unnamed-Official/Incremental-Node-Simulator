@@ -159,9 +159,9 @@ const bossNames = [
 ];
 
 const SKILL_CHECK_DIFFICULTIES = {
-  easy: 4.2,
-  normal: 3.1,
-  hard: 2.4,
+  easy: { duration: 4.5, baseSpeed: 0.6, window: 0.3, minWindow: 0.16 },
+  normal: { duration: 3.8, baseSpeed: 0.85, window: 0.22, minWindow: 0.1 },
+  hard: { duration: 3.2, baseSpeed: 1.05, window: 0.16, minWindow: 0.075 },
 };
 
 let upgrades = [];
@@ -180,8 +180,14 @@ const skillCheckState = {
   active: false,
   timer: 0,
   duration: 0,
-  resolve: null,
   reward: null,
+  sliderPosition: 0,
+  sliderDirection: 1,
+  sliderSpeed: 0,
+  targetStart: 0,
+  targetEnd: 0,
+  windowSize: 0,
+  difficulty: 'normal',
 };
 
 const cursorPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
@@ -316,6 +322,8 @@ function cacheElements() {
   UI.customCursor = document.getElementById('custom-cursor');
   UI.skillCheck = document.getElementById('skill-check');
   UI.skillCheckProgress = document.getElementById('skill-check-progress');
+  UI.skillCheckTarget = document.getElementById('skill-check-target');
+  UI.skillCheckSlider = document.getElementById('skill-check-slider');
   UI.skillCheckAction = document.getElementById('skill-check-action');
   UI.skillCheckTitle = document.getElementById('skill-check-title');
   UI.skillCheckDescription = document.getElementById('skill-check-description');
@@ -2090,45 +2098,124 @@ function triggerCursorClickAnimation(x, y) {
 }
 
 function setupSkillCheck() {
-  if (!UI.skillCheck || !UI.skillCheckAction || !UI.skillCheckProgress) return;
-  UI.skillCheckAction.addEventListener('click', () => {
-    if (skillCheckState.active) {
-      resolveSkillCheck(true);
+  if (!UI.skillCheck || !UI.skillCheckAction || !UI.skillCheckProgress || !UI.skillCheckSlider || !UI.skillCheckTarget) {
+    return;
+  }
+  UI.skillCheckAction.addEventListener('click', attemptSkillCheckResolution);
+  UI.skillCheckAction.addEventListener('keydown', (event) => {
+    if (!skillCheckState.active) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      attemptSkillCheckResolution();
     }
   });
 }
 
+function getSkillCheckConfig(difficulty) {
+  const settings = SKILL_CHECK_DIFFICULTIES[difficulty] || SKILL_CHECK_DIFFICULTIES.normal;
+  const levelFactor = Math.max(0, state.level - 1);
+  const speedMultiplier = 1 + Math.min(0.7, levelFactor * 0.012);
+  const windowReduction = Math.min(0.55, levelFactor * 0.01);
+  const windowSize = Math.max(settings.minWindow, settings.window * (1 - windowReduction));
+  const sliderSpeed = settings.baseSpeed * speedMultiplier;
+  return {
+    duration: settings.duration,
+    sliderSpeed,
+    windowSize,
+  };
+}
+
+function attemptSkillCheckResolution() {
+  if (!skillCheckState.active) return;
+  const withinWindow =
+    skillCheckState.sliderPosition >= skillCheckState.targetStart &&
+    skillCheckState.sliderPosition <= skillCheckState.targetEnd;
+  resolveSkillCheck(withinWindow);
+}
+
 function startSkillCheck({ upgrade, difficulty, reward }) {
-  if (!UI.skillCheck) return;
-  const duration = SKILL_CHECK_DIFFICULTIES[difficulty] || SKILL_CHECK_DIFFICULTIES.normal;
+  if (!UI.skillCheck || !UI.skillCheckAction || !UI.skillCheckTarget || !UI.skillCheckSlider) return;
+  const config = getSkillCheckConfig(difficulty);
+  const sliderPosition = Math.min(0.95, Math.max(0.05, Math.random()));
+  const sliderDirection = sliderPosition > 0.5 ? -1 : 1;
+  const maxTargetStart = Math.max(0, 1 - config.windowSize);
+  const targetStart = maxTargetStart > 0 ? Math.random() * maxTargetStart : 0;
   skillCheckState.active = true;
   skillCheckState.timer = 0;
-  skillCheckState.duration = duration;
+  skillCheckState.duration = config.duration;
   skillCheckState.reward = reward;
+  skillCheckState.sliderSpeed = config.sliderSpeed;
+  skillCheckState.windowSize = config.windowSize;
+  skillCheckState.sliderPosition = sliderPosition;
+  skillCheckState.sliderDirection = sliderDirection;
+  skillCheckState.targetStart = targetStart;
+  skillCheckState.targetEnd = targetStart + config.windowSize;
+  skillCheckState.difficulty = difficulty;
   UI.skillCheckTitle.textContent = `${difficulty.toUpperCase()} skill check`;
-  UI.skillCheckDescription.textContent = `Stabilise ${upgrade.name} by resolving before reality fractures.`;
+  UI.skillCheckDescription.textContent = `Time the resolve pulse when the signal crosses the highlighted zone around ${upgrade.name}.`;
   UI.skillCheck.classList.remove('hidden');
+  if (UI.skillCheckTarget) {
+    UI.skillCheckTarget.style.left = `${skillCheckState.targetStart * 100}%`;
+    UI.skillCheckTarget.style.width = `${skillCheckState.windowSize * 100}%`;
+  }
+  if (UI.skillCheckSlider) {
+    UI.skillCheckSlider.style.left = `${skillCheckState.sliderPosition * 100}%`;
+  }
+  if (UI.skillCheckProgress) {
+    UI.skillCheckProgress.style.width = '100%';
+  }
   UI.skillCheckAction.focus();
 }
 
 function resolveSkillCheck(success) {
   if (!skillCheckState.active) return;
   skillCheckState.active = false;
-  UI.skillCheck.classList.add('hidden');
+  if (UI.skillCheck) {
+    UI.skillCheck.classList.add('hidden');
+  }
   if (success && typeof skillCheckState.reward === 'function') {
     skillCheckState.reward();
   } else if (!success) {
     createFloatText(document.body, 'Skill check failed', '#ff6ea8');
   }
   skillCheckState.reward = null;
-  UI.skillCheckProgress.style.width = '0%';
+  skillCheckState.sliderSpeed = 0;
+  skillCheckState.windowSize = 0;
+  skillCheckState.timer = 0;
+  if (UI.skillCheckProgress) {
+    UI.skillCheckProgress.style.width = '0%';
+  }
+  if (UI.skillCheckTarget) {
+    UI.skillCheckTarget.style.width = '0%';
+  }
+  if (UI.skillCheckSlider) {
+    UI.skillCheckSlider.style.left = '0%';
+  }
+  if (UI.skillCheckAction) {
+    UI.skillCheckAction.blur();
+  }
 }
 
 function updateSkillCheck(delta) {
-  if (!skillCheckState.active || !UI.skillCheckProgress) return;
+  if (!skillCheckState.active) return;
   skillCheckState.timer += delta;
-  const progress = Math.min(1, skillCheckState.timer / skillCheckState.duration);
-  UI.skillCheckProgress.style.width = `${progress * 100}%`;
+  const elapsed = Math.min(1, skillCheckState.timer / skillCheckState.duration);
+  if (UI.skillCheckProgress) {
+    UI.skillCheckProgress.style.width = `${Math.max(0, (1 - elapsed) * 100)}%`;
+  }
+  if (skillCheckState.sliderSpeed > 0) {
+    skillCheckState.sliderPosition += skillCheckState.sliderSpeed * delta * skillCheckState.sliderDirection;
+    if (skillCheckState.sliderPosition >= 1) {
+      skillCheckState.sliderPosition = 1;
+      skillCheckState.sliderDirection = -1;
+    } else if (skillCheckState.sliderPosition <= 0) {
+      skillCheckState.sliderPosition = 0;
+      skillCheckState.sliderDirection = 1;
+    }
+    if (UI.skillCheckSlider) {
+      UI.skillCheckSlider.style.left = `${skillCheckState.sliderPosition * 100}%`;
+    }
+  }
   if (skillCheckState.timer >= skillCheckState.duration) {
     resolveSkillCheck(false);
   }
