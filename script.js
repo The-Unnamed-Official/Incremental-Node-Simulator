@@ -60,6 +60,9 @@ function createInitialState() {
       active: 'default',
     },
     automationSkills: {},
+    milestoneClaims: {},
+    achievementLog: {},
+    statsSnapshot: null,
     settings: {
       crt: true,
       scanlines: true,
@@ -409,6 +412,8 @@ function hydrateState(source = {}) {
   const mergedUpgrades = { ...(defaults.upgrades || {}), ...(source.upgrades || {}) };
   const mergedArea = { ...(defaults.areaUpgrades || {}), ...(source.areaUpgrades || {}) };
   const mergedSpawn = { ...(defaults.spawnUpgrades || {}), ...(source.spawnUpgrades || {}) };
+  const mergedMilestones = { ...(defaults.milestoneClaims || {}), ...(source.milestoneClaims || {}) };
+  const mergedAchievementLog = { ...(defaults.achievementLog || {}), ...(source.achievementLog || {}) };
   const mergedSkins = {
     active: (source.skins && source.skins.active) || defaults.skins.active,
     owned: (source.skins && source.skins.owned) || defaults.skins.owned,
@@ -493,6 +498,17 @@ function hydrateState(source = {}) {
     active: typeof mergedSkins.active === 'string' ? mergedSkins.active : defaults.skins.active,
     owned: new Set(Array.isArray(mergedSkins.owned) ? mergedSkins.owned : defaults.skins.owned),
   };
+  state.milestoneClaims = sanitizeRecord(mergedMilestones);
+  state.achievementLog = sanitizeAchievementLog(mergedAchievementLog);
+  const savedStatsSnapshot = sanitizeStatsSnapshot(source.statsSnapshot || defaults.statsSnapshot);
+  state.statsSnapshot = savedStatsSnapshot;
+  if (savedStatsSnapshot) {
+    Object.keys(savedStatsSnapshot).forEach((key) => {
+      if (typeof stats[key] === 'number') {
+        stats[key] = savedStatsSnapshot[key];
+      }
+    });
+  }
   if (!state.skins.owned.has('default')) {
     state.skins.owned.add('default');
   }
@@ -549,6 +565,43 @@ function coerceBoolean(value, fallback) {
     if (lower === 'false') return false;
   }
   return fallback;
+}
+
+function sanitizeRecord(candidate) {
+  if (!candidate || typeof candidate !== 'object') {
+    return {};
+  }
+  return Object.keys(candidate).reduce((acc, key) => {
+    acc[key] = Boolean(candidate[key]);
+    return acc;
+  }, {});
+}
+
+function sanitizeAchievementLog(candidate) {
+  if (!candidate || typeof candidate !== 'object') {
+    return {};
+  }
+  return Object.keys(candidate).reduce((acc, key) => {
+    const value = Number(candidate[key]);
+    if (Number.isFinite(value) && value > 0) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+}
+
+function sanitizeStatsSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return null;
+  }
+  const sanitized = {};
+  Object.keys(stats).forEach((key) => {
+    const value = Number(snapshot[key]);
+    if (Number.isFinite(value)) {
+      sanitized[key] = value;
+    }
+  });
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
 }
 
 function saveGame(options = {}) {
@@ -1798,6 +1851,7 @@ function claimMilestoneReward(milestone) {
     milestone.reward();
   }
   milestone.claimed = true;
+  state.milestoneClaims[milestone.id] = true;
   updateStats();
   updateResources();
   renderMilestones();
@@ -1807,10 +1861,12 @@ function claimMilestoneReward(milestone) {
 function getMilestoneProgress(milestone) {
   const current = milestone.type === 'boss' ? state.bossKills : state.nodesDestroyed[milestone.type] || 0;
   const ready = current >= milestone.goal;
+  const claimed = Boolean(state.milestoneClaims[milestone.id]);
+  milestone.claimed = claimed;
   return {
     current,
     ready,
-    claimed: Boolean(milestone.claimed),
+    claimed,
     goal: milestone.goal,
   };
 }
@@ -1853,11 +1909,23 @@ function renderAchievements() {
     const goalValue = Math.max(1, achievement.goal);
     const percent = Math.min(100, (current / goalValue) * 100);
     const achieved = current >= goalValue;
+    const recordedAt = Number(state.achievementLog[achievement.id]);
+    if (achieved && !recordedAt) {
+      state.achievementLog[achievement.id] = Date.now();
+      queueSave(2000);
+    }
     const card = document.createElement('div');
     card.className = 'progress-card achievement';
     card.setAttribute('role', 'listitem');
     if (achieved) {
       card.classList.add('completed');
+      const completion = Number(state.achievementLog[achievement.id]);
+      if (Number.isFinite(completion)) {
+        const completedDate = new Date(completion);
+        if (!Number.isNaN(completedDate.getTime())) {
+          card.title = `Completed on ${completedDate.toLocaleString()}`;
+        }
+      }
     }
     card.innerHTML = `
       <div class="card-header">
@@ -2627,6 +2695,7 @@ function dropRewards(type) {
     state.cryptcoins += rewards.cryptcoins;
   }
   updateResources();
+  queueSave(2000);
 }
 
 function updateNodeElement(node) {
@@ -2708,6 +2777,7 @@ function collectBitToken(token) {
   state.bits += value;
   gainXP(Math.ceil(value * 0.4));
   updateResources();
+  queueSave(2000);
   animateTokenToCursor(token, areaRect, clampedX, clampedY, () => {
     createFloatText(UI.customCursor || document.body, `+${value} bits`, '#ffd166');
     token.remove();
@@ -2943,6 +3013,15 @@ function defeatBoss() {
   queueSave();
 }
 
+function persistStatsSnapshot() {
+  state.statsSnapshot = Object.keys(stats).reduce((acc, key) => {
+    if (typeof stats[key] === 'number' && Number.isFinite(stats[key])) {
+      acc[key] = stats[key];
+    }
+    return acc;
+  }, {});
+}
+
 function updateStats() {
   stats.damage = stats.baseDamage;
   stats.critChance = 0.05;
@@ -2982,6 +3061,7 @@ function updateStats() {
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
   applyCursorSize();
+  persistStatsSnapshot();
 }
 
 function applyAutomationBonuses() {
@@ -3019,14 +3099,17 @@ function gainXP(amount) {
     state.maxHealth += 10;
     state.health = state.maxHealth;
   }
+  queueSave(2000);
 }
 
 function grantBits(amount) {
   state.bits += amount;
+  queueSave(2000);
 }
 
 function grantCryptcoins(amount) {
   state.cryptcoins += amount;
+  queueSave(2000);
 }
 
 function grantPrestige(amount) {
