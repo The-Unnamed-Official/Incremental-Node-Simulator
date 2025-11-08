@@ -185,6 +185,7 @@ const skillCheckState = {
 };
 
 const cursorPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+let bitTokenSweepScheduled = false;
 let bgmAudio;
 let audioUnlocked = false;
 
@@ -1125,9 +1126,42 @@ function generateSpawnUpgrades() {
       currency: 'prestige',
       delayReduction: 0.15,
       weirdBonus: 0.08,
+      minDelay: 0.05,
       effect: (statsObj, level, upgrade) => {
-        statsObj.nodeSpawnDelay = Math.max(0.15, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
+        statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
         statsObj.weirdSynergy += upgrade.weirdBonus * level;
+      },
+    },
+    {
+      id: 'fractal-hatchery',
+      name: 'Fractal Hatchery',
+      description: '+2 max nodes & -0.25s spawn delay per level',
+      maxLevel: 10,
+      costBase: 8200,
+      costScale: 1.6,
+      currency: 'bits',
+      delayReduction: 0.25,
+      nodeBonus: 2,
+      minDelay: 0.08,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
+        statsObj.maxNodes += upgrade.nodeBonus * level;
+      },
+    },
+    {
+      id: 'hypergrid-overclocker',
+      name: 'Hypergrid Overclocker',
+      description: '-0.45s spawn delay & +3 max nodes per level',
+      maxLevel: 6,
+      costBase: 52000,
+      costScale: 1.9,
+      currency: 'prestige',
+      delayReduction: 0.45,
+      nodeBonus: 3,
+      minDelay: 0.05,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
+        statsObj.maxNodes += upgrade.nodeBonus * level;
       },
     },
   ];
@@ -1979,6 +2013,7 @@ function setupCursor() {
     cursorPosition.y = y;
     cursor.style.left = `${x}px`;
     cursor.style.top = `${y}px`;
+    requestBitTokenSweep();
   };
   updateCursorPosition(cursorPosition.x, cursorPosition.y);
   document.addEventListener('pointermove', (event) => {
@@ -2204,6 +2239,39 @@ function getPointerRect(x, y) {
     top: y - half,
     bottom: y + half,
   };
+}
+
+function requestBitTokenSweep() {
+  if (bitTokenSweepScheduled) return;
+  bitTokenSweepScheduled = true;
+  requestAnimationFrame(() => {
+    bitTokenSweepScheduled = false;
+    collectBitTokensAtPointer();
+  });
+}
+
+function collectBitTokensAtPointer() {
+  if (!UI.bitLayer || !UI.nodeArea) return;
+  const tokens = UI.bitLayer.querySelectorAll('.bit-token:not(.collecting)');
+  if (tokens.length === 0) return;
+  const pointerRect = getPointerRect(cursorPosition.x, cursorPosition.y);
+  tokens.forEach((token) => {
+    const tokenRect = token.getBoundingClientRect();
+    if (pointerIntersectsRect(pointerRect, tokenRect)) {
+      collectBitToken(token);
+    }
+  });
+}
+
+function getPointerCenterInArea(areaRect) {
+  const half = getPointerSize() / 2;
+  const minX = half;
+  const maxX = Math.max(half, areaRect.width - half);
+  const minY = half;
+  const maxY = Math.max(half, areaRect.height - half);
+  const x = Math.min(Math.max(cursorPosition.x - areaRect.left, minX), maxX);
+  const y = Math.min(Math.max(cursorPosition.y - areaRect.top, minY), maxY);
+  return { x, y, half };
 }
 
 function pointerIntersectsRect(pointerRect, rect) {
@@ -2552,15 +2620,13 @@ function spawnBitTokens(node) {
     UI.bitLayer.appendChild(token);
     requestAnimationFrame(() => token.classList.add('visible'));
   }
+  requestBitTokenSweep();
 }
 
 function collectBitToken(token) {
   if (!token || token.classList.contains('collecting')) return;
   const areaRect = UI.nodeArea.getBoundingClientRect();
-  const targetX = cursorPosition.x - areaRect.left;
-  const targetY = cursorPosition.y - areaRect.top;
-  const clampedX = Math.min(Math.max(targetX, 16), areaRect.width - 16);
-  const clampedY = Math.min(Math.max(targetY, 16), areaRect.height - 16);
+  const { x: clampedX, y: clampedY } = getPointerCenterInArea(areaRect);
   token.classList.add('collecting');
   token.style.pointerEvents = 'none';
   playSFX('bitsGain');
@@ -2602,8 +2668,7 @@ function animateTokenToCursor(token, areaRect, fallbackX, fallbackY, onComplete)
     if (startTime === null) startTime = timestamp;
     const elapsed = timestamp - startTime;
     const progress = Math.min(elapsed / duration, 1);
-    const pointerX = Math.min(Math.max(cursorPosition.x - areaRect.left, 16), areaRect.width - 16);
-    const pointerY = Math.min(Math.max(cursorPosition.y - areaRect.top, 16), areaRect.height - 16);
+    const { x: pointerX, y: pointerY } = getPointerCenterInArea(areaRect);
     const ease = 1 - Math.pow(1 - progress, 3);
     const currentX = initialX + (pointerX - initialX) * ease;
     const currentY = initialY + (pointerY - initialY) * ease;
@@ -2818,7 +2883,7 @@ function updateStats() {
   applyAreaUpgrades(stats);
   applySpawnUpgrades(stats);
   applyAutomationBonuses();
-  stats.nodeSpawnDelay = Math.max(0.15, stats.nodeSpawnDelay);
+  stats.nodeSpawnDelay = Math.max(0.05, stats.nodeSpawnDelay);
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
   applyCursorSize();
