@@ -171,6 +171,7 @@ let milestones = [];
 let achievements = [];
 let skins = [];
 let automationNodes = [];
+let nodeSpawnTimer = 0;
 let tooltipEl;
 let achievementTimer = 0;
 
@@ -426,6 +427,13 @@ function hydrateState(source = {}) {
   };
   const expectedTimer = getLevelDuration(state.currentLevel.index);
   state.currentLevel.timer = Math.min(expectedTimer, Math.max(0, state.currentLevel.timer || expectedTimer));
+  if (!state.currentLevel.bossActive && !state.currentLevel.active) {
+    state.currentLevel.active = true;
+    if (state.currentLevel.timer <= 0) {
+      state.currentLevel.timer = expectedTimer;
+    }
+    nodeSpawnTimer = 0;
+  }
   const sanitizedUpgrades = {};
   Object.entries(mergedUpgrades).forEach(([id, level]) => {
     const numeric = Number(level);
@@ -1009,21 +1017,21 @@ function generateUpgrades() {
 function describeUpgrade(category, perLevel, maxLevel) {
   switch (category) {
     case 'damage':
-      return `Boost raw node damage by ${(perLevel * 100).toFixed(1)}% per level. (${maxLevel} lvls)`;
+      return `+${(perLevel * 100).toFixed(1)}% damage / level (${maxLevel} lvls)`;
     case 'crit':
-      return `Increase crit chance by ${(perLevel * 100).toFixed(1)}% per level.`;
+      return `+${(perLevel * 100).toFixed(1)}% crit chance / level`;
     case 'economyNode':
-      return `Increase Bits recovered per node by ${perLevel.toFixed(1)} each level.`;
+      return `+${perLevel.toFixed(1)} bits from nodes / level`;
     case 'economy':
-      return `Increase Bit yield by ${(perLevel * 100).toFixed(1)}% per level.`;
+      return `+${(perLevel * 100).toFixed(1)}% bit gains / level`;
     case 'control':
-      return `Enhance node control fields, spawning nodes faster and sustaining more on screen.`;
+      return 'Faster spawns & higher node cap';
     case 'defense':
-      return `Reinforce conduits, adding ${perLevel.toFixed(0)} HP per level and slight regen.`;
+      return `+${perLevel.toFixed(0)} HP, regen & defense / level`;
     case 'ability':
-      return `Unlock catalyst routines adding auto-damage and scaling with health.`;
+      return '+auto damage & health scaling';
     case 'weird':
-      return `Paradoxical glyph raising reality fracture damage by ${(perLevel * 100).toFixed(1)}%.`;
+      return `+${(perLevel * 100).toFixed(1)}% anomaly damage / level`;
     default:
       return '';
   }
@@ -1034,7 +1042,7 @@ function generateAreaUpgrades() {
     {
       id: 'phase-halo',
       name: 'Phase Halo',
-      description: 'Expands the manual pointer radius by 6px per level for broader sweeps.',
+      description: '+6px pointer size per level',
       maxLevel: 10,
       costBase: 250,
       costScale: 1.35,
@@ -1047,7 +1055,7 @@ function generateAreaUpgrades() {
     {
       id: 'vector-manifold',
       name: 'Vector Manifold',
-      description: 'Diffuses strike vectors, adding 8px radius per level and amplifying multi-target damage.',
+      description: '+8px pointer & extra multi-hit damage per level',
       maxLevel: 8,
       costBase: 1200,
       costScale: 1.45,
@@ -1062,7 +1070,7 @@ function generateAreaUpgrades() {
     {
       id: 'quantum-bloom',
       name: 'Quantum Bloom',
-      description: 'Catalyses a sweeping bloom, adding 14px radius per level while easing spawn congestion.',
+      description: '+14px pointer & faster spawns per level',
       maxLevel: 5,
       costBase: 5200,
       costScale: 1.65,
@@ -1082,7 +1090,7 @@ function generateSpawnUpgrades() {
     {
       id: 'tachyon-injector',
       name: 'Tachyon Injector',
-      description: 'Shears 0.12s off the node spawn cycle per level, keeping the arena saturated.',
+      description: '-0.12s spawn delay per level',
       maxLevel: 12,
       costBase: 320,
       costScale: 1.42,
@@ -1095,7 +1103,7 @@ function generateSpawnUpgrades() {
     {
       id: 'replication-forge',
       name: 'Replication Forge',
-      description: 'Stabilises parallel lattices, widening cap density while trimming spawn delay.',
+      description: '-0.08s spawn delay & +max nodes',
       maxLevel: 9,
       costBase: 1800,
       costScale: 1.55,
@@ -1110,7 +1118,7 @@ function generateSpawnUpgrades() {
     {
       id: 'entropy-splicer',
       name: 'Entropy Splicer',
-      description: 'Funnels weird resonance, slashing spawn delay and amplifying anomaly synergy.',
+      description: '-0.15s spawn delay & +weird synergy',
       maxLevel: 6,
       costBase: 5200,
       costScale: 1.7,
@@ -1367,7 +1375,7 @@ function generateAutomationSkills() {
     {
       id: 'sync-core',
       name: 'Sync Core',
-      tagline: 'Kickstarts automation (-8% interval)',
+      tagline: 'Auto interval -8%',
       position: { row: 2, col: 5 },
       cost: { prestige: 2, lp: 3 },
       prereqs: [],
@@ -1378,7 +1386,7 @@ function generateAutomationSkills() {
     {
       id: 'signal-doubler',
       name: 'Signal Doubler',
-      tagline: 'Split the control beam (-10%)',
+      tagline: 'Auto interval -10%',
       position: { row: 3, col: 3 },
       cost: { prestige: 4, lp: 4 },
       prereqs: ['sync-core'],
@@ -1389,7 +1397,7 @@ function generateAutomationSkills() {
     {
       id: 'frequency-gate',
       name: 'Frequency Gate',
-      tagline: 'Phase locks cadence (-10%)',
+      tagline: 'Auto interval -10%',
       position: { row: 3, col: 7 },
       cost: { prestige: 4, lp: 5 },
       prereqs: ['sync-core'],
@@ -1400,7 +1408,7 @@ function generateAutomationSkills() {
     {
       id: 'servo-cluster',
       name: 'Servo Cluster',
-      tagline: 'Staggered actuators (-8%)',
+      tagline: 'Auto interval -8%',
       position: { row: 4, col: 2 },
       cost: { prestige: 6, lp: 7 },
       prereqs: ['signal-doubler'],
@@ -1411,7 +1419,7 @@ function generateAutomationSkills() {
     {
       id: 'phase-weaver',
       name: 'Phase Weaver',
-      tagline: 'Braids both channels (-12%)',
+      tagline: 'Auto interval -12%',
       position: { row: 4, col: 5 },
       cost: { prestige: 8, lp: 9 },
       prereqs: ['signal-doubler', 'frequency-gate'],
@@ -1422,7 +1430,7 @@ function generateAutomationSkills() {
     {
       id: 'quantum-latch',
       name: 'Quantum Latch',
-      tagline: 'Stabilises drift (-10%)',
+      tagline: 'Auto interval -10%',
       position: { row: 4, col: 8 },
       cost: { prestige: 8, lp: 9 },
       prereqs: ['frequency-gate'],
@@ -1433,7 +1441,7 @@ function generateAutomationSkills() {
     {
       id: 'tachyon-loop',
       name: 'Tachyon Loop',
-      tagline: 'Propels cadence (-18%)',
+      tagline: 'Auto interval -18%',
       position: { row: 5, col: 4 },
       cost: { prestige: 12, lp: 13 },
       prereqs: ['servo-cluster', 'phase-weaver'],
@@ -1444,7 +1452,7 @@ function generateAutomationSkills() {
     {
       id: 'singularity-array',
       name: 'Singularity Array',
-      tagline: 'Locks temporal echo (-15%)',
+      tagline: 'Auto interval -15%',
       position: { row: 5, col: 6 },
       cost: { prestige: 12, lp: 13 },
       prereqs: ['phase-weaver', 'quantum-latch'],
@@ -1455,7 +1463,7 @@ function generateAutomationSkills() {
     {
       id: 'autonomy-core',
       name: 'Autonomy Core',
-      tagline: 'Full automation (-25%)',
+      tagline: 'Auto interval -25%',
       position: { row: 6, col: 5 },
       cost: { prestige: 18, lp: 18 },
       prereqs: ['tachyon-loop', 'singularity-array'],
@@ -2131,7 +2139,6 @@ function tick(delta) {
   }
 }
 
-let nodeSpawnTimer = 0;
 const activeNodes = new Map();
 let activeBoss = null;
 let autoClickTimer = 0;
