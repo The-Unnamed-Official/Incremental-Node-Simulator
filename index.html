@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Incremental Node Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet"
+  />
+</head>
+<body class="vhs">
+  <div id="crt-overlay"></div>
+  <div id="app">
+    <header class="top-bar">
+      <div class="title">
+        <div class="title-heading">
+          <h1>incremental node simulator</h1>
+          <span id="version-display" class="version-tag">v0.401</span>
+        </div>
+      </div>
+      <div class="resource-bar">
+        <div class="resource"><span class="resource-label">Bits</span><span class="resource-value" id="bits-display">0</span></div>
+        <div class="resource"><span class="resource-label">Cryptcoins</span><span class="resource-value" id="cryptcoin-display">0</span></div>
+        <div class="resource"><span class="resource-label">Prestige</span><span class="resource-value" id="prestige-display">0</span></div>
+        <div class="resource"><span class="resource-label">XP</span><span class="resource-value" id="xp-display">0</span></div>
+        <div class="resource"><span class="resource-label">Level</span><span class="resource-value" id="level-display">1</span></div>
+        <div class="resource"><span class="resource-label">LP</span><span class="resource-value" id="lp-display">0</span></div>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <section class="gameplay">
+        <div class="level-readout">
+          <div>Level <span id="current-level">1</span></div>
+        </div>
+        <div class="node-area" id="node-area">
+          <div id="particle-layer" aria-hidden="true"></div>
+          <div id="bit-layer" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <aside class="side-panel">
+        <nav class="tabs">
+          <button class="tab-button active" data-tab="upgrades">Upgrades</button>
+          <button class="tab-button" data-tab="area">Damage Area</button>
+          <button class="tab-button" data-tab="spawn">Spawn Matrix</button>
+          <button class="tab-button" data-tab="automation">Automation</button>
+          <button class="tab-button" data-tab="milestones">Milestones</button>
+          <button class="tab-button" data-tab="crypto">Crypto Mine</button>
+          <button class="tab-button" data-tab="lab">Lab</button>
+          <button class="tab-button" data-tab="settings">Settings</button>
+        </nav>
+
+        <section id="tab-upgrades" class="tab-content active">
+          <div class="tab-toolbar">
+            <div class="pill-group">
+              <button class="toggle-switch filter active" data-filter="damage" aria-pressed="true">damage</button>
+              <button class="toggle-switch filter" data-filter="crit" aria-pressed="false">crit</button>
+              <button class="toggle-switch filter" data-filter="economy" aria-pressed="false">economy</button>
+              <button class="toggle-switch filter" data-filter="control" aria-pressed="false">control</button>
+              <button class="toggle-switch filter" data-filter="defense" aria-pressed="false">defense</button>
+              <button class="toggle-switch filter" data-filter="ability" aria-pressed="false">ability</button>
+              <button class="toggle-switch filter" data-filter="weird" aria-pressed="false">weird</button>
+            </div>
+            <div class="upgrade-summary">
+              <span>Purchased <span id="upgrade-count">0</span> / 400</span>
+              <span>Weird resonance <span id="weird-progress">0 / 20</span></span>
+            </div>
+          </div>
+          <div id="skill-tree" class="skill-tree" role="list"></div>
+        </section>
+
+        <section id="tab-area" class="tab-content">
+          <div class="area-header">
+            <h2>Damage Field</h2>
+            <p>Expand the pointer lattice so a single sweep can rake across more nodes at once.</p>
+          </div>
+          <div id="area-upgrade-grid" class="area-upgrade-grid" role="list"></div>
+        </section>
+
+        <section id="tab-spawn" class="tab-content">
+          <div class="area-header">
+            <h2>Spawn Matrix</h2>
+            <p>Refine the conduit that feeds new nodes into the field, amplifying spawn cadence and density.</p>
+          </div>
+          <div id="spawn-upgrade-grid" class="area-upgrade-grid" role="list"></div>
+        </section>
+
+        <section id="tab-automation" class="tab-content">
+          <div class="automation-header">
+            <h2>Pulse Driver Lattice</h2>
+            <p>Invest prestige insight and LP to accelerate the auto-pointer cadence.</p>
+          </div>
+          <div id="automation-tree" class="automation-tree" role="list"></div>
+        </section>
+
+        <section id="tab-milestones" class="tab-content">
+          <h2>Milestones</h2>
+          <p>Push the simulacrum to earn rewards for your dedication.</p>
+          <div id="milestone-list" class="milestone-list"></div>
+        </section>
+
+        <section id="tab-crypto" class="tab-content">
+          <h2>Crypto Mine</h2>
+          <p>Invest Bits into the quantum miners to produce Cryptcoins.</p>
+          <div class="crypto-panel">
+            <label>Deposit amount</label>
+            <div class="pill-group">
+              <button class="pill deposit" data-amount="100">+100</button>
+              <button class="pill deposit" data-amount="1000">+1k</button>
+              <button class="pill deposit" data-amount="10000">+10k</button>
+              <button class="pill deposit" data-amount="100000">+100k</button>
+            </div>
+            <div class="field">
+              <input type="number" id="custom-deposit" min="0" placeholder="custom bits" />
+              <button id="confirm-deposit" class="pill">deposit</button>
+            </div>
+            <div class="field">
+              <label>Deposited</label>
+              <span id="crypto-deposited">0</span>
+            </div>
+            <div class="field">
+              <label>Cryptcoin returns</label>
+              <span id="crypto-returns">0 / sec</span>
+            </div>
+            <div class="field">
+              <label>Time remaining</label>
+              <span id="crypto-timer">00:00</span>
+            </div>
+            <button id="withdraw-crypto" class="pill">withdraw</button>
+          </div>
+        </section>
+
+        <section id="tab-lab" class="tab-content">
+          <div id="lab-locked">
+            <h2>???</h2>
+            <p>The lab interface is assembling from broken realities. Purchase more weird skills to stabilise it.</p>
+          </div>
+          <div id="lab-panel" class="hidden">
+            <h2>godvirus research lab</h2>
+            <p>Invest Cryptcoin into developing the godvirus.</p>
+            <div class="lab-progress">
+              <label>Research progress</label>
+              <div class="progress-bar">
+                <div id="lab-progress-fill" class="progress-fill"></div>
+              </div>
+              <div class="field">
+                <span id="lab-progress-text">0.000 / 1000.000</span>
+              </div>
+            </div>
+            <div class="lab-controls">
+              <div class="field">
+                <label>Deposit</label>
+                <input type="number" id="lab-deposit" min="0" placeholder="cryptcoins" />
+                <button id="lab-confirm" class="pill">fund</button>
+              </div>
+              <div class="field">
+                <label>Speed</label>
+                <span id="lab-speed">0 / sec</span>
+              </div>
+            </div>
+            <button id="breach-lab" class="pill">Breach</button>
+          </div>
+        </section>
+
+        <section id="tab-settings" class="tab-content">
+          <h2>Settings</h2>
+          <div class="settings-grid">
+            <label class="setting">
+              <span>Screen shake</span>
+              <input type="range" id="screen-shake" min="0" max="100" value="50" />
+            </label>
+            <label class="setting setting-toggle">
+              <span>CRT effect</span>
+              <input type="checkbox" id="crt-toggle" class="switch-input" checked />
+            </label>
+            <label class="setting">
+              <span>Palette</span>
+              <select id="palette-select">
+                <option value="default">default</option>
+                <option value="violet">violet</option>
+                <option value="emerald">emerald</option>
+              </select>
+            </label>
+            <label class="setting">
+              <span>BGM volume</span>
+              <input type="range" id="bgm-volume" min="0" max="100" value="50" />
+            </label>
+            <label class="setting">
+              <span>SFX volume</span>
+              <input type="range" id="sfx-volume" min="0" max="100" value="70" />
+            </label>
+            <label class="setting setting-toggle">
+              <span>Scanlines</span>
+              <input type="checkbox" id="scanline-toggle" class="switch-input" checked />
+            </label>
+            <label class="setting setting-toggle">
+              <span>Reduce animation</span>
+              <input type="checkbox" id="reduce-animation" class="switch-input" />
+            </label>
+          </div>
+          <div class="skin-panel">
+            <h3>Node skins</h3>
+            <div id="skin-grid" class="skin-grid"></div>
+          </div>
+          <div class="save-controls">
+            <h3>Progress</h3>
+            <div class="save-actions">
+              <button id="save-game" class="pill">Save Game</button>
+              <button id="new-game" class="pill danger">New Game</button>
+            </div>
+            <div id="save-status" class="save-status" aria-live="polite"></div>
+            <div class="save-timestamp">Last saved: <span id="save-timestamp">never</span></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <section class="progress-dock" aria-labelledby="progress-heading">
+      <div class="progress-dock-header">
+        <h2 id="progress-heading">Progress Chronicle</h2>
+        <div class="progress-dock-tabs" role="tablist">
+          <button
+            class="progress-tab active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="progress-achievements"
+            data-progress-tab="achievements"
+          >
+            Achievements
+          </button>
+          <button
+            class="progress-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="progress-milestones"
+            data-progress-tab="milestones"
+          >
+            Milestones
+          </button>
+        </div>
+      </div>
+      <div class="progress-dock-panels">
+        <div id="progress-achievements" class="progress-panel active" role="tabpanel">
+          <div id="achievement-grid" class="achievement-grid" role="list"></div>
+        </div>
+        <div id="progress-milestones" class="progress-panel" role="tabpanel" aria-hidden="true">
+          <div id="milestone-dock" class="milestone-dock" role="list"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div id="skill-check" class="skill-check hidden" role="dialog" aria-modal="true" aria-live="assertive">
+    <div class="skill-check-panel">
+      <h2 id="skill-check-title">Skill Check!</h2>
+      <p id="skill-check-description">Stabilise the upgrade stream before it collapses.</p>
+      <div class="skill-check-meter">
+        <div class="skill-check-track">
+          <div id="skill-check-target" class="skill-check-target"></div>
+          <div id="skill-check-slider" class="skill-check-slider"></div>
+        </div>
+        <div class="skill-check-timer">
+          <div id="skill-check-progress" class="skill-check-timer-fill"></div>
+        </div>
+      </div>
+      <button id="skill-check-action" class="pill">Resolve</button>
+    </div>
+  </div>
+  <div id="level-dialog" class="level-dialog hidden" role="dialog" aria-modal="true" aria-live="assertive">
+    <div class="level-dialog-panel">
+      <h2>Boss neutralised</h2>
+      <p id="level-dialog-summary">Loot tallied.</p>
+      <div class="level-dialog-actions">
+        <button id="level-replay" class="pill">Re-run breach</button>
+        <button id="level-continue" class="pill accent">Advance</button>
+      </div>
+    </div>
+  </div>
+  <div id="custom-cursor" aria-hidden="true">
+    <div class="cursor-square">
+      <div class="cursor-dot"></div>
+    </div>
+  </div>
+  <audio id="bgm" src="files/bg_music.mp3" preload="auto" loop></audio>
+  <script src="script.js"></script>
+</body>
+</html>
