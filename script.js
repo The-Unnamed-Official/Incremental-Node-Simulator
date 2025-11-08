@@ -850,10 +850,30 @@ function applySettingsToControls() {
 function generateSkins() {
   skins = [
     { id: 'default', name: 'Default Core', cost: 0, description: 'Standard breach-grade node.' },
-    { id: 'midnight', name: 'Midnight Bloom', cost: 1500, description: 'Deep blue core with starlight shimmer.' },
-    { id: 'ember', name: 'Ember Pulse', cost: 4000, description: 'Charred shell containing molten data.' },
-    { id: 'glitch', name: 'Glitch Prism', cost: 12000, description: 'Reality-warping shader, shifts per click.' },
-    { id: 'aurora', name: 'Aurora Silk', cost: 25000, description: 'Refracted light swirling forever.' },
+    {
+      id: 'midnight',
+      name: 'Midnight Bloom',
+      cost: 1500,
+      description: 'Orbital halo with drifting starlight around a midnight core.',
+    },
+    {
+      id: 'ember',
+      name: 'Ember Pulse',
+      cost: 4000,
+      description: 'Forged casing split with molten fractures and radiant sparks.',
+    },
+    {
+      id: 'glitch',
+      name: 'Glitch Prism',
+      cost: 12000,
+      description: 'Reality-warping shader, shifts per click.',
+    },
+    {
+      id: 'aurora',
+      name: 'Aurora Silk',
+      cost: 25000,
+      description: 'Multilayer lattice of refracted light and harmonic pulses.',
+    },
   ];
 }
 
@@ -2273,6 +2293,7 @@ function performAutoClick() {
   const pointerX = cursorPosition.x;
   const pointerY = cursorPosition.y;
   playSFX('pointerAtk');
+  triggerCursorClickAnimation(pointerX, pointerY);
   const pointerRect = getPointerRect(pointerX, pointerY);
   const pointerPolygon = getPointerPolygon(pointerRect);
   let hitSomething = false;
@@ -2297,7 +2318,6 @@ function performAutoClick() {
   }
   if (hitSomething) {
     playPointerHitSFX();
-    triggerCursorClickAnimation(pointerX, pointerY);
   }
 }
 
@@ -2524,11 +2544,6 @@ function spawnBitTokens(node) {
     });
     UI.bitLayer.appendChild(token);
     requestAnimationFrame(() => token.classList.add('visible'));
-    setTimeout(() => {
-      if (!token.classList.contains('collecting')) {
-        token.remove();
-      }
-    }, 12000);
   }
 }
 
