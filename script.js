@@ -92,6 +92,7 @@ const stats = {
   autoInterval: 1,
   pointerSize: 32,
   bitGain: 1,
+  bitNodeBonus: 0,
   xpGain: 1,
   prestigeGain: 1,
   nodeSpawnDelay: 2,
@@ -111,7 +112,7 @@ const nodeTypes = [
     name: 'Red Node',
     color: 'red',
     reward(level) {
-      const base = 8 + level * 3;
+      const base = 6 + level * 2;
       return { bits: base };
     },
     hp(level) {
@@ -123,8 +124,9 @@ const nodeTypes = [
     name: 'Blue Node',
     color: 'blue',
     reward(level) {
-      const base = 6 + level * 2;
-      return { bits: base * 0.8, xp: 4 + level };
+      const redBase = 6 + level * 2;
+      const bits = Math.round(redBase * 1.9);
+      return { bits, xp: 4 + level };
     },
     hp(level) {
       return 30 + level * 5;
@@ -135,7 +137,9 @@ const nodeTypes = [
     name: 'Gold Node',
     color: 'gold',
     reward(level) {
-      return { bits: 80 + level * 12, cryptcoins: 1 + level * 0.1 };
+      const redBase = 6 + level * 2;
+      const bits = Math.round(redBase * 3.4 + 18);
+      return { bits, cryptcoins: 1 + level * 0.1 };
     },
     hp(level) {
       return 50 + level * 10;
@@ -905,7 +909,8 @@ function generateUpgrades() {
   const families = [
     { key: 'damage', count: 80, baseName: 'Node Piercer', minLevel: 5, maxLevel: 20, baseCost: 50, scale: 1.35, perLevel: 0.06 },
     { key: 'crit', count: 60, baseName: 'Critical Bloom', minLevel: 3, maxLevel: 12, baseCost: 120, scale: 1.4, perLevel: 0.02 },
-    { key: 'economy', count: 70, baseName: 'Extraction Protocol', minLevel: 5, maxLevel: 25, baseCost: 80, scale: 1.33, perLevel: 0.05 },
+    { key: 'economyNode', category: 'economy', count: 40, baseName: 'Bit Condenser', minLevel: 4, maxLevel: 20, baseCost: 110, scale: 1.32, perLevel: 3 },
+    { key: 'economy', count: 30, baseName: 'Extraction Protocol', minLevel: 6, maxLevel: 24, baseCost: 90, scale: 1.35, perLevel: 0.05 },
     { key: 'control', count: 50, baseName: 'Node Field', minLevel: 4, maxLevel: 18, baseCost: 140, scale: 1.38, perLevel: 0.04 },
     { key: 'defense', count: 50, baseName: 'Resilience Matrix', minLevel: 4, maxLevel: 15, baseCost: 100, scale: 1.36, perLevel: 4 },
     { key: 'ability', count: 50, baseName: 'Catalyst Drive', minLevel: 3, maxLevel: 10, baseCost: 160, scale: 1.42, perLevel: 0.08 },
@@ -917,6 +922,9 @@ function generateUpgrades() {
     },
     crit: (stats, level, data) => {
       stats.critChance += data.perLevel * level;
+    },
+    economyNode: (stats, level, data) => {
+      stats.bitNodeBonus += data.perLevel * level;
     },
     economy: (stats, level, data) => {
       stats.bitGain += data.perLevel * level;
@@ -962,7 +970,7 @@ function generateUpgrades() {
       }
       upgrades.push({
         id,
-        category: family.key,
+        category: family.category || family.key,
         name,
         description: desc,
         maxLevel,
@@ -984,6 +992,8 @@ function describeUpgrade(category, perLevel, maxLevel) {
       return `Boost raw node damage by ${(perLevel * 100).toFixed(1)}% per level. (${maxLevel} lvls)`;
     case 'crit':
       return `Increase crit chance by ${(perLevel * 100).toFixed(1)}% per level.`;
+    case 'economyNode':
+      return `Increase Bits recovered per node by ${perLevel.toFixed(1)} each level.`;
     case 'economy':
       return `Increase Bit yield by ${(perLevel * 100).toFixed(1)}% per level.`;
     case 'control':
@@ -2436,8 +2446,10 @@ function destroyNode(node) {
 
 function dropRewards(type) {
   const rewards = type.reward(state.currentLevel.index);
-  if (rewards.bits) {
-    state.bits += rewards.bits * stats.bitGain;
+  const baseBits = rewards.bits ?? 0;
+  if (baseBits || stats.bitNodeBonus) {
+    const totalBits = Math.max(0, baseBits + stats.bitNodeBonus);
+    state.bits += totalBits * stats.bitGain;
   }
   if (rewards.xp) {
     gainXP(rewards.xp * stats.xpGain);
@@ -2757,6 +2769,7 @@ function updateStats() {
   stats.autoInterval = 1;
   stats.pointerSize = 32;
   stats.bitGain = 1;
+  stats.bitNodeBonus = 0;
   stats.xpGain = 1;
   stats.prestigeGain = 1;
   stats.nodeSpawnDelay = 2;
