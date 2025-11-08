@@ -204,10 +204,11 @@ let sfxLoaded = false;
 function loadSFX() {
   if (sfxLoaded) return;
   Object.entries(SFX_DEFINITIONS).forEach(([key, def]) => {
-    const audio = document.createElement('audio');
-    audio.src = def.src;
-    audio.preload = 'auto';
-    sfxLibrary.set(key, { def, audio });
+    const preloadAudio = document.createElement('audio');
+    preloadAudio.src = def.src;
+    preloadAudio.preload = 'auto';
+    preloadAudio.load?.();
+    sfxLibrary.set(key, { def });
   });
   sfxLoaded = true;
 }
@@ -226,8 +227,9 @@ function playSFX(key) {
   if (!entry) return;
   const volume = getSFXVolume(entry.def.baseVolume);
   if (volume <= 0) return;
-  const instance = entry.audio.cloneNode();
+  const instance = new Audio(entry.def.src);
   instance.volume = volume;
+  instance.preload = 'auto';
   const playPromise = instance.play();
   if (playPromise && typeof playPromise.catch === 'function') {
     playPromise.catch(() => {});
@@ -305,7 +307,6 @@ function cacheElements() {
   UI.labProgressFill = document.getElementById('lab-progress-fill');
   UI.labProgressText = document.getElementById('lab-progress-text');
   UI.labSpeed = document.getElementById('lab-speed');
-  UI.toggleCRT = document.getElementById('toggle-crt');
   UI.skinGrid = document.getElementById('skin-grid');
   UI.automationTree = document.getElementById('automation-tree');
   UI.saveGame = document.getElementById('save-game');
@@ -737,18 +738,6 @@ function setupProgressDock() {
 }
 
 function setupSettings() {
-  if (UI.toggleCRT) {
-    UI.toggleCRT.addEventListener('click', () => {
-      state.settings.crt = !state.settings.crt;
-      const crtToggle = document.getElementById('crt-toggle');
-      if (crtToggle) {
-        crtToggle.checked = state.settings.crt;
-      }
-      UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
-      applyDisplaySettings();
-      queueSave();
-    });
-  }
   const screenShake = document.getElementById('screen-shake');
   if (screenShake) {
     screenShake.addEventListener('input', (e) => {
@@ -760,9 +749,6 @@ function setupSettings() {
   if (crtToggle) {
     crtToggle.addEventListener('change', (e) => {
       state.settings.crt = e.target.checked;
-      if (UI.toggleCRT) {
-        UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
-      }
       applyDisplaySettings();
       queueSave();
     });
@@ -819,7 +805,6 @@ function applyDisplaySettings() {
   if (state.settings.palette && state.settings.palette !== 'default') {
     document.body.classList.add(`palette-${state.settings.palette}`);
   }
-  UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
 }
 
 function applySettingsToControls() {
@@ -850,9 +835,6 @@ function applySettingsToControls() {
   const sfxVolume = document.getElementById('sfx-volume');
   if (sfxVolume) {
     sfxVolume.value = Math.round(state.settings.sfx * 100);
-  }
-  if (UI.toggleCRT) {
-    UI.toggleCRT.textContent = state.settings.crt ? 'CRT ON' : 'CRT OFF';
   }
 }
 
