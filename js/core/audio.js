@@ -10,7 +10,8 @@ const SFX_DEFINITIONS = {
 const sfxLibrary = new Map();
 let sfxLoaded = false;
 let bgmAudio;
-const bgmTracks = ['files/bg_music.mp3', 'files/bg_music2.mp3', 'files/bg_music3.mp3'];
+const baseBgmTracks = ['files/bg_music.mp3', 'files/bg_music2.mp3', 'files/bg_music3.mp3'];
+let bgmTracks = [];
 let bgmTrackIndex = 0;
 let bgmEndHandler = null;
 let audioUnlocked = false;
@@ -72,6 +73,12 @@ function advanceBGMTrack(playOnAdvance = true) {
 
 function initBGMPlaylist() {
   if (!bgmAudio) return;
+  bgmTracks = [...baseBgmTracks];
+  for (let i = bgmTracks.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bgmTracks[i], bgmTracks[j]] = [bgmTracks[j], bgmTracks[i]];
+  }
+  bgmTrackIndex = 0;
   applyBGMSource();
   if (bgmEndHandler) {
     bgmAudio.removeEventListener('ended', bgmEndHandler);

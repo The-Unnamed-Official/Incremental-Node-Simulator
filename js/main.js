@@ -15,6 +15,10 @@ let activeUpdateLogVersion = null;
 let frameCounter = 0;
 let cachedNodeAreaRect = null;
 let cachedNodeAreaFrame = -1;
+const GREEN_MOMENTUM_DURATION = 6;
+const GREEN_MOMENTUM_MAX_STACKS = 3;
+let greenMomentumTimer = 0;
+let greenMomentumStacks = 0;
 
 const UI = {};
 const dropdownRegistry = new Map();
@@ -3877,6 +3881,7 @@ function tick(delta) {
   state.playtime += delta;
   updateLevel(delta);
   updateNodes(delta);
+  updateGreenMomentum(delta);
   updateAutoClick(delta);
   updateBoss(delta);
   updateCrypto(delta);
@@ -3928,14 +3933,29 @@ function updateNodes(delta) {
   });
 }
 
+function updateGreenMomentum(delta) {
+  if (greenMomentumTimer <= 0) return;
+  greenMomentumTimer = Math.max(0, greenMomentumTimer - delta);
+  if (greenMomentumTimer === 0) {
+    greenMomentumStacks = 0;
+  }
+}
+
 function updateAutoClick(delta) {
   if (!state.currentLevel.active) return;
   autoClickTimer += delta;
-  const interval = Math.max(0.1, stats.autoInterval);
+  const interval = getAutoClickInterval();
   while (autoClickTimer >= interval) {
     autoClickTimer -= interval;
     performAutoClick();
   }
+}
+
+function getAutoClickInterval() {
+  const baseInterval = Math.max(0.1, stats.autoInterval);
+  if (greenMomentumTimer <= 0 || greenMomentumStacks <= 0) return baseInterval;
+  const haste = 1 - Math.min(0.5, greenMomentumStacks * 0.15);
+  return Math.max(0.05, baseInterval * haste);
 }
 
 function getPointerSize() {
@@ -4338,6 +4358,9 @@ function destroyNode(node) {
   const key = node.type.id;
   state.nodesDestroyed[key] = (state.nodesDestroyed[key] || 0) + 1;
   createNodeExplosion(node);
+  if (node.type?.id === 'green') {
+    applyGreenNodeMomentum(node);
+  }
   if (node.type?.id === 'gold') {
     createGoldenBitBurst(node);
   }
@@ -4375,6 +4398,14 @@ function dropRewards(node) {
   updateResources();
   queueSave(2000);
   return { bits: harvestedBits };
+}
+
+function applyGreenNodeMomentum(node) {
+  greenMomentumTimer = GREEN_MOMENTUM_DURATION;
+  greenMomentumStacks = Math.min(GREEN_MOMENTUM_MAX_STACKS, greenMomentumStacks + 1);
+  if (node?.el) {
+    createFloatText(node.el, 'Momentum!', '#7fffd6');
+  }
 }
 
 function updateNodeElement(node) {

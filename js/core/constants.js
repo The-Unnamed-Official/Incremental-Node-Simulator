@@ -4,9 +4,20 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.501';
+const GAME_VERSION = 'v0.505';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.505',
+    title: 'Code split polish, custom soundtrack, and green surge',
+    description:
+      'A tighter boot sequence, a fresh self-made track, and a brand new green runner keep the simulator responsive and lively.',
+    changes: [
+      'Core constants, state, audio, and the main loop now load as deferred, ordered files so the browser can parse the page faster while keeping dependencies tidy.',
+      'Added a new background music track produced in-house and expanded the playlist rotation so sessions cycle across four songs.',
+      'Introduced a speedy Green Node variant that drops bits, XP, and cryptcoins while granting a short auto-fire haste buff when intercepted.',
+    ],
+  },
   {
     version: 'v0.501',
     title: 'Palette selector & execution protocols',
