@@ -1344,7 +1344,7 @@ body.disable-scanlines #crt-overlay {
 
 .setting-toggle .switch-input {
   position: relative;
-  width: 94px;
+  width: 100px;
   height: 38px;
   margin: 0;
   -webkit-appearance: none;
@@ -1362,7 +1362,7 @@ body.disable-scanlines #crt-overlay {
   content: '';
   position: absolute;
   top: 50%;
-  left: 10px;
+  left: 5px;
   width: 30px;
   height: 26px;
   background: linear-gradient(135deg, rgba(127, 255, 214, 0.85), rgba(60, 186, 178, 0.9));
