@@ -2431,7 +2431,7 @@ body.disable-scanlines #crt-overlay {
   transform: translate(-50%, -50%) scale(var(--cursor-zoom));
   transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), width var(--transition-fast) ease,
     height var(--transition-fast) ease;
-  z-index: 100;
+  z-index: 1000000;
   display: grid;
   place-items: center;
   image-rendering: pixelated;
