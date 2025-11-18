@@ -29,6 +29,7 @@
 
 * {
   box-sizing: border-box;
+  cursor: none !important;
 }
 
 body {
@@ -45,6 +46,7 @@ body {
   scroll-padding-top: calc(var(--sticky-offset) + 12px);
   -webkit-tap-highlight-color: transparent;
   image-rendering: pixelated;
+  cursor: none !important;
 }
 
 body,
@@ -53,6 +55,7 @@ body,
 .milestone-list,
 .update-log-body {
   scrollbar-width: thin;
+  cursor: none !important;
   scrollbar-color: rgba(118, 244, 198, 0.45) rgba(9, 14, 30, 0.85);
 }
 
@@ -63,6 +66,7 @@ body::-webkit-scrollbar,
 .update-log-body::-webkit-scrollbar {
   width: 10px;
   height: 10px;
+  cursor: none !important;
 }
 
 body::-webkit-scrollbar-track,
@@ -71,6 +75,7 @@ body::-webkit-scrollbar-track,
 .milestone-list::-webkit-scrollbar-track,
 .update-log-body::-webkit-scrollbar-track {
   background: rgba(9, 14, 30, 0.85);
+  cursor: none !important;
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.18);
 }
 
@@ -81,6 +86,7 @@ body::-webkit-scrollbar-thumb,
 .update-log-body::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, rgba(118, 244, 198, 0.85), rgba(70, 210, 170, 0.75));
   border: var(--pixel-border) solid rgba(6, 12, 22, 0.95);
+  cursor: none !important;
 }
 
 body::-webkit-scrollbar-thumb:hover,
@@ -88,6 +94,7 @@ body::-webkit-scrollbar-thumb:hover,
 .achievement-grid::-webkit-scrollbar-thumb:hover,
 .milestone-list::-webkit-scrollbar-thumb:hover,
 .update-log-body::-webkit-scrollbar-thumb:hover {
+  cursor: none !important;
   background: linear-gradient(135deg, rgba(118, 244, 198, 0.95), rgba(70, 210, 170, 0.9));
 }
 
@@ -97,6 +104,7 @@ body::-webkit-scrollbar-corner,
 .milestone-list::-webkit-scrollbar-corner,
 .update-log-body::-webkit-scrollbar-corner {
   background: rgba(9, 14, 30, 0.85);
+  cursor: none !important;
 }
 
 body.reduced-motion * {
@@ -336,14 +344,14 @@ body.disable-scanlines #crt-overlay {
 }
 
 .level-select .custom-dropdown__button {
-  background: repeating-linear-gradient(135deg, rgba(255, 109, 145, 0.15) 0 8px, rgba(118, 244, 198, 0.08) 8px 16px),
+  background: repeating-linear-gradient(135deg, rgba(109, 255, 209, 0.15) 0 8px, rgba(118, 244, 198, 0.08) 8px 16px),
     repeating-linear-gradient(90deg, rgba(16, 22, 36, 0.95) 0 10px, rgba(12, 20, 32, 0.92) 10px 20px);
-  border-color: rgba(255, 116, 150, 0.65);
+  border-color: rgba(116, 255, 176, 0.65);
   color: #ffe9f2;
 }
 
 .level-select .custom-dropdown__option {
-  border-color: rgba(255, 116, 150, 0.45);
+  border-color: rgba(116, 255, 204, 0.45);
 }
 
 #tab-settings .custom-dropdown__button {
@@ -390,8 +398,12 @@ body.disable-scanlines #crt-overlay {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  cursor: pointer;
-  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+  cursor: none;
+  transition: border var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.custom-dropdown__button:hover {
+  border: var(--pixel-border) solid rgba(170, 253, 227, 0.55);
 }
 
 .custom-dropdown__button .chevron {
@@ -441,7 +453,6 @@ body.disable-scanlines #crt-overlay {
   text-align: left;
   padding: 10px 12px;
   text-transform: uppercase;
-  cursor: pointer;
   transition: background var(--transition-fast) ease, border-color var(--transition-fast) ease;
 }
 
@@ -2053,11 +2064,11 @@ body.disable-scanlines #crt-overlay {
 
 .bit-token {
   position: absolute;
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #ff99c8 0%, #ff5f9f 50%, #c2154f 100%);
-  border: var(--pixel-border) solid rgba(79, 12, 38, 0.95);
-  box-shadow: var(--pixel-shadow), 0 0 12px rgba(255, 92, 146, 0.3);
+  width: 24px;
+  height: 24px;
+  background: repeating-linear-gradient(135deg, #2d8b88 0 6px, #255084 6px 12px);
+  border: var(--pixel-border) solid rgba(46, 159, 161, 0.95);
+  box-shadow: var(--pixel-shadow), 0 0 12px rgba(135, 148, 20, 0.3);
   opacity: 0;
   transform: translate(-50%, -60%) scale(0.45) rotate(0deg);
   pointer-events: auto;
