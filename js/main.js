@@ -31,6 +31,7 @@ const skillCheckState = {
   targetEnd: 0,
   windowSize: 0,
   difficulty: 'normal',
+  variant: 'linear',
 };
 
 const cursorPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
@@ -134,6 +135,13 @@ function cacheElements() {
   UI.skillCheckProgress = document.getElementById('skill-check-progress');
   UI.skillCheckTarget = document.getElementById('skill-check-target');
   UI.skillCheckSlider = document.getElementById('skill-check-slider');
+  UI.skillCheckVariants = document.querySelectorAll('[data-skill-variant]');
+  UI.skillCheckDialTarget = document.getElementById('skill-check-lock-target');
+  UI.skillCheckDialPointer = document.getElementById('skill-check-lock-pointer');
+  UI.skillCheckOrbitTarget = document.getElementById('skill-check-orbit-target');
+  UI.skillCheckOrbitPointer = document.getElementById('skill-check-orbit-pointer');
+  UI.skillCheckVerticalTarget = document.getElementById('skill-check-vertical-target');
+  UI.skillCheckVerticalSlider = document.getElementById('skill-check-vertical-slider');
   UI.skillCheckAction = document.getElementById('skill-check-action');
   UI.skillCheckTitle = document.getElementById('skill-check-title');
   UI.skillCheckDescription = document.getElementById('skill-check-description');
@@ -2451,6 +2459,45 @@ function generateMilestones() {
       ],
     },
     {
+      type: 'green',
+      label: 'Emerald Circuit',
+      goals: [20, 140, 480, 1500, 9000, 60000, 260000, 900000],
+      rewards: [
+        () => {
+          grantBits(200);
+          grantCryptcoins(8);
+        },
+        () => {
+          grantBits(880);
+          grantCryptcoins(18);
+        },
+        () => {
+          grantBits(3200);
+          grantCryptcoins(60);
+        },
+        () => {
+          grantBits(11000);
+          grantCryptcoins(180);
+        },
+        () => {
+          grantBits(52000);
+          grantCryptcoins(620);
+        },
+        () => {
+          grantBits(210000);
+          grantCryptcoins(2200);
+        },
+        () => {
+          grantBits(860000);
+          grantCryptcoins(6200);
+        },
+        () => {
+          grantBits(3800000);
+          grantCryptcoins(16000);
+        },
+      ],
+    },
+    {
       type: 'gold',
       label: 'Golden Circuit',
       goals: [10, 50, 150, 400, 2000, 8000, 25000, 100000],
@@ -3521,6 +3568,7 @@ function setupAudio() {
     audioUnlocked = true;
     return;
   }
+  initBGMPlaylist();
   const handleUnlock = () => {
     document.removeEventListener('pointerdown', handleUnlock);
     document.removeEventListener('keydown', handleUnlock);
@@ -3594,6 +3642,32 @@ function setupSkillCheck() {
   });
 }
 
+const SKILL_CHECK_VARIANT_DETAILS = {
+  linear: {
+    title: 'Signal Pulse',
+    description: 'Time the resolve pulse when the signal crosses the highlighted zone around {target}.',
+  },
+  lock: {
+    title: 'Circuit Lock',
+    description: 'Rotate the tumbler until the lock window around {target} glows, then pop it open.',
+  },
+  orbit: {
+    title: 'Orbital Sync',
+    description: 'Catch the orbiting spark as it sweeps through the breach arc guarding {target}.',
+  },
+  vertical: {
+    title: 'Access Elevator',
+    description: 'Ride the vertical stream so the carrier slips through the access window for {target}.',
+  },
+};
+
+const SKILL_CHECK_VARIANTS = Object.keys(SKILL_CHECK_VARIANT_DETAILS);
+
+function getSkillCheckVariant() {
+  const index = Math.floor(Math.random() * SKILL_CHECK_VARIANTS.length);
+  return SKILL_CHECK_VARIANTS[index] || 'linear';
+}
+
 function getSkillCheckConfig(difficulty) {
   const settings = SKILL_CHECK_DIFFICULTIES[difficulty] || SKILL_CHECK_DIFFICULTIES.normal;
   const levelFactor = Math.max(0, state.level - 1);
@@ -3606,6 +3680,65 @@ function getSkillCheckConfig(difficulty) {
     sliderSpeed,
     windowSize,
   };
+}
+
+function setSkillCheckVariant(variant) {
+  skillCheckState.variant = variant;
+  if (UI.skillCheck) {
+    UI.skillCheck.dataset.variant = variant;
+  }
+  if (UI.skillCheckVariants?.forEach) {
+    UI.skillCheckVariants.forEach((el) => {
+      el.classList.toggle('active', el.dataset.skillVariant === variant);
+    });
+  }
+}
+
+function updateSkillCheckTargets() {
+  const startPercent = skillCheckState.targetStart * 100;
+  const windowPercent = skillCheckState.windowSize * 100;
+  if (UI.skillCheckTarget) {
+    UI.skillCheckTarget.style.left = `${startPercent}%`;
+    UI.skillCheckTarget.style.width = `${windowPercent}%`;
+  }
+  const startDeg = skillCheckState.targetStart * 360;
+  const endDeg = skillCheckState.targetEnd * 360;
+  const band = `conic-gradient(from ${startDeg}deg, transparent 0deg, transparent ${startDeg}deg, rgba(120, 255, 214, 0.1) ${startDeg}deg, rgba(120, 255, 214, 0.35) ${endDeg}deg, transparent ${endDeg}deg, transparent 360deg)`;
+  if (UI.skillCheckDialTarget) {
+    UI.skillCheckDialTarget.style.background = band;
+  }
+  if (UI.skillCheckOrbitTarget) {
+    UI.skillCheckOrbitTarget.style.background = band;
+  }
+  if (UI.skillCheckVerticalTarget) {
+    UI.skillCheckVerticalTarget.style.top = `${startPercent}%`;
+    UI.skillCheckVerticalTarget.style.height = `${windowPercent}%`;
+  }
+}
+
+function updateSkillCheckSliderVisuals() {
+  const sliderPercent = skillCheckState.sliderPosition * 100;
+  if (UI.skillCheckSlider) {
+    UI.skillCheckSlider.style.left = `${sliderPercent}%`;
+  }
+  const angle = skillCheckState.sliderPosition * 360;
+  if (UI.skillCheckDialPointer) {
+    UI.skillCheckDialPointer.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+  }
+  if (UI.skillCheckOrbitPointer) {
+    UI.skillCheckOrbitPointer.style.transform = `rotate(${angle}deg)`;
+  }
+  if (UI.skillCheckVerticalSlider) {
+    UI.skillCheckVerticalSlider.style.top = `${sliderPercent}%`;
+  }
+}
+
+function refreshSkillCheckVisuals() {
+  updateSkillCheckTargets();
+  updateSkillCheckSliderVisuals();
+  if (UI.skillCheckProgress) {
+    UI.skillCheckProgress.style.width = '100%';
+  }
 }
 
 function attemptSkillCheckResolution() {
@@ -3623,6 +3756,7 @@ function startSkillCheck({ upgrade, difficulty, reward, onFail }) {
   const sliderDirection = sliderPosition > 0.5 ? -1 : 1;
   const maxTargetStart = Math.max(0, 1 - config.windowSize);
   const targetStart = maxTargetStart > 0 ? Math.random() * maxTargetStart : 0;
+  const variant = getSkillCheckVariant();
   skillCheckState.active = true;
   skillCheckState.timer = 0;
   skillCheckState.duration = config.duration;
@@ -3635,19 +3769,13 @@ function startSkillCheck({ upgrade, difficulty, reward, onFail }) {
   skillCheckState.targetStart = targetStart;
   skillCheckState.targetEnd = targetStart + config.windowSize;
   skillCheckState.difficulty = difficulty;
-  UI.skillCheckTitle.textContent = `${difficulty.toUpperCase()} skill check`;
-  UI.skillCheckDescription.textContent = `Time the resolve pulse when the signal crosses the highlighted zone around ${upgrade.name}.`;
+  setSkillCheckVariant(variant);
+  const variantCopy = SKILL_CHECK_VARIANT_DETAILS[variant] || SKILL_CHECK_VARIANT_DETAILS.linear;
+  UI.skillCheckTitle.textContent = `${variantCopy.title} — ${difficulty.toUpperCase()}`;
+  const targetLabel = upgrade?.name || 'the target';
+  UI.skillCheckDescription.textContent = variantCopy.description.replace('{target}', targetLabel);
   UI.skillCheck.classList.remove('hidden');
-  if (UI.skillCheckTarget) {
-    UI.skillCheckTarget.style.left = `${skillCheckState.targetStart * 100}%`;
-    UI.skillCheckTarget.style.width = `${skillCheckState.windowSize * 100}%`;
-  }
-  if (UI.skillCheckSlider) {
-    UI.skillCheckSlider.style.left = `${skillCheckState.sliderPosition * 100}%`;
-  }
-  if (UI.skillCheckProgress) {
-    UI.skillCheckProgress.style.width = '100%';
-  }
+  refreshSkillCheckVisuals();
   UI.skillCheckAction.focus();
 }
 
@@ -3701,9 +3829,7 @@ function updateSkillCheck(delta) {
       skillCheckState.sliderPosition = 0;
       skillCheckState.sliderDirection = 1;
     }
-    if (UI.skillCheckSlider) {
-      UI.skillCheckSlider.style.left = `${skillCheckState.sliderPosition * 100}%`;
-    }
+    updateSkillCheckSliderVisuals();
   }
   if (skillCheckState.timer >= skillCheckState.duration) {
     resolveSkillCheck(false);

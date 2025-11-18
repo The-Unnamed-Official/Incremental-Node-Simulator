@@ -316,14 +316,44 @@
     <div class="skill-check-panel">
       <h2 id="skill-check-title">Skill Check!</h2>
       <p id="skill-check-description">Stabilise the upgrade stream before it collapses.</p>
-      <div class="skill-check-meter">
-        <div class="skill-check-track">
-          <div id="skill-check-target" class="skill-check-target"></div>
-          <div id="skill-check-slider" class="skill-check-slider"></div>
+      <div class="skill-check-variant-grid">
+        <div class="skill-check-meter skill-check-meter--linear active" data-skill-variant="linear">
+          <div class="skill-check-track">
+            <div id="skill-check-target" class="skill-check-target"></div>
+            <div id="skill-check-slider" class="skill-check-slider"></div>
+          </div>
+          <div class="skill-check-meter-note">Pulse the beam when the bar is inside the mint band.</div>
         </div>
-        <div class="skill-check-timer">
-          <div id="skill-check-progress" class="skill-check-timer-fill"></div>
+        <div class="skill-check-meter skill-check-meter--lock" data-skill-variant="lock">
+          <div class="skill-check-dial">
+            <div class="skill-check-dial-ring"></div>
+            <div id="skill-check-lock-target" class="skill-check-dial-target"></div>
+            <div id="skill-check-lock-pointer" class="skill-check-dial-pointer"></div>
+            <div class="skill-check-dial-core"></div>
+          </div>
+          <div class="skill-check-meter-note">Twist the pick so the glowing slice aligns.</div>
         </div>
+        <div class="skill-check-meter skill-check-meter--orbit" data-skill-variant="orbit">
+          <div class="skill-check-orbit">
+            <div class="skill-check-orbit-track"></div>
+            <div id="skill-check-orbit-target" class="skill-check-orbit-target"></div>
+            <div id="skill-check-orbit-pointer" class="skill-check-orbit-pointer">
+              <span class="skill-check-orbit-light"></span>
+            </div>
+            <div class="skill-check-orbit-core"></div>
+          </div>
+          <div class="skill-check-meter-note">Catch the orbiting spark inside the breach band.</div>
+        </div>
+        <div class="skill-check-meter skill-check-meter--vertical" data-skill-variant="vertical">
+          <div class="skill-check-vertical-track">
+            <div id="skill-check-vertical-target" class="skill-check-vertical-target"></div>
+            <div id="skill-check-vertical-slider" class="skill-check-vertical-slider"></div>
+          </div>
+          <div class="skill-check-meter-note">Ride the carrier beam between the rails.</div>
+        </div>
+      </div>
+      <div class="skill-check-timer">
+        <div id="skill-check-progress" class="skill-check-timer-fill"></div>
       </div>
       <button id="skill-check-action" class="pill">Resolve</button>
     </div>
@@ -367,7 +397,7 @@
       <div class="cursor-dot"></div>
     </div>
   </div>
-  <audio id="bgm" src="files/bg_music.mp3" preload="auto" loop></audio>
+  <audio id="bgm" src="files/bg_music.mp3" preload="auto"></audio>
   <script src="js/core/constants.js"></script>
   <script src="js/core/state.js"></script>
   <script src="js/core/audio.js"></script>
