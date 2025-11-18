@@ -102,6 +102,7 @@ function createInitialState() {
     nodesDestroyed: {
       red: 0,
       blue: 0,
+      green: 0,
       gold: 0,
     },
     bossKills: 0,
@@ -192,6 +193,7 @@ const stats = {
 const BIT_REWARD_TABLE = {
   red: { min: 5, max: 10 },
   blue: { min: 15, max: 30 },
+  green: { min: 30, max: 60 },
   gold: { min: 50, max: 100 },
 };
 
@@ -243,6 +245,24 @@ const nodeTypes = [
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
       return 30 * Math.pow(5, Math.max(0, safeLevel - 1));
+    },
+  },
+  {
+    id: 'green',
+    name: 'Green Node',
+    color: 'green',
+    speedMultiplier: 3,
+    reward(level) {
+      const safeLevel = Math.max(1, Math.floor(level));
+      return {
+        bits: getLevelBitReward('green', safeLevel),
+        xp: 5 + safeLevel * 0.6,
+        cryptcoins: 0.5 + safeLevel * 0.1,
+      };
+    },
+    hp(level) {
+      const safeLevel = Math.max(1, Math.floor(level));
+      return 15 * Math.pow(5, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -729,6 +749,7 @@ function hydrateState(source = {}) {
   state.nodesDestroyed = {
     red: Math.max(0, Number.isFinite(Number(mergedNodes.red)) ? Number(mergedNodes.red) : defaults.nodesDestroyed.red),
     blue: Math.max(0, Number.isFinite(Number(mergedNodes.blue)) ? Number(mergedNodes.blue) : defaults.nodesDestroyed.blue),
+    green: Math.max(0, Number.isFinite(Number(mergedNodes.green)) ? Number(mergedNodes.green) : defaults.nodesDestroyed.green),
     gold: Math.max(0, Number.isFinite(Number(mergedNodes.gold)) ? Number(mergedNodes.gold) : defaults.nodesDestroyed.gold),
   };
   state.bossKills = Number.isFinite(Number(source.bossKills)) ? Number(source.bossKills) : defaults.bossKills;
@@ -1793,8 +1814,10 @@ function generateUpgrades() {
       const tierIndex = Math.floor(i / 10);
       const withinTier = i % 10;
       const maxLevel = family.minLevel + (i % (family.maxLevel - family.minLevel + 1));
-      const perLevel =
-        family.key === 'economy' ? 5 * Math.pow(3.3, i) : 0.09 * Math.pow(2.2, i);
+      let perLevel = 0.09 * Math.pow(2.2, i);
+      if (family.key === 'economy' || family.key === 'economyNode') {
+        perLevel = 5 * Math.pow(3.3, tierIndex);
+      }
       const costBase = family.baseCost * 2 ** tierIndex;
       const costScale = 1.5;
       const id = `${family.key.toUpperCase()}_${idCounter}`;
@@ -1858,7 +1881,7 @@ function generateUpgrades() {
     description: '+6% boss damage per boss kill per level',
     maxLevel: 4,
     perKillBonus: 0.06,
-    costBase: 240000,
+    costBase: 20,
     costScale: 2.1,
     currency: 'prestige',
     requirements: { prestige: 12 },
@@ -1926,7 +1949,7 @@ function generateSpawnUpgrades() {
       name: 'Entropy Splicer',
       description: '-0.15s spawn delay per level',
       maxLevel: 6,
-      costBase: 5200,
+      costBase: 20,
       costScale: 1.7,
       currency: 'prestige',
       delayReduction: 0.15,
@@ -1956,7 +1979,7 @@ function generateSpawnUpgrades() {
       name: 'Hypergrid Overclocker',
       description: '-0.45s spawn delay & +3 max nodes per level',
       maxLevel: 6,
-      costBase: 52000,
+      costBase: 20,
       costScale: 1.9,
       currency: 'prestige',
       delayReduction: 0.45,
@@ -2005,7 +2028,7 @@ function generateSpeedUpgrades() {
       name: 'Tachyon Conductors',
       description: '-0.09s auto interval per level',
       maxLevel: 5,
-      costBase: 12000,
+      costBase: 20,
       costScale: 1.52,
       currency: 'prestige',
       intervalReduction: 0.09,
@@ -2050,7 +2073,7 @@ function generateCollectUpgrades() {
       name: 'Phase Lens Array',
       description: '+42px bit collection radius per level',
       maxLevel: 6,
-      costBase: 7200,
+      costBase: 20,
       costScale: 1.62,
       currency: 'prestige',
       radiusPerLevel: 42,
@@ -2078,7 +2101,7 @@ function generateCollectUpgrades() {
       name: 'Quantum Rake',
       description: '+22px collection radius & +12% bit gains per level',
       maxLevel: 4,
-      costBase: 22000,
+      costBase: 20,
       costScale: 1.56,
       currency: 'prestige',
       radiusPerLevel: 22,
@@ -2681,7 +2704,7 @@ function maybeStartSkillCheck(upgrade, cost, previousLevel) {
         document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
       renderUpgrades(activeFilter);
       renderMilestones();
-      createFloatText(UI.customCursor || document.body, `-${penalty} ${upgrade.currency}`, '#ff6ea8');
+      createFloatText(UI.customCursor || document.body, `-${cost + penalty} ${upgrade.currency}`, '#ff6ea8');
       queueSave();
     },
   });
@@ -3106,6 +3129,8 @@ function describeMilestone(milestone) {
       return `Destroy ${milestone.goal.toLocaleString()} red nodes.`;
     case 'blue':
       return `Destroy ${milestone.goal.toLocaleString()} blue nodes.`;
+    case 'green':
+      return `Destroy ${milestone.goal.toLocaleString()} green nodes.`;
     case 'gold':
       return `Destroy ${milestone.goal.toLocaleString()} gold nodes.`;
     case 'boss':
@@ -3147,7 +3172,8 @@ function formatNumberShort(value) {
     tier += 1;
   }
   const precision = Math.abs(scaled) >= 100 ? 0 : Math.abs(scaled) >= 10 ? 1 : 2;
-  const formatted = scaled.toFixed(precision).replace(/\.0+$|0+$/u, '');
+  const fixed = scaled.toFixed(precision);
+  const formatted = fixed.replace(/(\.\d*?[1-9])0+$|\.0+$/u, '$1').replace(/\.$/u, '');
   if (tier === 0) {
     return formatted;
   }
@@ -4396,13 +4422,13 @@ function spawnNode() {
       break;
   }
 
-  const travelTime = 10 + Math.random() * 6;
+  const type = weightedNodeType();
+  const travelTimeBase = 10 + Math.random() * 6;
+  const travelTime = travelTimeBase / Math.max(1, type.speedMultiplier || 1);
   const velocity = {
     x: (targetX - startX) / travelTime,
     y: (targetY - startY) / travelTime,
   };
-
-  const type = weightedNodeType();
   const level = state.currentLevel.index;
   const hp = Math.ceil(type.hp(level) * stats.nodeHPFactor);
   const node = {
@@ -4449,9 +4475,10 @@ function spawnNode() {
 
 function weightedNodeType() {
   const roll = Math.random();
-  if (roll > 0.995) return nodeTypes[2];
-  if (roll > 0.6) return nodeTypes[1];
-  return nodeTypes[0];
+  if (roll >= 0.995) return nodeTypes.find((type) => type.id === 'gold') || nodeTypes[0];
+  if (roll >= 0.695) return nodeTypes.find((type) => type.id === 'blue') || nodeTypes[0];
+  if (roll >= 0.545) return nodeTypes.find((type) => type.id === 'green') || nodeTypes[0];
+  return nodeTypes.find((type) => type.id === 'red') || nodeTypes[0];
 }
 
 function calculateCursorDamage(options = {}) {
@@ -4526,6 +4553,7 @@ function getLevelBitReward(typeId, levelIndex = 1) {
 function getBossDamageFromNodeType(typeId) {
   if (typeId === 'red') return Math.round(randomInRange(15, 20));
   if (typeId === 'blue') return Math.round(randomInRange(30, 40));
+  if (typeId === 'green') return Math.round(randomInRange(80, 150));
   if (typeId === 'gold') return Math.round(randomInRange(200, 400));
   return 0;
 }
@@ -5174,7 +5202,12 @@ function updateLab(delta) {
 }
 
 function totalNodesDestroyed() {
-  return state.nodesDestroyed.red + state.nodesDestroyed.blue + state.nodesDestroyed.gold;
+  return (
+    state.nodesDestroyed.red +
+    state.nodesDestroyed.blue +
+    state.nodesDestroyed.green +
+    state.nodesDestroyed.gold
+  );
 }
 
 window.addEventListener('resize', () => {

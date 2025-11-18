@@ -724,6 +724,14 @@ body.disable-scanlines #crt-overlay {
   --node-glow: 0 0 12px rgba(126, 246, 255, 0.28);
 }
 
+.node.green {
+  --node-color: #6df3a1;
+  --node-color-rgb: 109, 243, 161;
+  --node-border-color: rgba(109, 243, 161, 0.9);
+  --node-surface-bg: repeating-linear-gradient(135deg, rgba(109, 243, 161, 0.22) 0 10px, rgba(18, 52, 42, 0.9) 10px 20px);
+  --node-glow: 0 0 12px rgba(109, 243, 161, 0.32);
+}
+
 .node.gold {
   --node-color: #ffd166;
   --node-color-rgb: 255, 209, 102;
