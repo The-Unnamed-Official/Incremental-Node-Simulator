@@ -4,9 +4,19 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.498';
+const GAME_VERSION = 'v0.499';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.499',
+    title: 'Cursor clarity & switch polish',
+    description: 'Refined cursor scaling and refreshed toggle styling for cleaner control feedback.',
+    changes: [
+      'Upgrade filters now read as compact chips while settings switches inherit the tactile toggle styling with smoother on/off motion.',
+      'The custom cursor now grows only inside the node spawn field and smoothly scales when entering or leaving.',
+      'Version tag bumped to highlight the latest polish pass.',
+    ],
+  },
   {
     version: 'v0.498',
     title: 'Boss conduits & slimmer sidebars',
@@ -134,13 +144,15 @@ let autoSaveHandle = null;
 let saveTimeout = null;
 let saveStatusTimer = null;
 
+const BASE_POINTER_SIZE = 32;
+
 const stats = {
   baseDamage: 5,
   damage: 5,
   critChance: 0.05,
   critMultiplier: 2,
   autoInterval: 1,
-  pointerSize: 32,
+  pointerSize: BASE_POINTER_SIZE,
   bitGain: 1,
   bitNodeBonus: 0,
   bitCollectRadius: 0,
@@ -252,6 +264,7 @@ const skillCheckState = {
 };
 
 const cursorPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+let cursorInNodeArea = false;
 let bitTokenSweepScheduled = false;
 let bgmAudio;
 let audioUnlocked = false;
@@ -2701,6 +2714,7 @@ function setupCursor() {
     cursorPosition.y = y;
     cursor.style.left = `${x}px`;
     cursor.style.top = `${y}px`;
+    updateCursorAreaState(isPointerInsideNodeArea(x, y));
     requestBitTokenSweep();
   };
   updateCursorPosition(cursorPosition.x, cursorPosition.y);
@@ -2771,7 +2785,7 @@ function spawnCursorPulse(x, y) {
   pulse.style.left = `${x}px`;
   pulse.style.top = `${y}px`;
   pulse.style.imageRendering = 'pixelated';
-  pulse.style.setProperty('--cursor-size', `${getPointerSize()}px`);
+  pulse.style.setProperty('--cursor-size', `${getCursorDisplaySize()}px`);
   document.body.appendChild(pulse);
   pulse.addEventListener('animationend', () => pulse.remove());
 }
@@ -2990,6 +3004,19 @@ function getPointerSize() {
   return Math.max(8, stats.pointerSize || 0);
 }
 
+function getCursorScaleTarget(inNodeArea = cursorInNodeArea) {
+  const baseSize = BASE_POINTER_SIZE || 32;
+  const pointerSize = getPointerSize();
+  if (!inNodeArea) return 1;
+  if (baseSize <= 0) return 1;
+  return Math.max(0.25, pointerSize / baseSize);
+}
+
+function getCursorDisplaySize(inNodeArea = cursorInNodeArea) {
+  const baseSize = BASE_POINTER_SIZE || 32;
+  return baseSize * getCursorScaleTarget(inNodeArea);
+}
+
 function getBitCollectSize() {
   const base = getPointerSize();
   return Math.max(8, base + (stats.bitCollectRadius || 0));
@@ -2997,7 +3024,8 @@ function getBitCollectSize() {
 
 function applyCursorSize() {
   if (UI.customCursor) {
-    UI.customCursor.style.setProperty('--cursor-size', `${getPointerSize()}px`);
+    UI.customCursor.style.setProperty('--cursor-size', `${BASE_POINTER_SIZE}px`);
+    UI.customCursor.style.setProperty('--cursor-scale', getCursorScaleTarget());
   }
 }
 
@@ -3021,6 +3049,23 @@ function getBitCollectRect(x, y) {
     top: y - half,
     bottom: y + half,
   };
+}
+
+function isPointerInsideNodeArea(x, y, areaRect = UI.nodeArea?.getBoundingClientRect()) {
+  if (!areaRect) return false;
+  if (areaRect.width <= 0 || areaRect.height <= 0) return false;
+  return x >= areaRect.left && x <= areaRect.right && y >= areaRect.top && y <= areaRect.bottom;
+}
+
+function updateCursorAreaState(inNodeArea) {
+  if (cursorInNodeArea === inNodeArea) {
+    if (inNodeArea) {
+      applyCursorSize();
+    }
+    return;
+  }
+  cursorInNodeArea = inNodeArea;
+  applyCursorSize();
 }
 
 function requestBitTokenSweep() {
@@ -3149,11 +3194,7 @@ function performAutoClick() {
   if (!UI.nodeArea) return;
   const areaRect = UI.nodeArea.getBoundingClientRect();
   if (areaRect.width <= 0 || areaRect.height <= 0) return;
-  const inside =
-    cursorPosition.x >= areaRect.left &&
-    cursorPosition.x <= areaRect.right &&
-    cursorPosition.y >= areaRect.top &&
-    cursorPosition.y <= areaRect.bottom;
+  const inside = isPointerInsideNodeArea(cursorPosition.x, cursorPosition.y, areaRect);
   if (!inside) return;
   const pointerX = cursorPosition.x;
   const pointerY = cursorPosition.y;
@@ -3746,7 +3787,7 @@ function updateStats() {
   stats.critChance = 0.05;
   stats.critMultiplier = 2;
   stats.autoInterval = 1;
-  stats.pointerSize = 32;
+  stats.pointerSize = BASE_POINTER_SIZE;
   stats.bitGain = 1;
   stats.bitNodeBonus = 0;
   stats.bitCollectRadius = 0;
