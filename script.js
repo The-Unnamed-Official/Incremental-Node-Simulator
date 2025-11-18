@@ -1047,7 +1047,8 @@ function selectUpdateLog(version, animate = true) {
 function renderUpdateLogContent(log, animate = true) {
   if (!UI.updateLogBody || !log) return;
   const body = UI.updateLogBody;
-  const previousHeight = body.getBoundingClientRect().height || 1;
+  const startHeight = body.getBoundingClientRect().height || body.scrollHeight || 1;
+  const animateHeight = Boolean(animate && startHeight);
   const entry = document.createElement('div');
   entry.className = 'update-log-entry';
   const meta = document.createElement('div');
@@ -1077,31 +1078,37 @@ function renderUpdateLogContent(log, animate = true) {
     list.appendChild(item);
   });
   entry.appendChild(list);
-  body.classList.add('changing');
+  if (animateHeight) {
+    body.classList.add('changing');
+    body.style.height = `${startHeight}px`;
+    body.style.opacity = '0.2';
+  } else {
+    body.classList.remove('changing');
+    body.style.height = '';
+    body.style.opacity = '1';
+  }
+
   body.innerHTML = '';
   body.appendChild(entry);
-  const targetHeight = entry.getBoundingClientRect().height || previousHeight;
-  const startHeight = previousHeight || targetHeight;
+
+  const targetHeight = body.scrollHeight || entry.getBoundingClientRect().height || startHeight;
   const heightDelta = Math.abs(targetHeight - startHeight);
   const cleanup = () => {
     body.style.height = '';
     body.style.opacity = '1';
     body.classList.remove('changing');
   };
-  if (animate && heightDelta > 0.5) {
-    body.style.height = `${startHeight}px`;
-    body.style.opacity = '0.2';
+  if (animateHeight && heightDelta > 0.5) {
     requestAnimationFrame(() => {
       body.style.height = `${targetHeight}px`;
       body.style.opacity = '1';
     });
-    body.addEventListener(
-      'transitionend',
-      () => {
-        cleanup();
-      },
-      { once: true }
-    );
+    const handleTransitionEnd = (event) => {
+      if (event.target !== body || event.propertyName !== 'height') return;
+      cleanup();
+      body.removeEventListener('transitionend', handleTransitionEnd);
+    };
+    body.addEventListener('transitionend', handleTransitionEnd);
   } else {
     cleanup();
   }
