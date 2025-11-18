@@ -9,12 +9,15 @@ const GAME_VERSION = 'v0.499';
 const UPDATE_LOGS = [
   {
     version: 'v0.499',
-    title: 'Cursor clarity & switch polish',
-    description: 'Refined cursor scaling and refreshed toggle styling for cleaner control feedback.',
+    title: 'Boss polish & golden jackpots',
+    description:
+      'Boss fights look and feel better with centered frames, clearer payouts, and golden nodes that burst into guaranteed treasure.',
     changes: [
+      'Golden nodes now explode into an 8-bit shower that spawns at least 1k bits worth of tokens when defeated.',
+      'Boss boards keep their text and health bars centered and clipped inside the arena with a new defeat animation before the continue menu.',
+      'Red, blue, and gold nodes now pierce bosses for 15-20, 30-40, and 200-400 damage respectively when they break.',
       'Upgrade filters now read as compact chips while settings switches inherit the tactile toggle styling with smoother on/off motion.',
       'The custom cursor now grows only inside the node spawn field and smoothly scales when entering or leaving.',
-      'Version tag bumped to highlight the latest polish pass.',
     ],
   },
   {
@@ -3374,12 +3377,29 @@ function createFloatText(target, text, color = 'var(--accent-strong)') {
   setTimeout(() => float.remove(), 800);
 }
 
+function randomInRange(min, max) {
+  const safeMin = Number.isFinite(min) ? min : 0;
+  const safeMax = Number.isFinite(max) ? max : safeMin;
+  if (safeMax <= safeMin) return safeMin;
+  return safeMin + Math.random() * (safeMax - safeMin);
+}
+
+function getBossDamageFromNodeType(typeId) {
+  if (typeId === 'red') return Math.round(randomInRange(15, 20));
+  if (typeId === 'blue') return Math.round(randomInRange(30, 40));
+  if (typeId === 'gold') return Math.round(randomInRange(200, 400));
+  return 0;
+}
+
 function destroyNode(node) {
   dropRewards(node);
   playSFX('nodeDie');
   const key = node.type.id;
   state.nodesDestroyed[key] = (state.nodesDestroyed[key] || 0) + 1;
   createNodeExplosion(node);
+  if (node.type?.id === 'gold') {
+    createGoldenBitBurst(node);
+  }
   spawnBitTokens(node);
   if (node.shakeTimeout) clearTimeout(node.shakeTimeout);
   if (node.hitTimeout) clearTimeout(node.hitTimeout);
@@ -3398,8 +3418,10 @@ function dropRewards(node) {
     const harvestedBits = Math.max(0, totalBits * stats.bitGain);
     state.bits += harvestedBits;
     if (state.currentLevel.bossActive) {
-      const payload = Math.max(6, harvestedBits * 0.35 + stats.damage * 0.25 + stats.anomalySynergy * 3);
-      applyBossDamage(payload, nodeElement);
+      const payload = getBossDamageFromNodeType(type.id);
+      if (payload > 0) {
+        applyBossDamage(payload, nodeElement);
+      }
     }
   }
   if (rewards.xp) {
@@ -3458,6 +3480,30 @@ function createNodeExplosion(node) {
   explosion.addEventListener('animationend', () => explosion.remove());
 }
 
+function createGoldenBitBurst(node) {
+  if (!UI.particleLayer || !node.el || state.settings.reducedAnimation) return;
+  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const nodeRect = node.el.getBoundingClientRect();
+  const x = nodeRect.left - areaRect.left + nodeRect.width / 2;
+  const y = nodeRect.top - areaRect.top + nodeRect.height / 2;
+  const burst = document.createElement('div');
+  burst.className = 'golden-bit-burst';
+  burst.style.left = `${x}px`;
+  burst.style.top = `${y}px`;
+  burst.style.transform = 'translate(-50%, -50%)';
+  const shardCount = 14;
+  for (let i = 0; i < shardCount; i += 1) {
+    const shard = document.createElement('span');
+    shard.style.setProperty('--tx', `${(Math.random() - 0.5) * 260}px`);
+    shard.style.setProperty('--ty', `${(Math.random() - 0.5) * 260}px`);
+    shard.style.setProperty('--rot', `${(Math.random() - 0.5) * 160}deg`);
+    shard.style.animationDelay = `${Math.random() * 60}ms`;
+    burst.appendChild(shard);
+  }
+  UI.particleLayer.appendChild(burst);
+  burst.addEventListener('animationend', () => burst.remove());
+}
+
 function spawnBitTokens(node) {
   if (!UI.bitLayer || !node.el) return;
   const areaRect = UI.nodeArea.getBoundingClientRect();
@@ -3467,6 +3513,20 @@ function spawnBitTokens(node) {
   const baseCount = 3 + Math.floor(Math.random() * 3);
   const tokenCount = state.settings.reducedAnimation ? Math.max(1, Math.floor(baseCount / 2)) : baseCount;
   const valueBase = Math.max(1, Math.round(4 + state.currentLevel.index * 1.2));
+  const isGold = node?.type?.id === 'gold';
+  const tokenValues = [];
+  const desiredTotal = isGold ? Math.max(1000, valueBase * tokenCount) : 0;
+  const goldBase = isGold ? Math.max(valueBase, Math.ceil(desiredTotal / tokenCount)) : valueBase;
+  for (let i = 0; i < tokenCount; i += 1) {
+    let tokenValue = isGold
+      ? Math.round(goldBase * (0.7 + Math.random() * 0.6))
+      : valueBase + Math.floor(Math.random() * valueBase);
+    if (isGold && i === tokenCount - 1) {
+      const runningTotal = tokenValues.reduce((sum, val) => sum + val, 0);
+      tokenValue = Math.max(tokenValue, desiredTotal - runningTotal);
+    }
+    tokenValues.push(tokenValue);
+  }
   for (let i = 0; i < tokenCount; i += 1) {
     const token = document.createElement('div');
     token.className = 'bit-token';
@@ -3481,7 +3541,7 @@ function spawnBitTokens(node) {
     } else {
       token.classList.add('reduced-motion');
     }
-    token.dataset.value = `${valueBase + Math.floor(Math.random() * valueBase)}`;
+    token.dataset.value = `${tokenValues[i] || valueBase}`;
     token.tabIndex = 0;
     token.addEventListener('pointerenter', () => collectBitToken(token));
     token.addEventListener('click', () => collectBitToken(token));
@@ -3750,27 +3810,50 @@ function updateBossBar() {
   updateBossDamageCounter();
 }
 
+function playBossDefeatAnimation(bossEl) {
+  if (!bossEl || state.settings.reducedAnimation) return Promise.resolve();
+  const baseTransform = bossEl.style.transform || '';
+  return new Promise((resolve) => {
+    const animation = bossEl.animate(
+      [
+        { transform: `${baseTransform} scale(1)`, opacity: 1, filter: 'drop-shadow(0 0 0 rgba(255, 209, 127, 0.5))' },
+        { transform: `${baseTransform} scale(1.08) rotate(2deg)`, opacity: 1, filter: 'drop-shadow(0 0 24px rgba(255, 209, 127, 0.75))' },
+        { transform: `${baseTransform} scale(0.15) rotate(-12deg)`, opacity: 0, filter: 'drop-shadow(0 0 32px rgba(255, 243, 191, 0.9))' },
+      ],
+      { duration: 640, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' },
+    );
+    animation.addEventListener('finish', () => resolve());
+    animation.addEventListener('cancel', () => resolve());
+  });
+}
+
 function defeatBoss() {
   playSFX('bossDie');
   state.currentLevel.bossActive = false;
   state.currentLevel.active = false;
   state.bossKills += 1;
-  if (activeBoss?.el) {
-    activeBoss.el.remove();
-  }
-  activeBoss = null;
+  const defeatedBossEl = activeBoss?.el;
   const rewardBits = Math.round(500 * state.currentLevel.index * stats.bitGain);
   const prestige = 1 * stats.prestigeGain;
   const xp = 120 * stats.xpGain;
-  state.bits += rewardBits;
-  gainXP(xp);
-  grantPrestige(prestige);
-  activeNodes.forEach((node) => node.el.remove());
-  activeNodes.clear();
   const summary = `Recovered ${Math.round(rewardBits).toLocaleString()} bits, ${xp.toFixed(0)} XP, ${prestige.toFixed(0)} prestige.`;
-  updateResources();
-  showLevelDialog(summary);
-  queueSave();
+
+  const cleanup = () => {
+    activeBoss = null;
+    state.bits += rewardBits;
+    gainXP(xp);
+    grantPrestige(prestige);
+    activeNodes.forEach((node) => node.el.remove());
+    activeNodes.clear();
+    if (defeatedBossEl?.isConnected) {
+      defeatedBossEl.remove();
+    }
+    updateResources();
+    showLevelDialog(summary);
+    queueSave();
+  };
+
+  playBossDefeatAnimation(defeatedBossEl).then(cleanup);
 }
 
 function persistStatsSnapshot() {
