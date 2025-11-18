@@ -19,7 +19,7 @@
       <div class="title">
         <div class="title-heading">
           <h1>incremental node simulator</h1>
-          <span id="version-display" class="version-tag">v0.485</span>
+          <button id="version-display" class="version-tag" type="button">v0.492</button>
         </div>
       </div>
       <div class="resource-bar">
@@ -77,6 +77,7 @@
           <div class="area-header">
             <h2>Damage Field</h2>
             <p>Expand the pointer lattice so a single sweep can rake across more nodes at once.</p>
+            <p class="system-note">Version badges mark each recalibration—LP fuels the next Damage Field matrix.</p>
           </div>
           <div id="area-upgrade-grid" class="area-upgrade-grid" role="list"></div>
         </section>
@@ -85,6 +86,7 @@
           <div class="area-header">
             <h2>Spawn Matrix</h2>
             <p>Refine the conduit that feeds new nodes into the field, amplifying spawn cadence and density.</p>
+            <p class="system-note">Each matrix tier now calls out its version, with Prestige powering bigger spawn surges.</p>
           </div>
           <div id="spawn-upgrade-grid" class="area-upgrade-grid" role="list"></div>
         </section>
@@ -271,6 +273,16 @@
         <button id="level-replay" class="pill">Re-run breach</button>
         <button id="level-continue" class="pill accent">Advance</button>
       </div>
+    </div>
+  </div>
+  <div id="update-log" class="update-log hidden" role="dialog" aria-modal="true" aria-labelledby="update-log-title">
+    <div class="update-log-panel">
+      <div class="update-log-header">
+        <h2 id="update-log-title">Update Logs</h2>
+        <button id="update-log-close" class="pill">Close</button>
+      </div>
+      <div id="update-log-tabs" class="update-log-tabs" role="tablist"></div>
+      <div id="update-log-body" class="update-log-body" role="tabpanel" aria-live="polite"></div>
     </div>
   </div>
   <div id="custom-cursor" aria-hidden="true">
