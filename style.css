@@ -796,16 +796,21 @@ body.disable-scanlines #crt-overlay {
   box-shadow: var(--pixel-shadow);
   display: grid;
   place-items: center;
+  justify-items: center;
+  align-content: center;
+  text-align: center;
   pointer-events: none;
   transform-origin: center;
-  padding: 24px;
-  gap: 12px;
+  padding: 18px;
+  gap: 10px;
   image-rendering: pixelated;
+  overflow: hidden;
 }
 
 .boss-node .boss-header {
   display: grid;
   gap: 6px;
+  justify-items: center;
 }
 
 .boss-node .boss-name {
@@ -1778,6 +1783,42 @@ body.disable-scanlines #crt-overlay {
   100% {
     opacity: 0;
     transform: scale(1.45);
+  }
+}
+
+.golden-bit-burst {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 6;
+  filter: drop-shadow(0 0 22px rgba(255, 209, 102, 0.45));
+}
+
+.golden-bit-burst span {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: repeating-linear-gradient(135deg, #ffe8a3 0 6px, #ffb52e 6px 12px);
+  border: var(--pixel-border) solid rgba(94, 58, 0, 0.9);
+  box-shadow: var(--pixel-shadow);
+  transform: translate(-50%, -50%);
+  animation: golden-shard 0.58s cubic-bezier(0.2, 0.98, 0.4, 1) forwards;
+  image-rendering: pixelated;
+}
+
+@keyframes golden-shard {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.75) rotate(0deg);
+  }
+  65% {
+    opacity: 0.92;
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1) rotate(var(--rot));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--tx) * 1.15), calc(-50% + var(--ty) * 1.15)) scale(0.35) rotate(calc(var(--rot) * 1.6));
   }
 }
 
