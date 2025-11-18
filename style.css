@@ -278,6 +278,10 @@ body.disable-scanlines #crt-overlay {
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.28);
   box-shadow: var(--pixel-shadow);
   image-rendering: pixelated;
+  position: sticky;
+  top: clamp(12px, 2vw, 28px);
+  align-self: start;
+  z-index: 2;
 }
 
 .level-readout {
@@ -290,15 +294,16 @@ body.disable-scanlines #crt-overlay {
 
 .node-area {
   position: sticky;
-  top: 12px;
+  top: clamp(12px, 2vw, 28px);
   flex: 1;
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.25);
   background: repeating-linear-gradient(45deg, rgba(7, 10, 20, 0.92) 0 12px, rgba(12, 16, 28, 0.92) 12px 24px);
   overflow: hidden;
   min-height: 420px;
+  max-height: calc(100vh - clamp(12px, 2vw, 28px) * 2);
   box-shadow: inset -4px -4px 0 rgba(0, 0, 0, 0.35);
   image-rendering: pixelated;
-  z-index: 2;
+  z-index: 3;
 }
 
 #particle-layer,
@@ -1617,7 +1622,7 @@ button.automation-node {
 .milestone-dock {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .progress-card {
@@ -1628,6 +1633,8 @@ button.automation-node {
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.28);
   background: repeating-linear-gradient(135deg, rgba(9, 14, 30, 0.88) 0 10px, rgba(14, 20, 36, 0.88) 10px 20px);
   box-shadow: var(--pixel-shadow);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .progress-card .card-header {
@@ -1635,6 +1642,8 @@ button.automation-node {
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -1663,6 +1672,7 @@ button.automation-node {
   font-size: 0.88rem;
   color: var(--muted);
   line-height: 1.5;
+  word-break: break-word;
 }
 
 .progress-card .reward-line {
