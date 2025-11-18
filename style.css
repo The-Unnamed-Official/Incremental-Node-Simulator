@@ -1965,14 +1965,23 @@ body.disable-scanlines #crt-overlay {
   display: none;
 }
 
+.update-log-shell {
+  --tab-stack: 60px;
+  --panel-padding: clamp(16px, 2vw, 24px);
+  width: min(1360px, 112vw);
+  max-height: min(80vh, 860px);
+  padding-top: var(--tab-stack);
+  position: relative;
+}
+
 .update-log-panel {
   background: repeating-linear-gradient(135deg, rgba(14, 18, 30, 0.96) 0 12px, rgba(18, 24, 36, 0.96) 12px 24px);
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.35);
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.55), var(--pixel-shadow);
-  width: min(1360px, 112vw);
-  max-height: min(80vh, 860px);
-  min-height: min(70vh, 680px);
-  padding: 18px clamp(16px, 2vw, 24px);
+  width: 100%;
+  max-height: calc(min(80vh, 860px) - var(--tab-stack));
+  min-height: calc(min(70vh, 680px) - var(--tab-stack));
+  padding: 18px var(--panel-padding);
   display: grid;
   gap: 12px;
   image-rendering: pixelated;
@@ -1994,11 +2003,17 @@ body.disable-scanlines #crt-overlay {
 }
 
 .update-log-tabs {
+  position: absolute;
+  top: 0;
+  left: var(--panel-padding);
+  right: var(--panel-padding);
   display: flex;
+  align-items: flex-end;
   gap: 8px;
   flex-wrap: nowrap;
   overflow-x: auto;
-  padding: 6px 2px;
+  padding: 0 2px 6px;
+  z-index: 2;
 }
 
 .update-log-tab {
@@ -2006,12 +2021,15 @@ body.disable-scanlines #crt-overlay {
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.3);
   background: linear-gradient(135deg, rgba(12, 16, 28, 0.95), rgba(18, 26, 38, 0.95));
   color: var(--muted);
-  padding: 10px 14px;
+  padding: 12px 14px 11px;
   min-width: 120px;
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 1px;
   box-shadow: var(--pixel-shadow);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  margin-bottom: -1px;
   transition: transform var(--transition-fast) ease, border-color var(--transition-fast) ease,
     box-shadow var(--transition-fast) ease, color var(--transition-fast) ease, background var(--transition-fast) ease;
 }
@@ -2025,18 +2043,18 @@ body.disable-scanlines #crt-overlay {
 }
 
 .update-log-tab.active {
-  transform: translateY(-4px) scale(1.06);
+  transform: translateY(-2px) scale(1.04);
   color: var(--accent);
   border-color: rgba(127, 255, 214, 0.9);
-  background: linear-gradient(135deg, rgba(10, 22, 30, 0.95), rgba(32, 46, 54, 0.95));
-  box-shadow: 0 0 0 3px rgba(127, 255, 214, 0.18), var(--pixel-shadow);
+  background: linear-gradient(135deg, rgba(10, 22, 30, 0.98), rgba(32, 46, 54, 0.98));
+  box-shadow: 0 0 0 3px rgba(127, 255, 214, 0.18), var(--pixel-shadow), 0 12px 24px rgba(0, 0, 0, 0.45);
 }
 
 .update-log-tab:not(.active):hover,
 .update-log-tab:not(.active):focus-visible {
   color: var(--accent);
   border-color: rgba(127, 255, 214, 0.55);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .update-log-body {
@@ -2047,16 +2065,22 @@ body.disable-scanlines #crt-overlay {
   overflow: auto;
   min-height: 240px;
   max-height: 560px;
+  display: flex;
+  justify-content: center;
+  scrollbar-gutter: stable;
   transition: height 0.4s ease, opacity 0.35s ease;
 }
 
 .update-log-body.changing {
   opacity: 0.7;
+  overflow: hidden;
 }
 
 .update-log-entry {
   display: grid;
   gap: 8px;
+  max-width: 980px;
+  width: 100%;
 }
 
 .update-log-entry .meta {
