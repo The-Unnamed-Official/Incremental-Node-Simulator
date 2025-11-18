@@ -10,6 +10,9 @@ const SFX_DEFINITIONS = {
 const sfxLibrary = new Map();
 let sfxLoaded = false;
 let bgmAudio;
+const bgmTracks = ['files/bg_music.mp3', 'files/bg_music2.mp3', 'files/bg_music3.mp3'];
+let bgmTrackIndex = 0;
+let bgmEndHandler = null;
 let audioUnlocked = false;
 
 function loadSFX() {
@@ -45,6 +48,36 @@ function playSFX(key) {
   if (playPromise && typeof playPromise.catch === 'function') {
     playPromise.catch(() => {});
   }
+}
+
+function applyBGMSource() {
+  if (!bgmAudio || !bgmTracks.length) return;
+  bgmAudio.loop = false;
+  const track = bgmTracks[bgmTrackIndex % bgmTracks.length];
+  bgmAudio.src = track;
+  bgmAudio.load?.();
+}
+
+function advanceBGMTrack(playOnAdvance = true) {
+  if (!bgmAudio || !bgmTracks.length) return;
+  bgmTrackIndex = (bgmTrackIndex + 1) % bgmTracks.length;
+  applyBGMSource();
+  if (playOnAdvance && audioUnlocked) {
+    const playPromise = bgmAudio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {});
+    }
+  }
+}
+
+function initBGMPlaylist() {
+  if (!bgmAudio) return;
+  applyBGMSource();
+  if (bgmEndHandler) {
+    bgmAudio.removeEventListener('ended', bgmEndHandler);
+  }
+  bgmEndHandler = () => advanceBGMTrack(true);
+  bgmAudio.addEventListener('ended', bgmEndHandler);
 }
 
 function playPointerHitSFX() {
