@@ -1697,7 +1697,7 @@ function generateUpgrades() {
     category: 'point-area',
     name: 'Phase Halo',
     description: '+6px pointer size per level',
-    maxLevel: 10,
+    maxLevel: 20,
     perLevel: 6,
     costBase: 250,
     costScale: 1.35,
