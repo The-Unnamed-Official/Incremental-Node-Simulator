@@ -1969,8 +1969,16 @@ function showUpgradeTooltip(event, upgrade) {
     ${nextCost ? `Next cost: ${nextCost.toLocaleString()} ${upgrade.currency}` : 'Fully upgraded'}
   `;
   tooltipEl.style.display = 'block';
-  tooltipEl.style.left = `${event.pageX + 12}px`;
-  tooltipEl.style.top = `${event.pageY + 12}px`;
+  const offset = 12;
+  const { clientX, clientY } = event;
+  const tooltipWidth = tooltipEl.offsetWidth;
+  const tooltipHeight = tooltipEl.offsetHeight;
+  const maxLeft = window.innerWidth - tooltipWidth - offset;
+  const maxTop = window.innerHeight - tooltipHeight - offset;
+  const left = Math.min(clientX + offset, Math.max(offset, maxLeft));
+  const top = Math.min(clientY + offset, Math.max(offset, maxTop));
+  tooltipEl.style.left = `${left}px`;
+  tooltipEl.style.top = `${top}px`;
 }
 
 function hideTooltip() {
