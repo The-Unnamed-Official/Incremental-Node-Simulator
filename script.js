@@ -4,7 +4,7 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.492';
+const GAME_VERSION = 'v0.493';
 
 const UPDATE_LOGS = [
   {
@@ -71,6 +71,7 @@ function createInitialState() {
     upgrades: {},
     areaUpgrades: {},
     areaUpgradeVersions: {},
+    collectUpgrades: {},
     spawnUpgrades: {},
     spawnUpgradeVersions: {},
     areaUnlocked: false,
@@ -128,6 +129,7 @@ const stats = {
   pointerSize: 32,
   bitGain: 1,
   bitNodeBonus: 0,
+  bitCollectRadius: 0,
   xpGain: 1,
   prestigeGain: 1,
   nodeSpawnDelay: 2,
@@ -143,6 +145,12 @@ const stats = {
 
 const TAB_UNLOCK_RULES = {
   area: { label: 'Damage Area', stateKey: 'areaUnlocked', minLevel: 10, cost: { currency: 'lp', amount: 5, label: '5 LP' } },
+  collect: {
+    label: 'Bit Magnetics',
+    minLevel: 5,
+    requirement: hasCompletedPhaseHaloI,
+    requirementLabel: 'Complete Phase Halo I',
+  },
   spawn: { label: 'Spawn Matrix', stateKey: 'spawnUnlocked', cost: { currency: 'prestige', amount: 5, label: '5 Prestige' } },
   crypto: { label: 'Crypto Mine', stateKey: 'cryptoUnlocked', cost: { currency: 'bits', amount: 100000, label: '100k Bits' } },
   lab: { label: 'Lab', stateKey: 'labUnlocked', cost: { currency: 'cryptcoins', amount: 1000, label: '1k Cryptcoins' } },
@@ -207,6 +215,7 @@ const SKILL_CHECK_DIFFICULTIES = {
 
 let upgrades = [];
 let areaUpgradeDefs = [];
+let collectUpgradeDefs = [];
 let spawnUpgradeDefs = [];
 let milestones = [];
 let achievements = [];
@@ -296,6 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
   generateSkins();
   generateUpgrades();
   generateAreaUpgrades();
+  generateCollectUpgrades();
   generateSpawnUpgrades();
   generateMilestones();
   generateAchievements();
@@ -309,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderMilestones();
   renderAchievements();
   renderAreaUpgrades();
+  renderCollectUpgrades();
   renderSpawnUpgrades();
   initTooltip();
   setupCryptoControls();
@@ -347,6 +358,7 @@ function cacheElements() {
   UI.milestoneList = document.getElementById('milestone-list');
   UI.achievementGrid = document.getElementById('achievement-grid');
   UI.areaUpgradeGrid = document.getElementById('area-upgrade-grid');
+  UI.collectUpgradeGrid = document.getElementById('collect-upgrade-grid');
   UI.spawnUpgradeGrid = document.getElementById('spawn-upgrade-grid');
   UI.milestoneDock = document.getElementById('milestone-dock');
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
@@ -455,6 +467,7 @@ function hydrateState(source = {}) {
   const mergedUpgrades = { ...(defaults.upgrades || {}), ...(source.upgrades || {}) };
   const mergedArea = { ...(defaults.areaUpgrades || {}), ...(source.areaUpgrades || {}) };
   const mergedAreaVersions = { ...(defaults.areaUpgradeVersions || {}), ...(source.areaUpgradeVersions || {}) };
+  const mergedCollect = { ...(defaults.collectUpgrades || {}), ...(source.collectUpgrades || {}) };
   const mergedSpawn = { ...(defaults.spawnUpgrades || {}), ...(source.spawnUpgrades || {}) };
   const mergedSpawnVersions = { ...(defaults.spawnUpgradeVersions || {}), ...(source.spawnUpgradeVersions || {}) };
   const mergedMilestones = { ...(defaults.milestoneClaims || {}), ...(source.milestoneClaims || {}) };
@@ -517,6 +530,14 @@ function hydrateState(source = {}) {
   });
   state.areaUpgrades = sanitizedArea;
   state.areaUpgradeVersions = sanitizeUpgradeVersions(mergedAreaVersions);
+  const sanitizedCollect = {};
+  Object.entries(mergedCollect).forEach(([id, level]) => {
+    const numeric = Number(level);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      sanitizedCollect[id] = numeric;
+    }
+  });
+  state.collectUpgrades = sanitizedCollect;
   const sanitizedSpawn = {};
   Object.entries(mergedSpawn).forEach(([id, level]) => {
     const numeric = Number(level);
@@ -804,6 +825,7 @@ function isTabUnlocked(tabId) {
   const rule = getTabRule(tabId);
   if (!rule) return true;
   if (rule.minLevel && state.level < rule.minLevel) return false;
+  if (rule.requirement && typeof rule.requirement === 'function' && !rule.requirement()) return false;
   if (rule.stateKey) {
     return Boolean(state[rule.stateKey]);
   }
@@ -814,6 +836,7 @@ function canPurchaseTab(tabId) {
   const rule = getTabRule(tabId);
   if (!rule || isTabUnlocked(tabId)) return false;
   if (rule.minLevel && state.level < rule.minLevel) return false;
+  if (rule.requirement && typeof rule.requirement === 'function' && !rule.requirement()) return false;
   if (!rule.cost) return false;
   const { currency, amount } = rule.cost;
   return state[currency] >= amount;
@@ -824,6 +847,9 @@ function formatTabRequirement(rule) {
   const parts = [];
   if (rule.minLevel) {
     parts.push(`Lv ${rule.minLevel}`);
+  }
+  if (rule.requirementLabel) {
+    parts.push(rule.requirementLabel);
   }
   if (rule.cost) {
     const label = rule.cost.label || `${rule.cost.amount.toLocaleString()} ${rule.cost.currency}`;
@@ -898,6 +924,8 @@ function setupTabs() {
       document.getElementById(`tab-${tabId}`).classList.add('active');
       if (tabId === 'area') {
         renderAreaUpgrades();
+      } else if (tabId === 'collect') {
+        renderCollectUpgrades();
       } else if (tabId === 'spawn') {
         renderSpawnUpgrades();
       }
@@ -1561,6 +1589,50 @@ function generateSpawnUpgrades() {
   ];
 }
 
+function generateCollectUpgrades() {
+  collectUpgradeDefs = [
+    {
+      id: 'magnetic-sheath',
+      name: 'Magnetic Sheath',
+      description: '+18px bit collection radius per level',
+      maxLevel: 10,
+      costBase: 180,
+      costScale: 1.36,
+      currency: 'bits',
+      radiusPerLevel: 18,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
+      },
+    },
+    {
+      id: 'orbital-graviton',
+      name: 'Orbital Graviton',
+      description: '+30px bit collection radius per level',
+      maxLevel: 8,
+      costBase: 2400,
+      costScale: 1.48,
+      currency: 'bits',
+      radiusPerLevel: 30,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
+      },
+    },
+    {
+      id: 'phase-lens-array',
+      name: 'Phase Lens Array',
+      description: '+42px bit collection radius per level',
+      maxLevel: 6,
+      costBase: 7200,
+      costScale: 1.62,
+      currency: 'prestige',
+      radiusPerLevel: 42,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
+      },
+    },
+  ];
+}
+
 function getAreaUpgradeVersion(id) {
   return Math.max(1, state.areaUpgradeVersions[id] || 1);
 }
@@ -1601,6 +1673,13 @@ function getSpawnUpgradeCost(upgrade, level, version = getSpawnUpgradeVersion(up
   return Math.ceil(base * 1.8 ** level);
 }
 
+function getCollectUpgradeCost(upgrade, level) {
+  if (!upgrade || level >= upgrade.maxLevel) {
+    return 0;
+  }
+  return Math.ceil(upgrade.costBase * upgrade.costScale ** level);
+}
+
 function getAreaUpgradeLpCost(version) {
   if (version <= 1) return 0;
   const costs = [0, 1, 3, 5, 10, 15];
@@ -1611,6 +1690,14 @@ function getSpawnUpgradePrestigeCost(version) {
   if (version <= 1) return 0;
   const costs = [0, 1, 2, 4, 8];
   return costs[Math.min(version, costs.length - 1)];
+}
+
+function hasCompletedPhaseHaloI() {
+  const phaseHalo = areaUpgradeDefs.find((upgrade) => upgrade.id === 'phase-halo');
+  const maxLevel = phaseHalo?.maxLevel || 0;
+  const currentLevel = state.areaUpgrades['phase-halo'] || 0;
+  const version = getAreaUpgradeVersion('phase-halo');
+  return version > 1 || (version === 1 && maxLevel > 0 && currentLevel >= maxLevel);
 }
 
 function renderAreaUpgrades() {
@@ -1684,6 +1771,67 @@ function attemptAreaPurchase(upgrade) {
 function applyAreaUpgrades(statsObj) {
   areaUpgradeDefs.forEach((upgrade) => {
     const level = (getAreaUpgradeVersion(upgrade.id) - 1) * upgrade.maxLevel + (state.areaUpgrades[upgrade.id] || 0);
+    if (level > 0 && typeof upgrade.effect === 'function') {
+      upgrade.effect(statsObj, level, upgrade);
+    }
+  });
+}
+
+function renderCollectUpgrades() {
+  if (!UI.collectUpgradeGrid) return;
+  UI.collectUpgradeGrid.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  collectUpgradeDefs.forEach((upgrade) => {
+    const level = state.collectUpgrades[upgrade.id] || 0;
+    const maxed = level >= upgrade.maxLevel;
+    const cost = getCollectUpgradeCost(upgrade, level);
+    const percent = Math.min(100, (level / upgrade.maxLevel) * 100);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'area-upgrade';
+    button.dataset.id = upgrade.id;
+    button.setAttribute('role', 'listitem');
+    if (maxed) {
+      button.classList.add('maxed');
+    }
+    button.innerHTML = `
+      <div class="title">${upgrade.name}</div>
+      <div class="desc">${upgrade.description}</div>
+      <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
+      <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
+      <div class="cost">${maxed ? 'Fully synced' : `Cost: <span>${cost.toLocaleString()}</span> ${upgrade.currency}`}</div>
+    `;
+    const affordable = !maxed && state[upgrade.currency] >= cost;
+    button.classList.toggle('available', affordable);
+    button.disabled = maxed || !affordable;
+    button.addEventListener('click', () => attemptCollectPurchase(upgrade));
+    fragment.appendChild(button);
+  });
+  UI.collectUpgradeGrid.appendChild(fragment);
+}
+
+function attemptCollectPurchase(upgrade) {
+  if (!upgrade) return;
+  const level = state.collectUpgrades[upgrade.id] || 0;
+  if (level >= upgrade.maxLevel) {
+    return;
+  }
+  const cost = getCollectUpgradeCost(upgrade, level);
+  if (state[upgrade.currency] < cost) {
+    return;
+  }
+  state[upgrade.currency] -= cost;
+  const nextLevel = level + 1;
+  state.collectUpgrades[upgrade.id] = nextLevel;
+  updateStats();
+  updateResources();
+  renderCollectUpgrades();
+  queueSave();
+}
+
+function applyCollectUpgrades(statsObj) {
+  collectUpgradeDefs.forEach((upgrade) => {
+    const level = state.collectUpgrades[upgrade.id] || 0;
     if (level > 0 && typeof upgrade.effect === 'function') {
       upgrade.effect(statsObj, level, upgrade);
     }
@@ -2805,6 +2953,11 @@ function getPointerSize() {
   return Math.max(8, stats.pointerSize || 0);
 }
 
+function getBitCollectSize() {
+  const base = getPointerSize();
+  return Math.max(8, base + (stats.bitCollectRadius || 0));
+}
+
 function applyCursorSize() {
   if (UI.customCursor) {
     UI.customCursor.style.setProperty('--cursor-size', `${getPointerSize()}px`);
@@ -2813,6 +2966,17 @@ function applyCursorSize() {
 
 function getPointerRect(x, y) {
   const size = getPointerSize();
+  const half = size / 2;
+  return {
+    left: x - half,
+    right: x + half,
+    top: y - half,
+    bottom: y + half,
+  };
+}
+
+function getBitCollectRect(x, y) {
+  const size = getBitCollectSize();
   const half = size / 2;
   return {
     left: x - half,
@@ -2835,7 +2999,7 @@ function collectBitTokensAtPointer() {
   if (!UI.bitLayer || !UI.nodeArea) return;
   const tokens = UI.bitLayer.querySelectorAll('.bit-token:not(.collecting)');
   if (tokens.length === 0) return;
-  const pointerRect = getPointerRect(cursorPosition.x, cursorPosition.y);
+  const pointerRect = getBitCollectRect(cursorPosition.x, cursorPosition.y);
   tokens.forEach((token) => {
     const tokenRect = token.getBoundingClientRect();
     if (pointerIntersectsRect(pointerRect, tokenRect)) {
@@ -3082,15 +3246,25 @@ function weightedNodeType() {
   return nodeTypes[0];
 }
 
-function strikeNode(node) {
+function calculateCursorDamage(options = {}) {
+  const { allowCrit = true } = options;
   let damage = stats.damage;
   damage += state.health / state.maxHealth * stats.healthDamageBonus * stats.damage;
   damage += activeNodes.size * stats.nodeCountDamageBonus * stats.damage;
-  if (Math.random() < stats.critChance) {
+  let crit = false;
+  if (allowCrit && Math.random() < stats.critChance) {
+    crit = true;
     damage *= stats.critMultiplier;
-    createFloatText(node.el, 'CRIT!', '#ff6ea8');
   }
   damage = Math.max(damage, 1);
+  return { damage, crit };
+}
+
+function strikeNode(node) {
+  const { damage, crit } = calculateCursorDamage();
+  if (crit) {
+    createFloatText(node.el, 'CRIT!', '#ff6ea8');
+  }
   node.hp -= damage;
   triggerNodeDamageEffect(node);
   createFloatText(node.el, `-${Math.round(damage)}`);
@@ -3414,8 +3588,12 @@ function spawnBoss(options = {}) {
 }
 
 function getBossCursorDamage() {
-  // Boss damage is fixed to the base cursor power so bonuses do not apply.
-  return Math.max(1, stats.baseDamage);
+  const { damage, crit } = calculateCursorDamage();
+  const bossDamage = Math.max(1, damage * 0.5);
+  if (crit && activeBoss?.el) {
+    createFloatText(activeBoss.el, 'CRIT!', '#ff6ea8');
+  }
+  return bossDamage;
 }
 
 function damageBoss() {
@@ -3510,6 +3688,7 @@ function updateStats() {
   stats.pointerSize = 32;
   stats.bitGain = 1;
   stats.bitNodeBonus = 0;
+  stats.bitCollectRadius = 0;
   stats.xpGain = 1;
   stats.prestigeGain = 1;
   stats.nodeSpawnDelay = 2;
@@ -3534,6 +3713,7 @@ function updateStats() {
     }
   });
   applyAreaUpgrades(stats);
+  applyCollectUpgrades(stats);
   applySpawnUpgrades(stats);
   stats.nodeSpawnDelay = Math.max(0.05, stats.nodeSpawnDelay);
   state.maxHealth = stats.maxHealth;
@@ -3553,6 +3733,7 @@ function updateResources() {
   updateCryptoUI();
   updateLabUI();
   renderAreaUpgrades();
+  renderCollectUpgrades();
   renderSpawnUpgrades();
   updateTabAvailability();
 }
