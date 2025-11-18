@@ -1126,8 +1126,9 @@ body.disable-scanlines #crt-overlay {
 }
 
 .skill-node:hover {
-  transform: translate(-3px, -3px);
-  border-color: rgba(127, 255, 214, 0.45);
+  transform: translate(3px, 3px);
+  border-color: #61ebbf73 !important;
+  background-color: #36886840 !important;
   filter: brightness(1.15);
 }
 
