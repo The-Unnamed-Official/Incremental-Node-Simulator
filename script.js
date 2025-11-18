@@ -16,9 +16,11 @@ const UPDATE_LOGS = [
       'Level and palette selectors now render as chunky 8-bit dropdowns with crisp focus rings and fast keyboard support.',
       'Bit tokens now shatter into rose-colored triangles that tumble at random angles instead of the old yellow squares.',
       'Added Boss Execution tiers: an expensive upgrade line that adds a growing boss damage multiplier per boss kill.',
-      'Achievements and milestones call out unclaimed rewards with brighter glows and new tier goals for bosses and loot.',
+      'Achievements and milestones call out unclaimed rewards with brighter glows, new tier goals for bosses and loot, and a claim all control when rewards are ready.',
       'Enemy payouts and prices have been retuned alongside the new dropdown menus and palette selector styling.',
       'Moved settings button, updated skill pricing and Point Speed upgrade, renamed Bit Magnetics to Point Magnet and Spawn Matrix to Faster Nodes while moving them under Upgrades, removed milestones and anomaly upgrade tabs, added a custom new game warning, fixed level access, optimized the code, and reduced cursor lag with Reduced Animations.',
+      'Introduced enormous milestone and achievement ladders for ultra-long runs, big node slayer streaks, prestige surges, and massive bit stockpiles.',
+      'Cryptcoin mine now includes conversion accelerator upgrades and clearer number formatting across stats for giant values.',
     ],
   },
   {
@@ -130,6 +132,7 @@ function createInitialState() {
       deposit: 0,
       rate: 0,
       timeRemaining: 0,
+      speedUpgrades: {},
     },
     skins: {
       owned: new Set(['default']),
@@ -191,6 +194,12 @@ const BIT_REWARD_TABLE = {
   blue: { min: 15, max: 30 },
   gold: { min: 50, max: 100 },
 };
+
+const CRYPTO_SPEED_UPGRADES = [
+  { id: 'crypto-speed-10', label: 'Flux Heatsink', bonus: 10, cost: 10000 },
+  { id: 'crypto-speed-100', label: 'Dual-Core Converter', bonus: 100, cost: 50000 },
+  { id: 'crypto-speed-500', label: 'Quantum Loom', bonus: 500, cost: 1_000_000 },
+];
 
 const UPGRADE_LEVEL_GROWTH = 1.1;
 const UPGRADE_TIER_GROWTH = 1.5;
@@ -436,9 +445,11 @@ function cacheElements() {
   UI.milestoneDock = document.getElementById('milestone-dock');
   UI.achievementDot = document.querySelector('[data-dot="achievements"]');
   UI.milestoneDot = document.querySelector('[data-dot="milestones"]');
+  UI.claimAllButton = document.getElementById('claim-all-progress');
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
   UI.cryptoReturns = document.getElementById('crypto-returns');
   UI.cryptoTimer = document.getElementById('crypto-timer');
+  UI.cryptoSpeedUpgrades = document.getElementById('crypto-speed-upgrades');
   UI.labLocked = document.getElementById('lab-locked');
   UI.labPanel = document.getElementById('lab-panel');
   UI.labProgressFill = document.getElementById('lab-progress-fill');
@@ -677,6 +688,7 @@ function hydrateState(source = {}) {
   const mergedNodes = { ...defaults.nodesDestroyed, ...(source.nodesDestroyed || {}) };
   const mergedLevel = { ...defaults.currentLevel, ...(source.currentLevel || {}) };
   const mergedCrypto = { ...defaults.crypto, ...(source.crypto || {}) };
+  const mergedCryptoSpeed = { ...(defaults.crypto.speedUpgrades || {}), ...((mergedCrypto && mergedCrypto.speedUpgrades) || {}) };
   const mergedSettings = { ...defaults.settings, ...(source.settings || {}) };
   const mergedUpgrades = { ...(defaults.upgrades || {}), ...(source.upgrades || {}) };
   const mergedArea = { ...(defaults.areaUpgrades || {}), ...(source.areaUpgrades || {}) };
@@ -813,7 +825,11 @@ function hydrateState(source = {}) {
       0,
       Number.isFinite(Number(mergedCrypto.timeRemaining)) ? Number(mergedCrypto.timeRemaining) : defaults.crypto.timeRemaining,
     ),
+    speedUpgrades: sanitizeRecord(mergedCryptoSpeed),
   };
+  if (state.crypto.deposit > 0) {
+    recalculateCryptoRate();
+  }
   if (!state.cryptoUnlocked && (state.crypto.deposit > 0 || state.crypto.rate > 0)) {
     state.cryptoUnlocked = true;
   }
@@ -1325,6 +1341,9 @@ function setupProgressDock() {
   const panels = document.querySelectorAll('.progress-panel');
   if (tabs.length === 0) {
     return;
+  }
+  if (UI.claimAllButton) {
+    UI.claimAllButton.addEventListener('click', claimAllRewards);
   }
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
@@ -2704,19 +2723,49 @@ function generateMilestones() {
     {
       type: 'red',
       label: 'Red Circuit',
-      goals: [25, 150, 600, 1800],
-      rewards: [() => grantBits(80), () => grantBits(420), () => grantBits(1800), () => grantBits(6200)],
+      goals: [25, 150, 600, 1800, 10000, 60000, 250000, 1000000],
+      rewards: [
+        () => grantBits(80),
+        () => grantBits(420),
+        () => grantBits(1800),
+        () => grantBits(6200),
+        () => grantBits(28000),
+        () => grantBits(130000),
+        () => {
+          grantBits(520000);
+          grantPrestige(35);
+        },
+        () => {
+          grantBits(2500000);
+          grantPrestige(120);
+        },
+      ],
     },
     {
       type: 'blue',
       label: 'Blue Circuit',
-      goals: [25, 150, 500, 1500],
-      rewards: [() => grantBits(120), () => grantBits(520), () => grantBits(2400), () => grantBits(8200)],
+      goals: [25, 150, 500, 1500, 8000, 50000, 220000, 750000],
+      rewards: [
+        () => grantBits(120),
+        () => grantBits(520),
+        () => grantBits(2400),
+        () => grantBits(8200),
+        () => grantBits(36000),
+        () => grantBits(155000),
+        () => {
+          grantBits(640000);
+          grantPrestige(40);
+        },
+        () => {
+          grantBits(3100000);
+          grantPrestige(160);
+        },
+      ],
     },
     {
       type: 'gold',
       label: 'Golden Circuit',
-      goals: [10, 50, 150, 400],
+      goals: [10, 50, 150, 400, 2000, 8000, 25000, 100000],
       rewards: [
         () => {
           grantBits(4000);
@@ -2733,6 +2782,18 @@ function generateMilestones() {
         () => {
           grantBits(220000);
           grantCryptcoins(1400);
+        },
+        () => {
+          grantBits(620000);
+          grantCryptcoins(3600);
+        },
+        () => {
+          grantBits(1800000);
+          grantCryptcoins(9600);
+        },
+        () => {
+          grantBits(5200000);
+          grantCryptcoins(18000);
         },
       ],
     },
@@ -2774,6 +2835,27 @@ function generateMilestones() {
         grantBits(120000);
       },
     },
+    {
+      goal: 140,
+      reward: () => {
+        grantPrestige(260);
+        grantBits(240000);
+      },
+    },
+    {
+      goal: 250,
+      reward: () => {
+        grantPrestige(480);
+        grantBits(520000);
+      },
+    },
+    {
+      goal: 500,
+      reward: () => {
+        grantPrestige(1200);
+        grantBits(1500000);
+      },
+    },
   ];
 
   bossMilestones.forEach((entry, index) => {
@@ -2803,6 +2885,15 @@ function generateMilestones() {
         grantPrestige(12);
       },
     },
+    {
+      goal: upgrades.length,
+      reward: () => {
+        grantBits(62000);
+        grantPrestige(24);
+      },
+      label: 'Total Synchronisation',
+      description: 'Purchase every available upgrade at least once.',
+    },
   ];
 
   upgradeMilestones.forEach((entry, index) => {
@@ -2830,6 +2921,41 @@ function generateMilestones() {
       reward: () => {
         grantBits(16000);
         grantPrestige(10);
+      },
+    },
+    {
+      goal: 86400,
+      reward: () => {
+        grantBits(52000);
+        grantPrestige(30);
+      },
+    },
+    {
+      goal: 259200,
+      reward: () => {
+        grantBits(180000);
+        grantPrestige(90);
+      },
+    },
+    {
+      goal: 604800,
+      reward: () => {
+        grantBits(480000);
+        grantPrestige(220);
+      },
+    },
+    {
+      goal: 1800000,
+      reward: () => {
+        grantBits(1500000);
+        grantPrestige(600);
+      },
+    },
+    {
+      goal: 3600000,
+      reward: () => {
+        grantBits(3600000);
+        grantPrestige(1500);
       },
     },
   ];
@@ -2976,11 +3102,46 @@ function describeMilestone(milestone) {
   }
 }
 
+const NUMBER_SUFFIXES = [
+  '',
+  'Thousand',
+  'Million',
+  'Billion',
+  'Trillion',
+  'Quadrillion',
+  'Quintillion',
+  'Sextillion',
+  'Septillion',
+  'Octillion',
+  'Nonillion',
+  'Decillion',
+];
+
+function formatNumberShort(value) {
+  const numeric = Number(value) || 0;
+  const absValue = Math.abs(numeric);
+  if (absValue < 1) {
+    return numeric.toFixed(3).replace(/\.0+$/u, '').replace(/\.$/u, '');
+  }
+  let tier = 0;
+  let scaled = numeric;
+  while (Math.abs(scaled) >= 1000 && tier < NUMBER_SUFFIXES.length - 1) {
+    scaled /= 1000;
+    tier += 1;
+  }
+  const precision = Math.abs(scaled) >= 100 ? 0 : Math.abs(scaled) >= 10 ? 1 : 2;
+  const formatted = scaled.toFixed(precision).replace(/\.0+$|0+$/u, '');
+  if (tier === 0) {
+    return formatted;
+  }
+  return `${formatted} ${NUMBER_SUFFIXES[tier]}`;
+}
+
 function formatMilestoneValue(milestone, value) {
   if (milestone.type === 'playtime') {
     return formatDurationShort(value);
   }
-  return Math.max(0, Math.floor(value)).toLocaleString();
+  return formatNumberShort(Math.max(0, value));
 }
 
 function formatDurationShort(seconds) {
@@ -3014,6 +3175,32 @@ function getClaimableMilestoneCount() {
   }, 0);
 }
 
+function claimAllRewards() {
+  let claimedAny = false;
+  achievements.forEach((achievement) => {
+    const progress = getAchievementProgress(achievement);
+    if (progress.achieved && !progress.claimed) {
+      applyAchievementReward(achievement.reward);
+      state.achievementClaims[achievement.id] = true;
+      claimedAny = true;
+    }
+  });
+  milestones.forEach((milestone) => {
+    const progress = getMilestoneProgress(milestone);
+    if (progress.ready && !progress.claimed) {
+      milestone.reward();
+      state.milestoneClaims[milestone.id] = true;
+      claimedAny = true;
+    }
+  });
+  if (claimedAny) {
+    renderAchievements();
+    renderMilestones();
+    updateResources();
+    queueSave();
+  }
+}
+
 function toggleNotificationDot(dotEl, isActive) {
   if (!dotEl) return;
   dotEl.classList.toggle('active', isActive);
@@ -3025,6 +3212,10 @@ function updateProgressIndicators() {
   const claimableMilestones = getClaimableMilestoneCount();
   toggleNotificationDot(UI.achievementDot, claimableAchievements > 0);
   toggleNotificationDot(UI.milestoneDot, claimableMilestones > 0);
+  const totalClaimable = claimableAchievements + claimableMilestones;
+  if (UI.claimAllButton) {
+    UI.claimAllButton.classList.toggle('visible', totalClaimable > 0);
+  }
 }
 
 const ACHIEVEMENT_DIFFICULTY_WEIGHTS = {
@@ -3228,6 +3419,110 @@ function generateAchievements() {
       category: 'economy',
       stat: () => state.bits,
     }),
+    createAchievement({
+      id: 'bit-supermassive',
+      label: 'Supermassive Cache',
+      description: 'Hold 1,000,000,000 bits at once.',
+      goal: 1_000_000_000,
+      difficulty: 'legendary',
+      category: 'economy',
+      stat: () => state.bits,
+    }),
+    createAchievement({
+      id: 'bit-singularity',
+      label: 'Bit Singularity',
+      description: 'Hold 1,000,000,000,000,000 bits at once.',
+      goal: 1_000_000_000_000_000,
+      difficulty: 'legendary',
+      category: 'economy',
+      stat: () => state.bits,
+    }),
+    createAchievement({
+      id: 'bit-omniloop',
+      label: 'Omniloop Overflow',
+      description: 'Hold 100,000,000,000,000,000 bits at once.',
+      goal: 100_000_000_000_000_000,
+      difficulty: 'legendary',
+      category: 'economy',
+      stat: () => state.bits,
+    }),
+    createAchievement({
+      id: 'level-1000',
+      label: 'Layered Reality',
+      description: 'Reach level 1,000.',
+      goal: 1000,
+      difficulty: 'hard',
+      stat: () => state.level,
+    }),
+    createAchievement({
+      id: 'level-10000',
+      label: 'Ten-Thousandth Gate',
+      description: 'Reach level 10,000.',
+      goal: 10000,
+      difficulty: 'legendary',
+      stat: () => state.level,
+    }),
+    createAchievement({
+      id: 'level-50000',
+      label: 'Ascension Stack',
+      description: 'Reach level 50,000.',
+      goal: 50000,
+      difficulty: 'legendary',
+      stat: () => state.level,
+    }),
+    createAchievement({
+      id: 'level-200000',
+      label: 'Beyond Simulation',
+      description: 'Reach level 200,000.',
+      goal: 200000,
+      difficulty: 'legendary',
+      stat: () => state.level,
+    }),
+    createAchievement({
+      id: 'prestige-500',
+      label: 'Prestige Wave',
+      description: 'Earn 500 prestige.',
+      goal: 500,
+      difficulty: 'hard',
+      category: 'prestige',
+      stat: () => state.prestige,
+    }),
+    createAchievement({
+      id: 'prestige-5000',
+      label: 'Prestige Torrent',
+      description: 'Earn 5,000 prestige.',
+      goal: 5000,
+      difficulty: 'legendary',
+      category: 'prestige',
+      stat: () => state.prestige,
+    }),
+    createAchievement({
+      id: 'prestige-25000',
+      label: 'Prestige Maelstrom',
+      description: 'Earn 25,000 prestige.',
+      goal: 25000,
+      difficulty: 'legendary',
+      category: 'prestige',
+      stat: () => state.prestige,
+    }),
+    createAchievement({
+      id: 'prestige-90000',
+      label: 'Prestige Apex',
+      description: 'Earn 90,000 prestige.',
+      goal: 90000,
+      difficulty: 'legendary',
+      category: 'prestige',
+      stat: () => state.prestige,
+    }),
+    createAchievement({
+      id: 'crypto-elite',
+      label: 'Crypt Billionaire',
+      description: 'Accumulate 10,000,000 cryptcoins.',
+      goal: 10_000_000,
+      difficulty: 'legendary',
+      category: 'crypto',
+      stat: () => state.cryptcoins,
+    }),
   ];
 }
 
@@ -3269,7 +3564,9 @@ function renderAchievements() {
       <div class="card-body">${achievement.description}</div>
       <div class="reward-line">Reward: ${describeAchievementReward(achievement.reward)}</div>
       <div class="progress-track"><div class="fill" style="width: ${progress.percent}%"></div></div>
-      <div class="card-metrics">${Math.min(progress.current, achievement.goal).toLocaleString()} / ${achievement.goal.toLocaleString()}</div>
+      <div class="card-metrics">${formatNumberShort(Math.min(progress.current, achievement.goal))} / ${formatNumberShort(
+    achievement.goal,
+  )}</div>
     `;
     const claimButton = document.createElement('button');
     claimButton.type = 'button';
@@ -3308,6 +3605,7 @@ function setupCryptoControls() {
       queueSave();
     }
   });
+  renderCryptoSpeedUpgrades();
 }
 
 function depositToCrypto(amount) {
@@ -3315,7 +3613,7 @@ function depositToCrypto(amount) {
   if (state.bits >= amount) {
     state.bits -= amount;
     state.crypto.deposit += amount;
-    state.crypto.rate = Math.sqrt(state.crypto.deposit) / 10;
+    recalculateCryptoRate();
     state.crypto.timeRemaining = Math.max(10, Math.log(state.crypto.deposit + 1) * 30);
     updateCryptoUI();
     updateResources();
@@ -3323,9 +3621,55 @@ function depositToCrypto(amount) {
   }
 }
 
+function getCryptoSpeedBonus() {
+  return CRYPTO_SPEED_UPGRADES.reduce(
+    (total, tier) => total + (state.crypto.speedUpgrades[tier.id] ? tier.bonus : 0),
+    0,
+  );
+}
+
+function recalculateCryptoRate() {
+  if (state.crypto.deposit <= 0) {
+    state.crypto.rate = 0;
+    return;
+  }
+  const baseRate = Math.sqrt(state.crypto.deposit) / 10;
+  state.crypto.rate = baseRate + getCryptoSpeedBonus();
+}
+
+function renderCryptoSpeedUpgrades() {
+  if (!UI.cryptoSpeedUpgrades) return;
+  UI.cryptoSpeedUpgrades.innerHTML = '';
+  CRYPTO_SPEED_UPGRADES.forEach((tier) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'pill';
+    const purchased = Boolean(state.crypto.speedUpgrades[tier.id]);
+    const affordable = state.cryptcoins >= tier.cost;
+    button.disabled = purchased || !affordable;
+    button.textContent = purchased
+      ? `${tier.label}: +${tier.bonus}/s (owned)`
+      : `${tier.label}: +${tier.bonus}/s — ${formatNumberShort(tier.cost)} Cryptcoins`;
+    button.addEventListener('click', () => purchaseCryptoSpeedUpgrade(tier));
+    UI.cryptoSpeedUpgrades.appendChild(button);
+  });
+}
+
+function purchaseCryptoSpeedUpgrade(tier) {
+  if (!tier || state.crypto.speedUpgrades[tier.id]) return;
+  if (state.cryptcoins < tier.cost) return;
+  state.cryptcoins -= tier.cost;
+  state.crypto.speedUpgrades[tier.id] = true;
+  recalculateCryptoRate();
+  updateCryptoUI();
+  updateResources();
+  renderCryptoSpeedUpgrades();
+  queueSave();
+}
+
 function updateCryptoUI() {
-  UI.cryptoDeposited.textContent = state.crypto.deposit.toLocaleString();
-  UI.cryptoReturns.textContent = `${state.crypto.rate.toFixed(3)} / sec`;
+  UI.cryptoDeposited.textContent = formatNumberShort(state.crypto.deposit);
+  UI.cryptoReturns.textContent = `${formatNumberShort(state.crypto.rate)} / sec`;
   const time = Math.max(0, state.crypto.timeRemaining);
   const minutes = Math.floor(time / 60)
     .toString()
@@ -4735,14 +5079,17 @@ function updateStats() {
 }
 
 function updateResources() {
-  UI.bits.textContent = Math.floor(state.bits).toLocaleString();
-  UI.cryptcoins.textContent = Math.floor(state.cryptcoins).toLocaleString();
-  UI.prestige.textContent = Math.floor(state.prestige).toLocaleString();
-  UI.xp.textContent = `${Math.floor(state.xp).toLocaleString()} (${Math.floor(state.levelXP)}/${Math.floor(state.xpForNext)})`;
-  UI.level.textContent = state.level;
-  UI.lp.textContent = state.lp;
+  UI.bits.textContent = formatNumberShort(Math.floor(state.bits));
+  UI.cryptcoins.textContent = formatNumberShort(Math.floor(state.cryptcoins));
+  UI.prestige.textContent = formatNumberShort(Math.floor(state.prestige));
+  UI.xp.textContent = `${formatNumberShort(Math.floor(state.xp))} (${formatNumberShort(
+    Math.floor(state.levelXP),
+  )}/${formatNumberShort(Math.floor(state.xpForNext))})`;
+  UI.level.textContent = formatNumberShort(state.level);
+  UI.lp.textContent = formatNumberShort(state.lp);
   UI.currentLevel.textContent = state.currentLevel.index;
   updateCryptoUI();
+  renderCryptoSpeedUpgrades();
   updateLabUI();
   renderAreaUpgrades();
   renderCollectUpgrades();
