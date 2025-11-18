@@ -76,6 +76,7 @@ function createInitialState() {
     prestige: 0,
     xp: 0,
     level: 1,
+    highestCompletedLevel: 0,
     lp: 0,
     levelXP: 0,
     xpForNext: 100,
@@ -177,7 +178,6 @@ const BIT_REWARD_TABLE = {
 };
 
 const TAB_UNLOCK_RULES = {
-  area: { label: 'Damage Area', stateKey: 'areaUnlocked', minLevel: 10, cost: { currency: 'lp', amount: 5, label: '5 LP' } },
   collect: {
     label: 'Bit Magnetics',
     minLevel: 20,
@@ -199,7 +199,7 @@ const nodeTypes = [
       return { bits: getLevelBitReward('red', level) };
     },
     hp(level) {
-      return 24 + level * 4;
+      return 15 * Math.pow(5, Math.max(0, level - 1));
     },
   },
   {
@@ -210,7 +210,7 @@ const nodeTypes = [
       return { bits: getLevelBitReward('blue', level), xp: 4 + level };
     },
     hp(level) {
-      return 30 + level * 5;
+      return 30 * Math.pow(5, Math.max(0, level - 1));
     },
   },
   {
@@ -221,7 +221,7 @@ const nodeTypes = [
       return { bits: getLevelBitReward('gold', level), cryptcoins: 1 + level * 0.15 };
     },
     hp(level) {
-      return 120 + level * 22;
+      return 115 * Math.pow(5, Math.max(0, level - 1));
     },
   },
 ];
@@ -257,6 +257,7 @@ let milestoneTimer = 0;
 let activeUpdateLogVersion = null;
 
 const UI = {};
+const dropdownRegistry = new Map();
 const skillCheckState = {
   active: false,
   timer: 0,
@@ -430,6 +431,106 @@ function cacheElements() {
   UI.updateLogClose = document.getElementById('update-log-close');
 }
 
+function closeOtherDropdowns(activeWrapper) {
+  dropdownRegistry.forEach((api) => {
+    if (api.wrapper !== activeWrapper) {
+      api.close();
+    }
+  });
+}
+
+function setupCustomDropdown(selectEl) {
+  if (!selectEl) return null;
+  const existing = dropdownRegistry.get(selectEl);
+  if (existing) return existing;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'custom-dropdown';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'custom-dropdown__button';
+  const label = document.createElement('span');
+  const chevron = document.createElement('span');
+  chevron.className = 'chevron';
+  chevron.textContent = '▾';
+  button.append(label, chevron);
+  const list = document.createElement('div');
+  list.className = 'custom-dropdown__list';
+  wrapper.append(button, list);
+  selectEl.insertAdjacentElement('afterend', wrapper);
+  selectEl.setAttribute('aria-hidden', 'true');
+
+  const api = {
+    wrapper,
+    refresh,
+    sync,
+    close,
+    open,
+  };
+
+  function sync() {
+    const options = Array.from(list.querySelectorAll('[data-value]'));
+    const active = options.find((opt) => opt.dataset.value === selectEl.value) || options[0];
+    options.forEach((opt) => opt.classList.toggle('active', opt === active));
+    if (active) {
+      label.textContent = active.textContent;
+    }
+  }
+
+  function refresh() {
+    list.innerHTML = '';
+    Array.from(selectEl.options).forEach((opt) => {
+      const optionBtn = document.createElement('button');
+      optionBtn.type = 'button';
+      optionBtn.className = 'custom-dropdown__option';
+      optionBtn.dataset.value = opt.value;
+      optionBtn.textContent = opt.textContent;
+      optionBtn.disabled = opt.disabled;
+      optionBtn.addEventListener('click', () => {
+        selectEl.value = opt.value;
+        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        sync();
+        close();
+      });
+      list.appendChild(optionBtn);
+    });
+    sync();
+  }
+
+  function close() {
+    wrapper.classList.remove('open');
+  }
+
+  function open() {
+    closeOtherDropdowns(wrapper);
+    wrapper.classList.add('open');
+  }
+
+  button.addEventListener('click', () => {
+    if (wrapper.classList.contains('open')) {
+      close();
+    } else {
+      open();
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!wrapper.contains(event.target)) {
+      close();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      close();
+    }
+  });
+
+  selectEl.addEventListener('change', sync);
+  refresh();
+  dropdownRegistry.set(selectEl, api);
+  return api;
+}
+
 function setupPersistence() {
   if (UI.saveGame) {
     UI.saveGame.addEventListener('click', () => {
@@ -522,6 +623,12 @@ function hydrateState(source = {}) {
   state.xp = Number.isFinite(Number(source.xp)) ? Number(source.xp) : defaults.xp;
   state.playtime = Number.isFinite(Number(source.playtime)) ? Number(source.playtime) : defaults.playtime;
   state.level = Math.max(1, Number.isFinite(Number(source.level)) ? Number(source.level) : defaults.level);
+  state.highestCompletedLevel = Math.max(
+    0,
+    Number.isFinite(Number(source.highestCompletedLevel))
+      ? Number(source.highestCompletedLevel)
+      : defaults.highestCompletedLevel,
+  );
   state.lp = Number.isFinite(Number(source.lp)) ? Number(source.lp) : defaults.lp;
   state.levelXP = Number.isFinite(Number(source.levelXP)) ? Number(source.levelXP) : defaults.levelXP;
   state.xpForNext = Math.max(1, Number.isFinite(Number(source.xpForNext)) ? Number(source.xpForNext) : defaults.xpForNext);
@@ -591,6 +698,14 @@ function hydrateState(source = {}) {
   });
   state.spawnUpgrades = sanitizedSpawn;
   state.spawnUpgradeVersions = sanitizeUpgradeVersions(mergedSpawnVersions);
+  const legacyPhaseLevel = Math.max(0, state.areaUpgrades['phase-halo'] || 0);
+  const legacyPhaseVersion = Math.max(1, state.areaUpgradeVersions['phase-halo'] || 1);
+  const legacyPhaseTotal = (legacyPhaseVersion - 1) * 10 + legacyPhaseLevel;
+  if (!state.upgrades.PHASE_HALO && legacyPhaseTotal > 0) {
+    state.upgrades.PHASE_HALO = Math.min(10, legacyPhaseTotal);
+  }
+  state.areaUpgrades = {};
+  state.areaUpgradeVersions = {};
   const savedAnomalyCount = Number.isFinite(Number(source.anomalySkillsPurchased))
     ? Number(source.anomalySkillsPurchased)
     : Number(source.weirdSkillsPurchased);
@@ -1256,6 +1371,7 @@ function setupSettings() {
       applyDisplaySettings();
       queueSave();
     });
+    UI.paletteDropdown = setupCustomDropdown(paletteSelect);
   }
   const bgmVolume = document.getElementById('bgm-volume');
   if (bgmVolume) {
@@ -1307,6 +1423,9 @@ function applySettingsToControls() {
   const paletteSelect = document.getElementById('palette-select');
   if (paletteSelect) {
     paletteSelect.value = state.settings.palette;
+  }
+  if (UI.paletteDropdown?.sync) {
+    UI.paletteDropdown.sync();
   }
   const bgmVolume = document.getElementById('bgm-volume');
   if (bgmVolume) {
@@ -1466,6 +1585,23 @@ function generateUpgrades() {
       idCounter += 1;
     }
   });
+
+  upgrades.push({
+    id: 'PHASE_HALO',
+    category: 'control',
+    name: 'Phase Halo',
+    description: '+6px pointer size per level',
+    maxLevel: 10,
+    perLevel: 6,
+    costBase: 250,
+    costScale: 1.35,
+    currency: 'bits',
+    requirements: {},
+    sequenceIndex: idCounter,
+    effect: (statsObj, level, upgrade) => {
+      statsObj.pointerSize += (upgrade.perLevel || 0) * level;
+    },
+  });
 }
 
 function describeUpgrade(category, perLevel, maxLevel) {
@@ -1488,51 +1624,7 @@ function describeUpgrade(category, perLevel, maxLevel) {
 }
 
 function generateAreaUpgrades() {
-  areaUpgradeDefs = [
-    {
-      id: 'phase-halo',
-      name: 'Phase Halo',
-      description: '+6px pointer size per level',
-      maxLevel: 10,
-      costBase: 250,
-      costScale: 1.35,
-      currency: 'bits',
-      sizePerLevel: 6,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.pointerSize += upgrade.sizePerLevel * level;
-      },
-    },
-    {
-      id: 'vector-manifold',
-      name: 'Vector Manifold',
-      description: '+8px pointer & extra multi-hit damage per level',
-      maxLevel: 8,
-      costBase: 1200,
-      costScale: 1.45,
-      currency: 'bits',
-      sizePerLevel: 8,
-      damageBonus: 0.012,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.pointerSize += upgrade.sizePerLevel * level;
-        statsObj.nodeCountDamageBonus += upgrade.damageBonus * level;
-      },
-    },
-    {
-      id: 'quantum-bloom',
-      name: 'Quantum Bloom',
-      description: '+14px pointer & faster spawns per level',
-      maxLevel: 5,
-      costBase: 5200,
-      costScale: 1.65,
-      currency: 'bits',
-      sizePerLevel: 14,
-      spawnBonus: 0.04,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.pointerSize += upgrade.sizePerLevel * level;
-        statsObj.nodeSpawnDelay = Math.max(0.25, statsObj.nodeSpawnDelay - upgrade.spawnBonus * level);
-      },
-    },
-  ];
+  areaUpgradeDefs = [];
 }
 
 function generateSpawnUpgrades() {
@@ -1750,11 +1842,8 @@ function getSpawnUpgradePrestigeCost(version) {
 }
 
 function hasCompletedPhaseHaloI() {
-  const phaseHalo = areaUpgradeDefs.find((upgrade) => upgrade.id === 'phase-halo');
-  const maxLevel = phaseHalo?.maxLevel || 0;
-  const currentLevel = state.areaUpgrades['phase-halo'] || 0;
-  const version = getAreaUpgradeVersion('phase-halo');
-  return version > 1 || (version === 1 && maxLevel > 0 && currentLevel >= maxLevel);
+  const phaseHaloLevel = state.upgrades?.PHASE_HALO || 0;
+  return phaseHaloLevel >= 10;
 }
 
 function renderAreaUpgrades() {
@@ -2138,7 +2227,8 @@ function getUpgradeCost(upgrade, level) {
   if (!upgrade || level >= upgrade.maxLevel) {
     return 0;
   }
-  return Math.ceil(upgrade.costBase * upgrade.costScale ** level);
+  const growth = 4.5;
+  return Math.ceil(upgrade.costBase * growth ** level);
 }
 
 function formatCost(upgrade, level) {
@@ -2931,12 +3021,13 @@ function setupLevelSelector() {
       jumpToLevel(desired);
     }
   });
+  UI.levelDropdown = setupCustomDropdown(UI.levelSelect);
   refreshLevelOptions();
 }
 
 function refreshLevelOptions() {
   if (!UI.levelSelect) return;
-  const maxLevel = Math.max(1, state.level, state.currentLevel.index);
+  const maxLevel = Math.max(1, state.highestCompletedLevel, state.currentLevel.index);
   UI.levelSelect.innerHTML = '';
   for (let i = 1; i <= maxLevel; i += 1) {
     const option = document.createElement('option');
@@ -2945,10 +3036,13 @@ function refreshLevelOptions() {
     UI.levelSelect.appendChild(option);
   }
   UI.levelSelect.value = `${state.currentLevel.index}`;
+  if (UI.levelDropdown?.refresh) {
+    UI.levelDropdown.refresh();
+  }
 }
 
 function jumpToLevel(targetLevel) {
-  const maxLevel = Math.max(1, state.level, state.currentLevel.index);
+  const maxLevel = Math.max(1, state.highestCompletedLevel, state.currentLevel.index);
   const desired = Math.max(1, Math.min(Math.floor(targetLevel), maxLevel));
   setCurrentLevel(desired);
 }
@@ -3255,20 +3349,13 @@ function updateAutoClick(delta) {
 }
 
 function getPointerSize() {
-  return Math.max(8, stats.pointerSize || 0);
-}
-
-function getCursorScaleTarget(inNodeArea = cursorInNodeArea) {
   const baseSize = BASE_POINTER_SIZE || 32;
-  const pointerSize = getPointerSize();
-  if (!inNodeArea) return 1;
-  if (baseSize <= 0) return 1;
-  return Math.max(0.25, pointerSize / baseSize);
+  return Math.max(baseSize, stats.pointerSize || 0);
 }
 
 function getCursorDisplaySize(inNodeArea = cursorInNodeArea) {
-  const baseSize = BASE_POINTER_SIZE || 32;
-  return baseSize * getCursorScaleTarget(inNodeArea);
+  if (!inNodeArea) return BASE_POINTER_SIZE || 32;
+  return getPointerSize();
 }
 
 function getBitCollectSize() {
@@ -3278,8 +3365,10 @@ function getBitCollectSize() {
 
 function applyCursorSize() {
   if (UI.customCursor) {
-    UI.customCursor.style.setProperty('--cursor-size', `${BASE_POINTER_SIZE}px`);
-    UI.customCursor.style.setProperty('--cursor-scale', getCursorScaleTarget());
+    const targetSize = cursorInNodeArea ? getPointerSize() : BASE_POINTER_SIZE || 32;
+    const zoom = cursorInNodeArea ? 1 : 0.9;
+    UI.customCursor.style.setProperty('--cursor-size', `${targetSize}px`);
+    UI.customCursor.style.setProperty('--cursor-zoom', zoom);
   }
 }
 
@@ -3651,7 +3740,7 @@ function getBossDamageFromNodeType(typeId) {
 }
 
 function destroyNode(node) {
-  dropRewards(node);
+  const rewardsGranted = dropRewards(node);
   playSFX('nodeDie');
   const key = node.type.id;
   state.nodesDestroyed[key] = (state.nodesDestroyed[key] || 0) + 1;
@@ -3659,7 +3748,7 @@ function destroyNode(node) {
   if (node.type?.id === 'gold') {
     createGoldenBitBurst(node);
   }
-  spawnBitTokens(node);
+  spawnBitTokens(node, rewardsGranted?.bits || 0);
   if (node.shakeTimeout) clearTimeout(node.shakeTimeout);
   if (node.hitTimeout) clearTimeout(node.hitTimeout);
   node.el.remove();
@@ -3672,9 +3761,10 @@ function dropRewards(node) {
   const rewards = type.reward(state.currentLevel.index);
   const baseBits = rewards.bits ?? 0;
   const nodeElement = node?.el;
+  let harvestedBits = 0;
   if (baseBits || stats.bitNodeBonus) {
     const totalBits = Math.max(0, baseBits + stats.bitNodeBonus);
-    const harvestedBits = Math.max(0, totalBits * stats.bitGain);
+    harvestedBits = Math.max(0, totalBits * stats.bitGain);
     state.bits += harvestedBits;
     if (state.currentLevel.bossActive) {
       const payload = getBossDamageFromNodeType(type.id);
@@ -3691,6 +3781,7 @@ function dropRewards(node) {
   }
   updateResources();
   queueSave(2000);
+  return { bits: harvestedBits };
 }
 
 function updateNodeElement(node) {
@@ -3763,7 +3854,7 @@ function createGoldenBitBurst(node) {
   burst.addEventListener('animationend', () => burst.remove());
 }
 
-function spawnBitTokens(node) {
+function spawnBitTokens(node, rewardBits = 0) {
   if (!UI.bitLayer || !node.el) return;
   const areaRect = UI.nodeArea.getBoundingClientRect();
   const nodeRect = node.el.getBoundingClientRect();
@@ -3774,7 +3865,8 @@ function spawnBitTokens(node) {
   const valueBase = Math.max(1, Math.round(4 + state.currentLevel.index * 1.2));
   const isGold = node?.type?.id === 'gold';
   const tokenValues = [];
-  const desiredTotal = isGold ? Math.max(1000, valueBase * tokenCount) : 0;
+  const normalizedReward = Math.max(0, rewardBits);
+  const desiredTotal = normalizedReward > 0 ? Math.max(tokenCount, Math.round(normalizedReward * 0.2)) : valueBase * tokenCount;
   const goldBase = isGold ? Math.max(valueBase, Math.ceil(desiredTotal / tokenCount)) : valueBase;
   for (let i = 0; i < tokenCount; i += 1) {
     let tokenValue = isGold
@@ -3937,6 +4029,9 @@ function setCurrentLevel(levelIndex) {
   clearActiveEntities();
   autoClickTimer = 0;
   state.currentLevel.index = targetLevel;
+  if (targetLevel > 1) {
+    state.highestCompletedLevel = Math.max(state.highestCompletedLevel, targetLevel - 1);
+  }
   state.currentLevel.active = true;
   state.currentLevel.timer = getLevelDuration(targetLevel);
   UI.currentLevel.textContent = targetLevel;
@@ -3953,6 +4048,7 @@ function setCurrentLevel(levelIndex) {
 function resetLevel(increase = true) {
   const nextLevel = increase ? state.currentLevel.index + 1 : state.currentLevel.index;
   if (increase) {
+    state.highestCompletedLevel = Math.max(state.highestCompletedLevel, state.currentLevel.index);
     state.level = Math.max(state.level, nextLevel);
     gainXP(50 * nextLevel);
     state.lp += 1;

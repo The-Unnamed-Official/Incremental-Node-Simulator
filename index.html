@@ -38,7 +38,9 @@
           <div>Level <span id="current-level">1</span></div>
           <label class="level-select" for="level-select">
             <span class="label">Select level</span>
-            <select id="level-select"></select>
+            <div class="select-shell">
+              <select id="level-select" class="native-select"></select>
+            </div>
           </label>
         </div>
         <div class="node-area" id="node-area">
@@ -50,7 +52,6 @@
       <aside class="side-panel">
         <nav class="tabs">
           <button class="tab-button active" data-tab="upgrades" data-label="Upgrades">Upgrades</button>
-          <button class="tab-button" data-tab="area" data-label="Damage Area">Damage Area</button>
           <button class="tab-button" data-tab="collect" data-label="Bit Magnetics">Bit Magnetics</button>
           <button class="tab-button" data-tab="spawn" data-label="Spawn Matrix">Spawn Matrix</button>
           <button class="tab-button" data-tab="milestones" data-label="Milestones">
@@ -77,15 +78,6 @@
             </div>
           </div>
           <div id="skill-tree" class="skill-tree" role="list"></div>
-        </section>
-
-        <section id="tab-area" class="tab-content">
-          <div class="area-header">
-            <h2>Damage Field</h2>
-            <p>Expand the pointer lattice so a single sweep can rake across more nodes at once.</p>
-            <p class="system-note">Version badges mark each recalibration—LP fuels the next Damage Field matrix.</p>
-          </div>
-          <div id="area-upgrade-grid" class="area-upgrade-grid" role="list"></div>
         </section>
 
         <section id="tab-collect" class="tab-content">
@@ -188,11 +180,13 @@
             </label>
             <label class="setting">
               <span>Palette</span>
-              <select id="palette-select">
-                <option value="default">default</option>
-                <option value="violet">violet</option>
-                <option value="emerald">emerald</option>
-              </select>
+              <div class="select-shell">
+                <select id="palette-select" class="native-select">
+                  <option value="default">default</option>
+                  <option value="violet">violet</option>
+                  <option value="emerald">emerald</option>
+                </select>
+              </div>
             </label>
             <label class="setting">
               <span>BGM volume</span>
