@@ -389,6 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
   syncLabVisibility();
   updateStats();
   updateResources();
+  setupNewGameDialog();
   setupPersistence();
   startGameLoop();
   maybeShowUpdateLog();
@@ -449,6 +450,9 @@ function cacheElements() {
   UI.levelDialogSummary = document.getElementById('level-dialog-summary');
   UI.levelContinue = document.getElementById('level-continue');
   UI.levelReplay = document.getElementById('level-replay');
+  UI.newGameDialog = document.getElementById('new-game-dialog');
+  UI.newGameConfirm = document.getElementById('confirm-new-game');
+  UI.newGameCancel = document.getElementById('cancel-new-game');
   UI.updateLog = document.getElementById('update-log');
   UI.updateLogTabs = document.getElementById('update-log-tabs');
   UI.updateLogBody = document.getElementById('update-log-body');
@@ -563,9 +567,7 @@ function setupPersistence() {
   }
   if (UI.newGame) {
     UI.newGame.addEventListener('click', () => {
-      const confirmed = window.confirm('Start a new simulation? This will erase your current progress.');
-      if (!confirmed) return;
-      startNewGame();
+      openNewGameDialog();
     });
   }
   if (!autoSaveHandle) {
@@ -579,6 +581,44 @@ function setupPersistence() {
     if (document.visibilityState === 'hidden') {
       flushSaveQueue();
       saveGame();
+    }
+  });
+}
+
+function openNewGameDialog() {
+  if (!UI.newGameDialog) return;
+  UI.newGameDialog.classList.remove('hidden');
+  UI.newGameDialog.setAttribute('aria-hidden', 'false');
+}
+
+function closeNewGameDialog() {
+  if (!UI.newGameDialog) return;
+  UI.newGameDialog.classList.add('hidden');
+  UI.newGameDialog.setAttribute('aria-hidden', 'true');
+}
+
+function setupNewGameDialog() {
+  if (!UI.newGameDialog) return;
+  UI.newGameDialog.setAttribute('aria-hidden', 'true');
+  if (UI.newGameConfirm) {
+    UI.newGameConfirm.addEventListener('click', () => {
+      closeNewGameDialog();
+      startNewGame();
+    });
+  }
+  if (UI.newGameCancel) {
+    UI.newGameCancel.addEventListener('click', () => {
+      closeNewGameDialog();
+    });
+  }
+  UI.newGameDialog.addEventListener('click', (event) => {
+    if (event.target === UI.newGameDialog) {
+      closeNewGameDialog();
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !UI.newGameDialog.classList.contains('hidden')) {
+      closeNewGameDialog();
     }
   });
 }

@@ -16,19 +16,56 @@
   <div id="crt-overlay"></div>
   <div id="app">
     <header class="top-bar">
-      <div class="title">
-        <div class="title-heading">
-          <h1>incremental node simulator</h1>
-          <button id="version-display" class="version-tag" type="button">v0.501</button>
+      <div class="top-bar-left">
+        <div class="title">
+          <div class="title-heading">
+            <h1>incremental node simulator</h1>
+            <button id="version-display" class="version-tag" type="button">v0.501</button>
+          </div>
         </div>
+        <button
+          class="tab-button top-bar-settings"
+          data-tab="settings"
+          data-label="Settings"
+          type="button"
+          aria-label="Settings"
+        >
+          <span class="gear-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path
+                d="M12 8.75A3.25 3.25 0 1 0 12 15.25 3.25 3.25 0 0 0 12 8.75Zm0-6.5c.43 0 .81.28.94.69l.5 1.67c.4.13.78.3 1.14.5l1.7-.46a1 1 0 0 1 1.07.36l1.86 2.46a1 1 0 0 1-.13 1.3l-1.35 1.17c.06.38.1.77.1 1.17 0 .4-.03.8-.1 1.18l1.35 1.16a1 1 0 0 1 .13 1.3l-1.86 2.46a1 1 0 0 1-1.07.36l-1.7-.45c-.36.2-.74.37-1.14.5l-.5 1.67A1 1 0 0 1 12 21.75h-3a1 1 0 0 1-.94-.69l-.5-1.67a5.8 5.8 0 0 1-1.14-.5l-1.7.45a1 1 0 0 1-1.07-.36L1.79 16.52a1 1 0 0 1 .13-1.3l1.35-1.16c-.06-.39-.1-.78-.1-1.18 0-.4.03-.79.1-1.17L1.92 9.54a1 1 0 0 1-.13-1.3l1.86-2.46a1 1 0 0 1 1.07-.36l1.7.46c.36-.2.74-.37 1.14-.5l.5-1.67A1 1 0 0 1 9 2.25Zm-1.11 2.18-.3 1c-.08.3-.3.54-.6.65-.6.23-1.15.52-1.65.85a1 1 0 0 1-.85.1l-1-.28-1 1.3.8.68c.25.22.4.53.4.86-.05.33-.08.67-.08 1.02 0 .35.03.7.08 1.04 0 .32-.15.63-.4.85l-.8.68 1 1.3 1-.28a1 1 0 0 1 .85.1c.5.33 1.05.62 1.65.85.3.12.52.36.6.66l.3 1H12l.3-1c.08-.3.3-.54.6-.65.6-.23 1.15-.52 1.65-.85a1 1 0 0 1 .85-.1l1 .28 1-1.3-.8-.68a1.1 1.1 0 0 1-.4-.86c.05-.33.08-.67.08-1.02 0-.35-.03-.7-.08-1.04 0-.32.15-.63.4-.85l.8-.68-1-1.3-1 .28a1 1 0 0 1-.85-.1 6.7 6.7 0 0 0-1.65-.85c-.3-.12-.52-.36-.6-.66l-.3-1Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <span class="sr-only">Settings</span>
+        </button>
       </div>
       <div class="resource-bar">
-        <div class="resource"><span class="resource-label">Bits</span><span class="resource-value" id="bits-display">0</span></div>
-        <div class="resource"><span class="resource-label">Cryptcoins</span><span class="resource-value" id="cryptcoin-display">0</span></div>
-        <div class="resource"><span class="resource-label">Prestige</span><span class="resource-value" id="prestige-display">0</span></div>
-        <div class="resource"><span class="resource-label">XP</span><span class="resource-value" id="xp-display">0</span></div>
-        <div class="resource"><span class="resource-label">Level</span><span class="resource-value" id="level-display">1</span></div>
-        <div class="resource"><span class="resource-label">LP</span><span class="resource-value" id="lp-display">0</span></div>
+        <div class="resource">
+          <span class="resource-label">Bits</span>
+          <span class="resource-value" id="bits-display">0</span>
+        </div>
+        <div class="resource">
+          <span class="resource-label">Cryptcoins</span>
+          <span class="resource-value" id="cryptcoin-display">0</span>
+        </div>
+        <div class="resource">
+          <span class="resource-label">Prestige</span>
+          <span class="resource-value" id="prestige-display">0</span>
+        </div>
+        <div class="resource">
+          <span class="resource-label">XP</span>
+          <span class="resource-value" id="xp-display">0</span>
+        </div>
+        <div class="resource">
+          <span class="resource-label">Level</span>
+          <span class="resource-value" id="level-display">1</span>
+        </div>
+        <div class="resource">
+          <span class="resource-label">LP</span>
+          <span class="resource-value" id="lp-display">0</span>
+        </div>
       </div>
     </header>
 
@@ -60,7 +97,6 @@
           </button>
           <button class="tab-button" data-tab="crypto" data-label="Crypto Mine">Crypto Mine</button>
           <button class="tab-button" data-tab="lab" data-label="Lab">Lab</button>
-          <button class="tab-button" data-tab="settings" data-label="Settings">Settings</button>
         </nav>
 
         <section id="tab-upgrades" class="tab-content active">
@@ -283,6 +319,18 @@
       <div class="level-dialog-actions">
         <button id="level-replay" class="pill">Re-run breach</button>
         <button id="level-continue" class="pill accent">Advance</button>
+      </div>
+    </div>
+  </div>
+  <div id="new-game-dialog" class="new-game-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="new-game-title">
+    <div class="new-game-panel">
+      <h2 id="new-game-title">Launch a fresh simulation?</h2>
+      <p id="new-game-warning">
+        Your current progress will be wiped. This action cannot be undone.
+      </p>
+      <div class="new-game-actions">
+        <button id="cancel-new-game" class="pill">Return</button>
+        <button id="confirm-new-game" class="pill danger">Confirm reset</button>
       </div>
     </div>
   </div>
