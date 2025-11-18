@@ -202,13 +202,13 @@ const TAB_UNLOCK_RULES = {
 
 const UPGRADE_SECTION_RULES = {
   'point-magnet': {
-    label: 'Point Magnet',
+    label: 'P-Magnet',
     minLevel: 20,
     requirement: hasCompletedPhaseHaloI,
     requirementLabel: 'Complete Phase Halo I',
   },
-  'faster-nodes': { label: 'Faster Nodes', stateKey: 'spawnUnlocked', cost: { currency: 'prestige', amount: 5, label: '5 Prestige' } },
-  'point-speed': { label: 'Point Speed' },
+  'faster-nodes': { label: 'N-Speed', stateKey: 'spawnUnlocked', cost: { currency: 'prestige', amount: 5, label: '5 Prestige' } },
+  'point-speed': { label: 'P-Speed' },
 };
 
 const nodeTypes = [
@@ -1952,12 +1952,12 @@ function generateSpeedUpgrades() {
     {
       id: 'servo-haste',
       name: 'Servo Haste',
-      description: '-0.05s auto interval per level',
+      description: '-0.01s auto interval per level',
       maxLevel: 10,
       costBase: 260,
       costScale: 1.38,
       currency: 'bits',
-      intervalReduction: 0.05,
+      intervalReduction: 0.01,
       minInterval: 0.12,
       effect: (statsObj, level, upgrade) => {
         statsObj.autoInterval = Math.max(upgrade.minInterval, statsObj.autoInterval - upgrade.intervalReduction * level);
@@ -1966,12 +1966,12 @@ function generateSpeedUpgrades() {
     {
       id: 'neural-overdrive',
       name: 'Neural Overdrive',
-      description: '-0.08s auto interval per level',
-      maxLevel: 8,
+      description: '-0.05s auto interval per level',
+      maxLevel: 5,
       costBase: 4200,
       costScale: 1.44,
       currency: 'bits',
-      intervalReduction: 0.08,
+      intervalReduction: 0.05,
       minInterval: 0.1,
       effect: (statsObj, level, upgrade) => {
         statsObj.autoInterval = Math.max(upgrade.minInterval, statsObj.autoInterval - upgrade.intervalReduction * level);
@@ -1980,12 +1980,12 @@ function generateSpeedUpgrades() {
     {
       id: 'tachyon-conductors',
       name: 'Tachyon Conductors',
-      description: '-0.12s auto interval per level',
-      maxLevel: 6,
+      description: '-0.09s auto interval per level',
+      maxLevel: 5,
       costBase: 12000,
       costScale: 1.52,
       currency: 'prestige',
-      intervalReduction: 0.12,
+      intervalReduction: 0.09,
       minInterval: 0.08,
       effect: (statsObj, level, upgrade) => {
         statsObj.autoInterval = Math.max(upgrade.minInterval, statsObj.autoInterval - upgrade.intervalReduction * level);
