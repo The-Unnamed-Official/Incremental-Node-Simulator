@@ -275,6 +275,9 @@ let tooltipEl;
 let achievementTimer = 0;
 let milestoneTimer = 0;
 let activeUpdateLogVersion = null;
+let frameCounter = 0;
+let cachedNodeAreaRect = null;
+let cachedNodeAreaFrame = -1;
 
 const UI = {};
 const dropdownRegistry = new Map();
@@ -3301,7 +3304,6 @@ function updateBGMVolume() {
 }
 
 function spawnCursorPulse(x, y) {
-  if (state.settings.reducedAnimation) return;
   const pulse = document.createElement('div');
   pulse.className = 'cursor-pulse';
   pulse.style.left = `${x}px`;
@@ -3450,12 +3452,37 @@ function updateSkillCheck(delta) {
   }
 }
 
+function markFrameStart() {
+  frameCounter += 1;
+  cachedNodeAreaFrame = -1;
+  cachedNodeAreaRect = null;
+}
+
+function getNodeAreaRect() {
+  if (!UI.nodeArea) return null;
+  if (cachedNodeAreaFrame === frameCounter && cachedNodeAreaRect) {
+    return cachedNodeAreaRect;
+  }
+  const rect = UI.nodeArea.getBoundingClientRect();
+  cachedNodeAreaRect = {
+    left: rect.left,
+    right: rect.right,
+    top: rect.top,
+    bottom: rect.bottom,
+    width: UI.nodeArea.clientWidth || rect.width,
+    height: UI.nodeArea.clientHeight || rect.height,
+  };
+  cachedNodeAreaFrame = frameCounter;
+  return cachedNodeAreaRect;
+}
+
 function startGameLoop() {
   updateStats();
   let last = performance.now();
   function loop(now) {
     const delta = (now - last) / 1000;
     last = now;
+    markFrameStart();
     tick(delta);
     requestAnimationFrame(loop);
   }
@@ -3496,15 +3523,14 @@ function updateNodes(delta) {
     spawnNode();
     nodeSpawnTimer = Math.max(0.15, stats.nodeSpawnDelay);
   }
-  const areaRect = UI.nodeArea.getBoundingClientRect();
-  const width = UI.nodeArea.clientWidth || areaRect.width;
-  const height = UI.nodeArea.clientHeight || areaRect.height;
+  const areaRect = getNodeAreaRect();
+  if (!areaRect) return;
+  const { width, height } = areaRect;
   activeNodes.forEach((node) => {
     node.position.x += node.velocity.x * delta;
     node.position.y += node.velocity.y * delta;
     node.rotation += node.rotationSpeed * delta;
     applyNodeTransform(node);
-    updateNodeElement(node);
     const bounds = node.bounds;
     if (
       node.position.x < -bounds ||
@@ -3512,7 +3538,7 @@ function updateNodes(delta) {
       node.position.y < -bounds ||
       node.position.y > height + bounds
     ) {
-      node.el.remove();
+      node.el?.remove();
       activeNodes.delete(node.id);
     }
   });
@@ -3574,7 +3600,7 @@ function getBitCollectRect(x, y) {
   };
 }
 
-function isPointerInsideNodeArea(x, y, areaRect = UI.nodeArea?.getBoundingClientRect()) {
+function isPointerInsideNodeArea(x, y, areaRect = getNodeAreaRect()) {
   if (!areaRect) return false;
   if (areaRect.width <= 0 || areaRect.height <= 0) return false;
   return x >= areaRect.left && x <= areaRect.right && y >= areaRect.top && y <= areaRect.bottom;
@@ -3715,8 +3741,8 @@ function polygonsIntersect(polygonA, polygonB) {
 
 function performAutoClick() {
   if (!UI.nodeArea) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
-  if (areaRect.width <= 0 || areaRect.height <= 0) return;
+  const areaRect = getNodeAreaRect();
+  if (!areaRect || areaRect.width <= 0 || areaRect.height <= 0) return;
   const inside = isPointerInsideNodeArea(cursorPosition.x, cursorPosition.y, areaRect);
   if (!inside) return;
   const pointerX = cursorPosition.x;
@@ -3746,9 +3772,9 @@ function performAutoClick() {
 
 function spawnNode() {
   if (!UI.nodeArea) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
-  const width = UI.nodeArea.clientWidth || areaRect.width;
-  const height = UI.nodeArea.clientHeight || areaRect.height;
+  const areaRect = getNodeAreaRect();
+  if (!areaRect) return;
+  const { width, height } = areaRect;
   const margin = 90;
   const horizontalRange = Math.max(0, width - NODE_SIZE);
   const verticalRange = Math.max(0, height - NODE_SIZE);
