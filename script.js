@@ -235,6 +235,7 @@ const cursorPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 let bitTokenSweepScheduled = false;
 let bgmAudio;
 let audioUnlocked = false;
+let topBarObserver = null;
 
 const SFX_DEFINITIONS = {
   pointerAtk: { src: 'files/pointer_atk.mp3', baseVolume: 0.65 },
@@ -290,6 +291,7 @@ function playPointerHitSFX() {
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
+  setupLayoutMetrics();
   setupUpdateLogs();
   generateSkins();
   generateUpgrades();
@@ -338,6 +340,7 @@ function cacheElements() {
   UI.bitLayer = document.getElementById('bit-layer');
   UI.currentLevel = document.getElementById('current-level');
   UI.versionDisplay = document.getElementById('version-display');
+  UI.topBar = document.querySelector('.top-bar');
   if (UI.versionDisplay) {
     UI.versionDisplay.textContent = GAME_VERSION;
   }
@@ -956,6 +959,20 @@ function setupProgressDock() {
       });
     });
   });
+}
+
+function updateTopBarOffset() {
+  const height = UI.topBar?.getBoundingClientRect().height ?? 0;
+  document.documentElement.style.setProperty('--top-bar-height', `${height}px`);
+}
+
+function setupLayoutMetrics() {
+  updateTopBarOffset();
+  if (typeof ResizeObserver !== 'undefined' && UI.topBar) {
+    topBarObserver = new ResizeObserver(() => updateTopBarOffset());
+    topBarObserver.observe(UI.topBar);
+  }
+  window.addEventListener('resize', updateTopBarOffset);
 }
 
 function setupUpdateLogs() {
@@ -2840,6 +2857,14 @@ function pointerIntersectsRect(pointerRect, rect) {
   );
 }
 
+function isNodeAreaInteractive(pointerX, pointerY) {
+  if (!UI.nodeArea) return false;
+  if (isUpdateLogOpen()) return false;
+  const element = document.elementFromPoint(pointerX, pointerY);
+  if (!element) return false;
+  return element === UI.nodeArea || UI.nodeArea.contains(element);
+}
+
 function getPointerPolygon(rect) {
   return [
     { x: rect.left, y: rect.top },
@@ -2924,6 +2949,7 @@ function performAutoClick() {
   if (!inside) return;
   const pointerX = cursorPosition.x;
   const pointerY = cursorPosition.y;
+  if (!isNodeAreaInteractive(pointerX, pointerY)) return;
   playSFX('pointerAtk');
   triggerCursorClickAnimation(pointerX, pointerY);
   const pointerRect = getPointerRect(pointerX, pointerY);

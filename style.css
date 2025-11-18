@@ -24,6 +24,9 @@
   --shadow-soft: 0 0 0 rgba(0, 0, 0, 0);
   --glow: 0 0 0 rgba(0, 0, 0, 0);
   --line: rgba(127, 255, 214, 0.22);
+  --stack-gap: clamp(12px, 2vw, 28px);
+  --top-bar-height: 0px;
+  --sticky-offset: calc(var(--top-bar-height) + var(--stack-gap));
 }
 
 * {
@@ -144,10 +147,10 @@ body.disable-scanlines #crt-overlay {
 }
 
 #app {
-  padding: 24px clamp(16px, 2vw, 48px);
+  padding: 0 clamp(16px, 2vw, 48px) 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--stack-gap);
   position: relative;
   z-index: 1;
 }
@@ -162,6 +165,9 @@ body.disable-scanlines #crt-overlay {
   border: var(--pixel-border) solid var(--line);
   box-shadow: var(--pixel-shadow);
   image-rendering: pixelated;
+  position: sticky;
+  top: 0;
+  z-index: 25;
 }
 
 .title {
@@ -305,7 +311,7 @@ body.disable-scanlines #crt-overlay {
   box-shadow: var(--pixel-shadow);
   image-rendering: pixelated;
   position: sticky;
-  top: clamp(12px, 2vw, 28px);
+  top: var(--sticky-offset);
   align-self: start;
   z-index: 2;
 }
@@ -320,13 +326,13 @@ body.disable-scanlines #crt-overlay {
 
 .node-area {
   position: sticky;
-  top: clamp(12px, 2vw, 28px);
+  top: var(--sticky-offset);
   flex: 1;
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.25);
   background: repeating-linear-gradient(45deg, rgba(7, 10, 20, 0.92) 0 12px, rgba(12, 16, 28, 0.92) 12px 24px);
   overflow: hidden;
   min-height: 420px;
-  max-height: calc(100vh - clamp(12px, 2vw, 28px) * 2);
+  max-height: calc(100vh - var(--sticky-offset) - var(--stack-gap));
   box-shadow: inset -4px -4px 0 rgba(0, 0, 0, 0.35);
   image-rendering: pixelated;
   z-index: 3;
