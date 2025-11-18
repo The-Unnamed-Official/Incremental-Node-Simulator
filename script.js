@@ -205,9 +205,9 @@ const UPGRADE_SECTION_RULES = {
     label: 'P-Magnet',
     minLevel: 20,
     requirement: hasCompletedPhaseHaloI,
-    requirementLabel: 'Complete Phase Halo I',
+    requirementLabel: 'Unlocked',
   },
-  'faster-nodes': { label: 'N-Speed', stateKey: 'spawnUnlocked', cost: { currency: 'prestige', amount: 5, label: '5 Prestige' } },
+  'faster-nodes': { label: 'N-Speed', stateKey: 'spawnUnlocked', cost: { currency: 'prestige', amount: 5, label: 'Unlocked' } },
   'point-speed': { label: 'P-Speed' },
 };
 
