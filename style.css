@@ -367,6 +367,7 @@ body.disable-scanlines #crt-overlay {
 .select-shell {
   position: relative;
   min-width: 150px;
+  isolation: isolate;
 }
 
 .native-select {
@@ -381,6 +382,7 @@ body.disable-scanlines #crt-overlay {
 .custom-dropdown {
   position: relative;
   filter: drop-shadow(var(--pixel-shadow));
+  z-index: 120;
 }
 
 .custom-dropdown__button {
@@ -429,7 +431,7 @@ body.disable-scanlines #crt-overlay {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition-fast) ease, transform var(--transition-fast) ease;
-  z-index: 5;
+  z-index: 200;
 }
 
 .custom-dropdown__button:focus-visible,
