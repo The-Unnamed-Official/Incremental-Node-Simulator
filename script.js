@@ -301,6 +301,7 @@ const skillCheckState = {
   timer: 0,
   duration: 0,
   reward: null,
+  onFail: null,
   sliderPosition: 0,
   sliderDirection: 1,
   sliderSpeed: 0,
@@ -1768,6 +1769,7 @@ function generateUpgrades() {
     },
     crit: (stats, level, data) => {
       stats.critChance += data.perLevel * level;
+      stats.critMultiplier *= Math.pow(data.multiplierGrowth || 1, level);
     },
     economyNode: (stats, level, data) => {
       stats.bitNodeBonus += data.perLevel * level;
@@ -1791,7 +1793,8 @@ function generateUpgrades() {
       const tierIndex = Math.floor(i / 10);
       const withinTier = i % 10;
       const maxLevel = family.minLevel + (i % (family.maxLevel - family.minLevel + 1));
-      const perLevel = 0.09 * Math.pow(2.2, i);
+      const perLevel =
+        family.key === 'economy' ? 5 * Math.pow(3.3, i) : 0.09 * Math.pow(2.2, i);
       const costBase = family.baseCost * 2 ** tierIndex;
       const costScale = 1.5;
       const id = `${family.key.toUpperCase()}_${idCounter}`;
@@ -1815,7 +1818,8 @@ function generateUpgrades() {
         requirements,
         sequenceIndex: i,
         previousId,
-        effect: (statsObj, level) => effects[family.key](statsObj, level, { perLevel, family }),
+        effect: (statsObj, level) =>
+          effects[family.key](statsObj, level, { perLevel, family, multiplierGrowth: family.key === 'crit' ? 1.5 : 1 }),
       };
       upgrades.push(upgrade);
       upgradeLookup.set(id, upgrade);
@@ -1871,11 +1875,11 @@ function describeUpgrade(category, perLevel, maxLevel) {
     case 'damage':
       return `+${(perLevel * 100).toFixed(1)}% damage / level (${maxLevel} lvls)`;
     case 'crit':
-      return `+${(perLevel * 100).toFixed(1)}% crit chance / level`;
+      return `+${(perLevel * 100).toFixed(1)}% crit chance / level, +1.5x crit multiplier / level`;
     case 'economyNode':
       return `+${perLevel.toFixed(1)} bits from nodes / level`;
     case 'economy':
-      return `+${(perLevel * 100).toFixed(1)}% bit gains / level`;
+      return `+${perLevel.toFixed(2)} bits+ / level`;
     case 'control':
       return 'Faster spawns & higher node cap';
     default:
@@ -2644,12 +2648,12 @@ function attemptPurchase(upgrade) {
       document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
     renderUpgrades(activeFilter);
     renderMilestones();
-    maybeStartSkillCheck(upgrade, cost);
+    maybeStartSkillCheck(upgrade, cost, level);
     queueSave();
   }
 }
 
-function maybeStartSkillCheck(upgrade, cost) {
+function maybeStartSkillCheck(upgrade, cost, previousLevel) {
   if (skillCheckState.active) return;
   const baseChance = 0.18;
   if (Math.random() > baseChance) {
@@ -2666,6 +2670,19 @@ function maybeStartSkillCheck(upgrade, cost) {
       gainXP(rewardXP);
       createFloatText(UI.customCursor || document.body, `+${rewardBits} bits`, '#ffd166');
       updateResources();
+    },
+    onFail: () => {
+      const penalty = Math.min(state[upgrade.currency], cost);
+      state[upgrade.currency] -= penalty;
+      state.upgrades[upgrade.id] = previousLevel;
+      updateStats();
+      updateResources();
+      const activeFilter =
+        document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
+      renderUpgrades(activeFilter);
+      renderMilestones();
+      createFloatText(UI.customCursor || document.body, `-${penalty} ${upgrade.currency}`, '#ff6ea8');
+      queueSave();
     },
   });
 }
@@ -3925,7 +3942,7 @@ function attemptSkillCheckResolution() {
   resolveSkillCheck(withinWindow);
 }
 
-function startSkillCheck({ upgrade, difficulty, reward }) {
+function startSkillCheck({ upgrade, difficulty, reward, onFail }) {
   if (!UI.skillCheck || !UI.skillCheckAction || !UI.skillCheckTarget || !UI.skillCheckSlider) return;
   const config = getSkillCheckConfig(difficulty);
   const sliderPosition = Math.min(0.95, Math.max(0.05, Math.random()));
@@ -3936,6 +3953,7 @@ function startSkillCheck({ upgrade, difficulty, reward }) {
   skillCheckState.timer = 0;
   skillCheckState.duration = config.duration;
   skillCheckState.reward = reward;
+  skillCheckState.onFail = onFail || null;
   skillCheckState.sliderSpeed = config.sliderSpeed;
   skillCheckState.windowSize = config.windowSize;
   skillCheckState.sliderPosition = sliderPosition;
@@ -3968,9 +3986,14 @@ function resolveSkillCheck(success) {
   if (success && typeof skillCheckState.reward === 'function') {
     skillCheckState.reward();
   } else if (!success) {
-    createFloatText(document.body, 'Skill check failed', '#ff6ea8');
+    if (typeof skillCheckState.onFail === 'function') {
+      skillCheckState.onFail();
+    } else {
+      createFloatText(document.body, 'Skill check failed', '#ff6ea8');
+    }
   }
   skillCheckState.reward = null;
+  skillCheckState.onFail = null;
   skillCheckState.sliderSpeed = 0;
   skillCheckState.windowSize = 0;
   skillCheckState.timer = 0;
