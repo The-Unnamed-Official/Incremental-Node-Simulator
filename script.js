@@ -116,8 +116,8 @@ const nodeTypes = [
     name: 'Red Node',
     color: 'red',
     reward(level) {
-      const base = 6 + level * 2;
-      return { bits: base };
+      const base = 5 + Math.max(0, level - 1) * 1.4;
+      return { bits: Math.round(base) };
     },
     hp(level) {
       return 24 + level * 4;
@@ -128,9 +128,8 @@ const nodeTypes = [
     name: 'Blue Node',
     color: 'blue',
     reward(level) {
-      const redBase = 6 + level * 2;
-      const bits = Math.round(redBase * 1.9);
-      return { bits, xp: 4 + level };
+      const bits = 7 + Math.max(0, level - 1) * 2;
+      return { bits: Math.round(bits), xp: 4 + level };
     },
     hp(level) {
       return 30 + level * 5;
@@ -141,12 +140,11 @@ const nodeTypes = [
     name: 'Gold Node',
     color: 'gold',
     reward(level) {
-      const redBase = 6 + level * 2;
-      const bits = Math.round(redBase * 3.4 + 18);
-      return { bits, cryptcoins: 1 + level * 0.1 };
+      const bits = 15 + Math.max(0, level - 1) * 3.5;
+      return { bits: Math.round(bits), cryptcoins: 1 + level * 0.15 };
     },
     hp(level) {
-      return 50 + level * 10;
+      return 120 + level * 22;
     },
   },
 ];
@@ -2776,9 +2774,21 @@ function spawnNode() {
   };
   const el = document.createElement('div');
   el.className = `node ${type.color} skin-${state.skins.active}`;
-  el.innerHTML = '<div class="core"></div><div class="hp"></div>';
+  const visual = document.createElement('div');
+  visual.className = 'node-visual';
+  const fill = document.createElement('div');
+  fill.className = 'fill';
+  const core = document.createElement('div');
+  core.className = 'core';
+  visual.append(fill, core);
+  const hpLabel = document.createElement('div');
+  hpLabel.className = 'hp';
+  el.append(visual, hpLabel);
   el.style.transition = 'none';
   node.el = el;
+  node.visualEl = visual;
+  node.fillEl = fill;
+  node.hpEl = hpLabel;
   applyNodeTransform(node);
   UI.nodeArea.appendChild(el);
   requestAnimationFrame(() => {
@@ -2792,8 +2802,8 @@ function spawnNode() {
 
 function weightedNodeType() {
   const roll = Math.random();
-  if (roll > 0.92) return nodeTypes[2];
-  if (roll > 0.5) return nodeTypes[1];
+  if (roll > 0.995) return nodeTypes[2];
+  if (roll > 0.6) return nodeTypes[1];
   return nodeTypes[0];
 }
 
@@ -2818,21 +2828,15 @@ function strikeNode(node) {
 
 function triggerNodeDamageEffect(node) {
   if (!node || !node.el || state.settings.reducedAnimation) return;
-  const baseTransform =
-    node.el.style.transform || window.getComputedStyle(node.el).transform || '';
-  try {
-    node.el.animate(
-      [
-        { transform: baseTransform },
-        { transform: `${baseTransform} translate3d(-3px, 2px, 0)` },
-        { transform: `${baseTransform} translate3d(3px, -2px, 0)` },
-        { transform: baseTransform },
-      ],
-      { duration: 200, easing: 'steps(3, end)' }
-    );
-  } catch (err) {
-    node.el.style.transform = baseTransform;
-  }
+  node.el.classList.remove('shaking');
+  node.el.classList.remove('hit');
+  // force reflow so the animation can restart even during rapid hits
+  void node.el.offsetWidth;
+  node.el.classList.add('shaking', 'hit');
+  if (node.shakeTimeout) clearTimeout(node.shakeTimeout);
+  if (node.hitTimeout) clearTimeout(node.hitTimeout);
+  node.shakeTimeout = setTimeout(() => node.el && node.el.classList.remove('shaking'), 240);
+  node.hitTimeout = setTimeout(() => node.el && node.el.classList.remove('hit'), 220);
 }
 
 function createFloatText(target, text, color = 'var(--accent-strong)') {
@@ -2854,6 +2858,8 @@ function destroyNode(node) {
   state.nodesDestroyed[key] = (state.nodesDestroyed[key] || 0) + 1;
   createNodeExplosion(node);
   spawnBitTokens(node);
+  if (node.shakeTimeout) clearTimeout(node.shakeTimeout);
+  if (node.hitTimeout) clearTimeout(node.hitTimeout);
   node.el.remove();
   activeNodes.delete(node.id);
   renderMilestones();
@@ -2878,7 +2884,17 @@ function dropRewards(type) {
 
 function updateNodeElement(node) {
   if (!node.el) return;
-  node.el.querySelector('.hp').textContent = `${Math.max(0, Math.ceil(node.hp))}`;
+  const hpEl = node.hpEl || node.el.querySelector('.hp');
+  if (hpEl) {
+    hpEl.textContent = `${Math.max(0, Math.ceil(node.hp))}`;
+    node.hpEl = hpEl;
+  }
+  const fillEl = node.fillEl || node.el.querySelector('.fill');
+  if (fillEl) {
+    const ratio = Math.max(0, Math.min(1, node.hp / node.maxHP));
+    fillEl.style.transform = `scaleY(${ratio})`;
+    node.fillEl = fillEl;
+  }
 }
 
 function applyNodeTransform(node) {
