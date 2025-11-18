@@ -2206,6 +2206,14 @@ function getVisibleUpgradeSet(activeFilter, categorySequences) {
   return visible;
 }
 
+function getUpgradeDisplayName(upgrade, level) {
+  if (upgrade.id === 'PHASE_HALO') {
+    const version = Math.min(4, Math.max(1, Math.ceil(Math.max(level, 0) / 3) || 1));
+    return `${upgrade.name} ${romanNumeral(version)}`;
+  }
+  return upgrade.name;
+}
+
 function renderUpgrades(filter) {
   if (!UI.skillTree) return;
   const buttonFilter = document.querySelector('.filter.active')?.dataset.filter;
@@ -2258,8 +2266,9 @@ function renderUpgrades(filter) {
         }
         nodeEl.dataset.id = upgrade.id;
         nodeEl.dataset.category = upgrade.category;
+        const displayName = getUpgradeDisplayName(upgrade, level);
         nodeEl.innerHTML = `
-          <div class="title">${upgrade.name}</div>
+          <div class="title">${displayName}</div>
           <div class="desc">${upgrade.description}</div>
           <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
           <div class="cost">Cost: <span>${formatCost(upgrade, level)}</span> ${upgrade.currency}</div>
@@ -2354,7 +2363,9 @@ function attemptPurchase(upgrade) {
     }
     updateStats();
     updateResources();
-    renderUpgrades(document.querySelector('.filter.active').dataset.filter);
+    const activeFilter =
+      document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
+    renderUpgrades(activeFilter);
     renderMilestones();
     maybeStartSkillCheck(upgrade, cost);
     queueSave();
@@ -2387,8 +2398,9 @@ function showUpgradeTooltip(event, upgrade) {
   if (!tooltipEl) return;
   const level = state.upgrades[upgrade.id] || 0;
   const nextCost = level < upgrade.maxLevel ? getUpgradeCost(upgrade, level) : null;
+  const displayName = getUpgradeDisplayName(upgrade, level);
   tooltipEl.innerHTML = `
-    <strong>${upgrade.name}</strong><br/>
+    <strong>${displayName}</strong><br/>
     ${upgrade.description}<br/>
     Level: ${level} / ${upgrade.maxLevel}<br/>
     ${nextCost ? `Next cost: ${nextCost.toLocaleString()} ${upgrade.currency}` : 'Fully upgraded'}
