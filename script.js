@@ -1760,7 +1760,7 @@ function generateUpgrades() {
     { key: 'crit', count: 300, baseName: 'Critical Bloom', minLevel: 3, maxLevel: 12, baseCost: 120, scale: 1.4 },
     { key: 'economyNode', category: 'economy', count: 350, baseName: 'Bit Condenser', minLevel: 4, maxLevel: 20, baseCost: 110, scale: 1.32 },
     { key: 'economy', count: 300, baseName: 'Extraction Protocol', minLevel: 6, maxLevel: 24, baseCost: 90, scale: 1.35 },
-    { key: 'control', count: 20, baseName: 'Node Field', minLevel: 4, maxLevel: 18, baseCost: 140, scale: 1.38 },
+    { key: 'control', count: 5, baseName: 'Node Field', minLevel: 4, maxLevel: 18, baseCost: 140, scale: 1.38 },
   ];
   const effects = {
     damage: (stats, level, data) => {
