@@ -3666,6 +3666,7 @@ const SKILL_CHECK_VARIANT_DETAILS = {
 };
 
 const SKILL_CHECK_VARIANTS = Object.keys(SKILL_CHECK_VARIANT_DETAILS);
+const SKILL_CHECK_CONFETTI_COLORS = ['#8fffe0', '#6ed6ff', '#ff82be', '#ffe566'];
 
 function getSkillCheckVariant() {
   const index = Math.floor(Math.random() * SKILL_CHECK_VARIANTS.length);
@@ -3745,6 +3746,29 @@ function refreshSkillCheckVisuals() {
   }
 }
 
+function spawnSkillCheckConfetti() {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
+  const pieces = 20;
+  for (let i = 0; i < pieces; i += 1) {
+    const confetti = document.createElement('span');
+    const side = i % 2 === 0 ? 'left' : 'right';
+    confetti.className = `skill-check-confetti skill-check-confetti--${side}`;
+    confetti.style.top = `${10 + Math.random() * 80}%`;
+    confetti.style.width = `${6 + Math.random() * 6}px`;
+    confetti.style.height = `${10 + Math.random() * 10}px`;
+    const primary = SKILL_CHECK_CONFETTI_COLORS[Math.floor(Math.random() * SKILL_CHECK_CONFETTI_COLORS.length)];
+    const accent = SKILL_CHECK_CONFETTI_COLORS[Math.floor(Math.random() * SKILL_CHECK_CONFETTI_COLORS.length)];
+    confetti.style.background = `linear-gradient(135deg, ${primary}, ${accent})`;
+    confetti.style.animationDuration = `${0.95 + Math.random() * 0.5}s`;
+    confetti.style.animationDelay = `${Math.random() * 0.18}s`;
+    confetti.style.setProperty('--confetti-spin', `${Math.random() * 300 - 150}deg`);
+    document.body.appendChild(confetti);
+    confetti.addEventListener('animationend', () => confetti.remove());
+  }
+}
+
 function attemptSkillCheckResolution() {
   if (!skillCheckState.active) return;
   const withinWindow =
@@ -3789,8 +3813,11 @@ function resolveSkillCheck(success) {
   if (UI.skillCheck) {
     UI.skillCheck.classList.add('hidden');
   }
-  if (success && typeof skillCheckState.reward === 'function') {
-    skillCheckState.reward();
+  if (success) {
+    if (typeof skillCheckState.reward === 'function') {
+      skillCheckState.reward();
+    }
+    spawnSkillCheckConfetti();
   } else if (!success) {
     if (typeof skillCheckState.onFail === 'function') {
       skillCheckState.onFail();
