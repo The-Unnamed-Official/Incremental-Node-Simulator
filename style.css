@@ -2063,7 +2063,7 @@ body.disable-scanlines #crt-overlay {
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.25);
   padding: 16px;
   overflow: auto;
-  min-height: calc(min(50vh, 480px) - var(--tab-stack));
+  min-height: min(10vh, 180px);
   max-height: 560px;
   display: flex;
   justify-content: center;
@@ -2078,7 +2078,7 @@ body.disable-scanlines #crt-overlay {
 
 .update-log-entry {
   display: grid;
-  gap: 8px;
+  gap: 18px;
   max-width: 980px;
   width: 100%;
 }
@@ -2087,7 +2087,7 @@ body.disable-scanlines #crt-overlay {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
+  gap: 18px;
 }
 
 .update-log-entry .version-pill {
@@ -2118,13 +2118,14 @@ body.disable-scanlines #crt-overlay {
   margin: 0;
   color: var(--muted);
   line-height: 1.6;
+  gap: 8px;
 }
 
 .update-log-list {
   margin: 0;
   padding-left: 18px;
   display: grid;
-  gap: 8px;
+  gap: 18px;
 }
 
 .update-log-list li {
