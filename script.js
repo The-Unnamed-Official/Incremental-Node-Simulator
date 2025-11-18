@@ -1631,11 +1631,11 @@ function renderSkins() {
 
 function generateUpgrades() {
   const families = [
-    { key: 'damage', count: 80, baseName: 'Node Piercer', minLevel: 5, maxLevel: 20, baseCost: 50, scale: 1.35, perLevel: 0.06 },
-    { key: 'crit', count: 60, baseName: 'Critical Bloom', minLevel: 3, maxLevel: 12, baseCost: 120, scale: 1.4, perLevel: 0.02 },
-    { key: 'economyNode', category: 'economy', count: 40, baseName: 'Bit Condenser', minLevel: 4, maxLevel: 20, baseCost: 110, scale: 1.32, perLevel: 3 },
-    { key: 'economy', count: 30, baseName: 'Extraction Protocol', minLevel: 6, maxLevel: 24, baseCost: 90, scale: 1.35, perLevel: 0.05 },
-    { key: 'control', count: 50, baseName: 'Node Field', minLevel: 4, maxLevel: 18, baseCost: 140, scale: 1.38, perLevel: 0.04 },
+    { key: 'damage', count: 400, baseName: 'Node Piercer', minLevel: 5, maxLevel: 20, baseCost: 50, scale: 1.35, perLevel: 0.06 },
+    { key: 'crit', count: 300, baseName: 'Critical Bloom', minLevel: 3, maxLevel: 12, baseCost: 120, scale: 1.4, perLevel: 0.02 },
+    { key: 'economyNode', category: 'economy', count: 350, baseName: 'Bit Condenser', minLevel: 4, maxLevel: 20, baseCost: 110, scale: 1.32, perLevel: 3 },
+    { key: 'economy', count: 300, baseName: 'Extraction Protocol', minLevel: 6, maxLevel: 24, baseCost: 90, scale: 1.35, perLevel: 0.05 },
+    { key: 'control', count: 20, baseName: 'Node Field', minLevel: 4, maxLevel: 18, baseCost: 140, scale: 1.38, perLevel: 0.04 },
     { key: 'anomaly', count: 40, baseName: 'Anomaly Protocol', minLevel: 1, maxLevel: 6, baseCost: 1, scale: 2.5, perLevel: 0.15 },
   ];
   const effects = {
