@@ -79,6 +79,7 @@ function createInitialState() {
     lp: 0,
     levelXP: 0,
     xpForNext: 100,
+    playtime: 0,
     health: 100,
     maxHealth: 100,
     nodesDestroyed: {
@@ -252,6 +253,7 @@ let skins = [];
 let nodeSpawnTimer = 0;
 let tooltipEl;
 let achievementTimer = 0;
+let milestoneTimer = 0;
 let activeUpdateLogVersion = null;
 
 const UI = {};
@@ -394,6 +396,9 @@ function cacheElements() {
   UI.collectUpgradeGrid = document.getElementById('collect-upgrade-grid');
   UI.spawnUpgradeGrid = document.getElementById('spawn-upgrade-grid');
   UI.milestoneDock = document.getElementById('milestone-dock');
+  UI.achievementDot = document.querySelector('[data-dot="achievements"]');
+  UI.milestoneDot = document.querySelector('[data-dot="milestones"]');
+  UI.milestoneTabDot = document.querySelector('[data-dot="milestone-tab"]');
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
   UI.cryptoReturns = document.getElementById('crypto-returns');
   UI.cryptoTimer = document.getElementById('crypto-timer');
@@ -515,6 +520,7 @@ function hydrateState(source = {}) {
   state.cryptcoins = Number.isFinite(Number(source.cryptcoins)) ? Number(source.cryptcoins) : defaults.cryptcoins;
   state.prestige = Number.isFinite(Number(source.prestige)) ? Number(source.prestige) : defaults.prestige;
   state.xp = Number.isFinite(Number(source.xp)) ? Number(source.xp) : defaults.xp;
+  state.playtime = Number.isFinite(Number(source.playtime)) ? Number(source.playtime) : defaults.playtime;
   state.level = Math.max(1, Number.isFinite(Number(source.level)) ? Number(source.level) : defaults.level);
   state.lp = Number.isFinite(Number(source.lp)) ? Number(source.lp) : defaults.lp;
   state.levelXP = Number.isFinite(Number(source.levelXP)) ? Number(source.levelXP) : defaults.levelXP;
@@ -2161,6 +2167,7 @@ function attemptPurchase(upgrade) {
     updateStats();
     updateResources();
     renderUpgrades(document.querySelector('.filter.active').dataset.filter);
+    renderMilestones();
     maybeStartSkillCheck(upgrade, cost);
     queueSave();
   }
@@ -2226,24 +2233,151 @@ function initTooltip() {
 }
 
 function generateMilestones() {
-  milestones = [
-    { id: 'destroy-500-red', label: 'Red Defeater', goal: 500, type: 'red', reward: () => grantBits(500), claimed: false },
-    { id: 'destroy-500-blue', label: 'Blue Defeater', goal: 500, type: 'blue', reward: () => grantBits(500), claimed: false },
-  ];
-  const milestonesExtra = [
-    { type: 'red', goal: 2000, reward: () => grantBits(2500) },
-    { type: 'blue', goal: 2000, reward: () => grantBits(2500) },
-    { type: 'gold', goal: 500, reward: () => grantcryptcoins(50) },
-    { type: 'boss', goal: 25, reward: () => grantPrestige(25) },
-  ];
-  milestonesExtra.forEach((entry, index) => {
+  milestones = [];
+  const addMilestone = (config) => {
     milestones.push({
-      id: `${entry.type}-${entry.goal}`,
-      label: `${entry.type.toUpperCase()} Hunter ${index + 1}`,
-      goal: entry.goal,
-      type: entry.type,
-      reward: entry.reward,
       claimed: false,
+      description: '',
+      ...config,
+      id: config.id || `${config.type}-${config.goal}`,
+    });
+  };
+
+  const nodeTracks = [
+    {
+      type: 'red',
+      label: 'Red Circuit',
+      goals: [25, 150, 600, 1800],
+      rewards: [() => grantBits(80), () => grantBits(420), () => grantBits(1800), () => grantBits(6200)],
+    },
+    {
+      type: 'blue',
+      label: 'Blue Circuit',
+      goals: [25, 150, 500, 1500],
+      rewards: [() => grantBits(120), () => grantBits(520), () => grantBits(2400), () => grantBits(8200)],
+    },
+    {
+      type: 'gold',
+      label: 'Golden Circuit',
+      goals: [10, 50, 150, 400],
+      rewards: [
+        () => {
+          grantBits(4000);
+          grantCryptcoins(25);
+        },
+        () => {
+          grantBits(18000);
+          grantCryptcoins(120);
+        },
+        () => {
+          grantBits(75000);
+          grantCryptcoins(420);
+        },
+        () => {
+          grantBits(220000);
+          grantCryptcoins(1400);
+        },
+      ],
+    },
+  ];
+
+  nodeTracks.forEach((track) => {
+    track.goals.forEach((goal, index) => {
+      addMilestone({
+        type: track.type,
+        goal,
+        label: `${track.label} ${index + 1}`,
+        reward: track.rewards[index],
+        description: `Destroy ${goal.toLocaleString()} ${track.type} nodes.`,
+      });
+    });
+  });
+
+  const bossMilestones = [
+    { goal: 1, reward: () => grantPrestige(1) },
+    { goal: 5, reward: () => grantPrestige(6) },
+    {
+      goal: 15,
+      reward: () => {
+        grantPrestige(20);
+        grantBits(6000);
+      },
+    },
+    {
+      goal: 40,
+      reward: () => {
+        grantPrestige(60);
+        grantBits(20000);
+      },
+    },
+  ];
+
+  bossMilestones.forEach((entry, index) => {
+    addMilestone({
+      type: 'boss',
+      goal: entry.goal,
+      reward: entry.reward,
+      label: `Boss Hunter ${index + 1}`,
+      description: `Neutralise ${entry.goal.toLocaleString()} bosses.`,
+    });
+  });
+
+  const upgradeMilestones = [
+    { goal: 15, reward: () => grantBits(300) },
+    { goal: 60, reward: () => grantBits(2000) },
+    {
+      goal: 140,
+      reward: () => {
+        grantBits(4500);
+        grantPrestige(4);
+      },
+    },
+    {
+      goal: 280,
+      reward: () => {
+        grantBits(12000);
+        grantPrestige(12);
+      },
+    },
+  ];
+
+  upgradeMilestones.forEach((entry, index) => {
+    addMilestone({
+      type: 'upgrades',
+      goal: entry.goal,
+      reward: entry.reward,
+      stat: () => Object.keys(state.upgrades).length,
+      label: `Upgrade Architect ${index + 1}`,
+      description: `Purchase ${entry.goal.toLocaleString()} upgrades.`,
+    });
+  });
+
+  const playtimeMilestones = [
+    { goal: 600, reward: () => grantBits(1500) },
+    {
+      goal: 3600,
+      reward: () => {
+        grantBits(6000);
+        grantPrestige(3);
+      },
+    },
+    {
+      goal: 10800,
+      reward: () => {
+        grantBits(16000);
+        grantPrestige(10);
+      },
+    },
+  ];
+
+  playtimeMilestones.forEach((entry, index) => {
+    addMilestone({
+      type: 'playtime',
+      goal: entry.goal,
+      reward: entry.reward,
+      stat: () => state.playtime,
+      label: `Time Dilation ${index + 1}`,
+      description: `Spend ${formatDurationShort(entry.goal)} inside the simulator.`,
     });
   });
 }
@@ -2256,7 +2390,10 @@ function renderMilestones() {
   if (UI.milestoneDock) {
     containers.push({ el: UI.milestoneDock, variant: 'dock' });
   }
-  if (containers.length === 0) return;
+  if (containers.length === 0) {
+    updateProgressIndicators();
+    return;
+  }
   containers.forEach(({ el }) => {
     el.innerHTML = '';
   });
@@ -2266,6 +2403,7 @@ function renderMilestones() {
       el.appendChild(buildMilestoneElement(milestone, progress, variant));
     });
   });
+  updateProgressIndicators();
 }
 
 function buildMilestoneElement(milestone, progress, variant) {
@@ -2287,6 +2425,7 @@ function buildMilestoneElement(milestone, progress, variant) {
     }
     const statusClass = progress.claimed ? 'status claimed' : progress.ready ? 'status ready' : 'status';
     const percent = Math.min(100, (progress.current / progress.goal) * 100);
+    const progressText = `${formatMilestoneValue(milestone, progress.current)} / ${formatMilestoneValue(milestone, milestone.goal)}`;
     card.innerHTML = `
       <div class="card-header">
         <strong>${milestone.label}</strong>
@@ -2294,7 +2433,7 @@ function buildMilestoneElement(milestone, progress, variant) {
       </div>
       <div class="card-body">${describeMilestone(milestone)}</div>
       <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
-      <div class="card-metrics">${progress.current.toLocaleString()} / ${milestone.goal.toLocaleString()}</div>
+      <div class="card-metrics">${progressText}</div>
     `;
     card.appendChild(claimButton);
     return card;
@@ -2304,7 +2443,11 @@ function buildMilestoneElement(milestone, progress, variant) {
   node.className = 'milestone';
   node.setAttribute('role', 'listitem');
   const info = document.createElement('div');
-  info.innerHTML = `<strong>${milestone.label}</strong><br/>Progress: ${progress.current.toLocaleString()} / ${milestone.goal.toLocaleString()}`;
+  const progressText = `${formatMilestoneValue(milestone, progress.current)} / ${formatMilestoneValue(
+    milestone,
+    milestone.goal,
+  )}`;
+  info.innerHTML = `<strong>${milestone.label}</strong><br/>Progress: ${progressText}`;
   const reward = document.createElement('div');
   reward.className = 'progress';
   reward.textContent = progress.claimed ? 'claimed' : progress.ready ? 'reward ready' : 'keep going';
@@ -2329,7 +2472,13 @@ function claimMilestoneReward(milestone) {
 }
 
 function getMilestoneProgress(milestone) {
-  const current = milestone.type === 'boss' ? state.bossKills : state.nodesDestroyed[milestone.type] || 0;
+  const baseCurrent =
+    typeof milestone.stat === 'function'
+      ? Number(milestone.stat()) || 0
+      : milestone.type === 'boss'
+      ? state.bossKills
+      : state.nodesDestroyed[milestone.type] || 0;
+  const current = Math.max(0, baseCurrent);
   const ready = current >= milestone.goal;
   const claimed = Boolean(state.milestoneClaims[milestone.id]);
   milestone.claimed = claimed;
@@ -2342,6 +2491,9 @@ function getMilestoneProgress(milestone) {
 }
 
 function describeMilestone(milestone) {
+  if (milestone.description) {
+    return milestone.description;
+  }
   switch (milestone.type) {
     case 'red':
       return `Destroy ${milestone.goal.toLocaleString()} red nodes.`;
@@ -2351,9 +2503,65 @@ function describeMilestone(milestone) {
       return `Destroy ${milestone.goal.toLocaleString()} gold nodes.`;
     case 'boss':
       return `Neutralise ${milestone.goal.toLocaleString()} bosses.`;
+    case 'upgrades':
+      return `Purchase ${milestone.goal.toLocaleString()} upgrades.`;
+    case 'playtime':
+      return `Spend ${formatDurationShort(milestone.goal)} inside the simulator.`;
     default:
       return `Pursue ${milestone.goal.toLocaleString()} objectives.`;
   }
+}
+
+function formatMilestoneValue(milestone, value) {
+  if (milestone.type === 'playtime') {
+    return formatDurationShort(value);
+  }
+  return Math.max(0, Math.floor(value)).toLocaleString();
+}
+
+function formatDurationShort(seconds) {
+  const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  if (hours > 0 && minutes > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  if (hours > 0) {
+    return `${hours}h`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  }
+  return `${secs}s`;
+}
+
+function getClaimableAchievementCount() {
+  return achievements.reduce((count, achievement) => {
+    const progress = getAchievementProgress(achievement);
+    return count + (progress.achieved && !progress.claimed ? 1 : 0);
+  }, 0);
+}
+
+function getClaimableMilestoneCount() {
+  return milestones.reduce((count, milestone) => {
+    const progress = getMilestoneProgress(milestone);
+    return count + (progress.ready && !progress.claimed ? 1 : 0);
+  }, 0);
+}
+
+function toggleNotificationDot(dotEl, isActive) {
+  if (!dotEl) return;
+  dotEl.classList.toggle('active', isActive);
+  dotEl.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+}
+
+function updateProgressIndicators() {
+  const claimableAchievements = getClaimableAchievementCount();
+  const claimableMilestones = getClaimableMilestoneCount();
+  toggleNotificationDot(UI.achievementDot, claimableAchievements > 0);
+  toggleNotificationDot(UI.milestoneDot, claimableMilestones > 0);
+  toggleNotificationDot(UI.milestoneTabDot, claimableMilestones > 0);
 }
 
 const ACHIEVEMENT_DIFFICULTY_WEIGHTS = {
@@ -2583,6 +2791,7 @@ function renderAchievements() {
     card.appendChild(claimButton);
     UI.achievementGrid.appendChild(card);
   });
+  updateProgressIndicators();
 }
 
 function setupCryptoControls() {
@@ -2980,6 +3189,7 @@ function startGameLoop() {
 }
 
 function tick(delta) {
+  state.playtime += delta;
   updateLevel(delta);
   updateNodes(delta);
   updateAutoClick(delta);
@@ -2987,6 +3197,11 @@ function tick(delta) {
   updateCrypto(delta);
   updateLab(delta);
   updateSkillCheck(delta);
+  milestoneTimer += delta;
+  if (milestoneTimer >= 1) {
+    renderMilestones();
+    milestoneTimer = 0;
+  }
   achievementTimer += delta;
   if (achievementTimer >= 1) {
     renderAchievements();
@@ -3921,6 +4136,7 @@ function defeatBoss() {
   state.currentLevel.bossActive = false;
   state.currentLevel.active = false;
   state.bossKills += 1;
+  renderMilestones();
   const defeatedBossEl = activeBoss?.el;
   const rewardBits = Math.round(500 * state.currentLevel.index * stats.bitGain);
   const prestige = 1 * stats.prestigeGain;
