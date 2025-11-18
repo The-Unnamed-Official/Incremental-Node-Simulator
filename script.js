@@ -61,6 +61,7 @@ function createInitialState() {
     },
     automationSkills: {},
     milestoneClaims: {},
+    achievementClaims: {},
     achievementLog: {},
     statsSnapshot: null,
     settings: {
@@ -413,6 +414,7 @@ function hydrateState(source = {}) {
   const mergedArea = { ...(defaults.areaUpgrades || {}), ...(source.areaUpgrades || {}) };
   const mergedSpawn = { ...(defaults.spawnUpgrades || {}), ...(source.spawnUpgrades || {}) };
   const mergedMilestones = { ...(defaults.milestoneClaims || {}), ...(source.milestoneClaims || {}) };
+  const mergedAchievementClaims = { ...(defaults.achievementClaims || {}), ...(source.achievementClaims || {}) };
   const mergedAchievementLog = { ...(defaults.achievementLog || {}), ...(source.achievementLog || {}) };
   const mergedSkins = {
     active: (source.skins && source.skins.active) || defaults.skins.active,
@@ -499,6 +501,7 @@ function hydrateState(source = {}) {
     owned: new Set(Array.isArray(mergedSkins.owned) ? mergedSkins.owned : defaults.skins.owned),
   };
   state.milestoneClaims = sanitizeRecord(mergedMilestones);
+  state.achievementClaims = sanitizeRecord(mergedAchievementClaims);
   state.achievementLog = sanitizeAchievementLog(mergedAchievementLog);
   const savedStatsSnapshot = sanitizeStatsSnapshot(source.statsSnapshot || defaults.statsSnapshot);
   state.statsSnapshot = savedStatsSnapshot;
@@ -1886,18 +1889,181 @@ function describeMilestone(milestone) {
   }
 }
 
+const ACHIEVEMENT_DIFFICULTY_WEIGHTS = {
+  trivial: 1,
+  standard: 1.6,
+  hard: 2.4,
+  legendary: 3.2,
+};
+
+function createAchievement(config) {
+  const achievement = {
+    difficulty: 'standard',
+    category: 'general',
+    ...config,
+  };
+  achievement.reward = buildAchievementReward(achievement);
+  return achievement;
+}
+
+function buildAchievementReward(achievement) {
+  const difficultyWeight = ACHIEVEMENT_DIFFICULTY_WEIGHTS[achievement.difficulty] || 1;
+  const goalValue = Math.max(1, Number(achievement.goal) || 1);
+  const progressScale = Math.max(1, Math.log10(goalValue + 3));
+  const bits = Math.round(120 * progressScale * difficultyWeight);
+  const xp = Math.round(35 * progressScale * difficultyWeight);
+  const prestige =
+    goalValue >= 10 || difficultyWeight > 1.5
+      ? Math.max(1, Math.round(progressScale * (difficultyWeight - 0.4)))
+      : 0;
+  const cryptcoins =
+    achievement.category === 'crypto'
+      ? Math.max(1, Math.round(progressScale * 2.5 * difficultyWeight))
+      : 0;
+  return { bits, xp, prestige, cryptcoins };
+}
+
+function describeAchievementReward(reward) {
+  if (!reward || typeof reward !== 'object') return 'No reward';
+  const parts = [];
+  if (reward.bits) parts.push(`${Math.round(reward.bits).toLocaleString()} bits`);
+  if (reward.xp) parts.push(`${Math.round(reward.xp).toLocaleString()} XP`);
+  if (reward.cryptcoins) parts.push(`${Math.round(reward.cryptcoins).toLocaleString()} cryptcoins`);
+  if (reward.prestige) parts.push(`${Math.round(reward.prestige).toLocaleString()} prestige`);
+  return parts.length > 0 ? parts.join(' · ') : 'No reward';
+}
+
+function getAchievementProgress(achievement) {
+  const current = Math.max(0, Number(achievement.stat()) || 0);
+  const goalValue = Math.max(1, achievement.goal);
+  const percent = Math.min(100, (current / goalValue) * 100);
+  const achieved = current >= goalValue;
+  const claimed = Boolean(state.achievementClaims[achievement.id]);
+  const recordedAt = Number(state.achievementLog[achievement.id]);
+  if (achieved && !recordedAt) {
+    state.achievementLog[achievement.id] = Date.now();
+    queueSave(2000);
+  }
+  return { current, goal: goalValue, percent, achieved, claimed };
+}
+
+function applyAchievementReward(reward) {
+  if (!reward || typeof reward !== 'object') return;
+  const bits = Math.max(0, Math.round(Number(reward.bits) || 0));
+  const xp = Math.max(0, Math.round(Number(reward.xp) || 0));
+  const prestige = Math.max(0, Math.round(Number(reward.prestige) || 0));
+  const cryptcoins = Math.max(0, Math.round(Number(reward.cryptcoins) || 0));
+  if (bits > 0) {
+    state.bits += bits;
+  }
+  if (xp > 0) {
+    gainXP(xp);
+  }
+  if (prestige > 0) {
+    state.prestige += prestige;
+  }
+  if (cryptcoins > 0) {
+    state.cryptcoins += cryptcoins;
+  }
+}
+
+function claimAchievementReward(achievement) {
+  const progress = getAchievementProgress(achievement);
+  if (!progress.achieved || progress.claimed) {
+    return;
+  }
+  applyAchievementReward(achievement.reward);
+  state.achievementClaims[achievement.id] = true;
+  renderAchievements();
+  updateResources();
+  queueSave();
+}
+
 function generateAchievements() {
   achievements = [
-    { id: 'first-node', label: 'First Breach', description: 'Destroy your first node.', goal: 1, stat: () => totalNodesDestroyed() },
-    { id: 'hundred-nodes', label: 'Node Recycler', description: 'Destroy 100 nodes.', goal: 100, stat: () => totalNodesDestroyed() },
-    { id: 'level-5', label: 'Escalation', description: 'Reach level 5.', goal: 5, stat: () => state.level },
-    { id: 'level-15', label: 'Unending Ascent', description: 'Reach level 15.', goal: 15, stat: () => state.level },
-    { id: 'prestige-10', label: 'Prestige Initiate', description: 'Earn 10 prestige.', goal: 10, stat: () => state.prestige },
-    { id: 'upgrade-50', label: 'Tinkerer', description: 'Purchase 50 upgrades.', goal: 50, stat: () => Object.keys(state.upgrades).length },
-    { id: 'upgrade-200', label: 'Tree Diver', description: 'Purchase 200 upgrades.', goal: 200, stat: () => Object.keys(state.upgrades).length },
-    { id: 'weird-10', label: 'Weird Whisperer', description: 'Purchase 10 weird upgrades.', goal: 10, stat: () => state.weirdSkillsPurchased },
-    { id: 'lab-unlock', label: 'Researcher', description: 'Assemble the lab.', goal: 1, stat: () => (state.labUnlocked ? 1 : 0) },
-    { id: 'crypto-hoard', label: 'Miner 49k', description: 'Accumulate 50k cryptcoins.', goal: 50000, stat: () => state.cryptcoins },
+    createAchievement({
+      id: 'first-node',
+      label: 'First Breach',
+      description: 'Destroy your first node.',
+      goal: 1,
+      difficulty: 'trivial',
+      stat: () => totalNodesDestroyed(),
+    }),
+    createAchievement({
+      id: 'hundred-nodes',
+      label: 'Node Recycler',
+      description: 'Destroy 100 nodes.',
+      goal: 100,
+      difficulty: 'standard',
+      stat: () => totalNodesDestroyed(),
+    }),
+    createAchievement({
+      id: 'level-5',
+      label: 'Escalation',
+      description: 'Reach level 5.',
+      goal: 5,
+      difficulty: 'standard',
+      stat: () => state.level,
+    }),
+    createAchievement({
+      id: 'level-15',
+      label: 'Unending Ascent',
+      description: 'Reach level 15.',
+      goal: 15,
+      difficulty: 'hard',
+      stat: () => state.level,
+    }),
+    createAchievement({
+      id: 'prestige-10',
+      label: 'Prestige Initiate',
+      description: 'Earn 10 prestige.',
+      goal: 10,
+      difficulty: 'hard',
+      category: 'prestige',
+      stat: () => state.prestige,
+    }),
+    createAchievement({
+      id: 'upgrade-50',
+      label: 'Tinkerer',
+      description: 'Purchase 50 upgrades.',
+      goal: 50,
+      difficulty: 'standard',
+      stat: () => Object.keys(state.upgrades).length,
+    }),
+    createAchievement({
+      id: 'upgrade-200',
+      label: 'Tree Diver',
+      description: 'Purchase 200 upgrades.',
+      goal: 200,
+      difficulty: 'hard',
+      stat: () => Object.keys(state.upgrades).length,
+    }),
+    createAchievement({
+      id: 'weird-10',
+      label: 'Weird Whisperer',
+      description: 'Purchase 10 weird upgrades.',
+      goal: 10,
+      difficulty: 'hard',
+      category: 'weird',
+      stat: () => state.weirdSkillsPurchased,
+    }),
+    createAchievement({
+      id: 'lab-unlock',
+      label: 'Researcher',
+      description: 'Assemble the lab.',
+      goal: 1,
+      difficulty: 'hard',
+      stat: () => (state.labUnlocked ? 1 : 0),
+    }),
+    createAchievement({
+      id: 'crypto-hoard',
+      label: 'Miner 49k',
+      description: 'Accumulate 50k cryptcoins.',
+      goal: 50000,
+      difficulty: 'legendary',
+      category: 'crypto',
+      stat: () => state.cryptcoins,
+    }),
   ];
 }
 
@@ -1905,19 +2071,11 @@ function renderAchievements() {
   if (!UI.achievementGrid) return;
   UI.achievementGrid.innerHTML = '';
   achievements.forEach((achievement) => {
-    const current = achievement.stat();
-    const goalValue = Math.max(1, achievement.goal);
-    const percent = Math.min(100, (current / goalValue) * 100);
-    const achieved = current >= goalValue;
-    const recordedAt = Number(state.achievementLog[achievement.id]);
-    if (achieved && !recordedAt) {
-      state.achievementLog[achievement.id] = Date.now();
-      queueSave(2000);
-    }
+    const progress = getAchievementProgress(achievement);
     const card = document.createElement('div');
     card.className = 'progress-card achievement';
     card.setAttribute('role', 'listitem');
-    if (achieved) {
+    if (progress.achieved) {
       card.classList.add('completed');
       const completion = Number(state.achievementLog[achievement.id]);
       if (Number.isFinite(completion)) {
@@ -1927,15 +2085,35 @@ function renderAchievements() {
         }
       }
     }
+    if (progress.achieved && !progress.claimed) {
+      card.classList.add('ready');
+    }
+    if (progress.claimed) {
+      card.classList.add('claimed');
+    }
+    const statusClass = progress.claimed ? 'status claimed' : progress.achieved ? 'status ready' : 'status';
+    const statusText = progress.claimed
+      ? 'Claimed'
+      : progress.achieved
+      ? 'Reward ready'
+      : `${Math.floor(progress.percent)}%`;
     card.innerHTML = `
       <div class="card-header">
         <strong>${achievement.label}</strong>
-        <span class="status ${achieved ? 'completed' : ''}">${achieved ? 'Completed' : `${Math.floor(percent)}%`}</span>
+        <span class="${statusClass}">${statusText}</span>
       </div>
       <div class="card-body">${achievement.description}</div>
-      <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
-      <div class="card-metrics">${Math.min(current, achievement.goal).toLocaleString()} / ${achievement.goal.toLocaleString()}</div>
+      <div class="reward-line">Reward: ${describeAchievementReward(achievement.reward)}</div>
+      <div class="progress-track"><div class="fill" style="width: ${progress.percent}%"></div></div>
+      <div class="card-metrics">${Math.min(progress.current, achievement.goal).toLocaleString()} / ${achievement.goal.toLocaleString()}</div>
     `;
+    const claimButton = document.createElement('button');
+    claimButton.type = 'button';
+    claimButton.className = 'pill';
+    claimButton.textContent = progress.claimed ? 'claimed' : progress.achieved ? 'claim' : 'locked';
+    claimButton.disabled = progress.claimed || !progress.achieved;
+    claimButton.addEventListener('click', () => claimAchievementReward(achievement));
+    card.appendChild(claimButton);
     UI.achievementGrid.appendChild(card);
   });
 }

@@ -289,7 +289,8 @@ body.disable-scanlines #crt-overlay {
 }
 
 .node-area {
-  position: relative;
+  position: sticky;
+  top: 12px;
   flex: 1;
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.25);
   background: repeating-linear-gradient(45deg, rgba(7, 10, 20, 0.92) 0 12px, rgba(12, 16, 28, 0.92) 12px 24px);
@@ -297,6 +298,7 @@ body.disable-scanlines #crt-overlay {
   min-height: 420px;
   box-shadow: inset -4px -4px 0 rgba(0, 0, 0, 0.35);
   image-rendering: pixelated;
+  z-index: 2;
 }
 
 #particle-layer,
@@ -1586,6 +1588,12 @@ button.automation-node {
   line-height: 1.5;
 }
 
+.progress-card .reward-line {
+  font-size: 0.8rem;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+
 .progress-card .card-metrics {
   font-size: 0.78rem;
   color: var(--muted);
@@ -1599,6 +1607,12 @@ button.automation-node {
 .progress-card.ready {
   border-color: rgba(127, 255, 214, 0.55);
   box-shadow: var(--pixel-shadow), 0 0 10px rgba(127, 255, 214, 0.28);
+}
+
+.progress-card.claimed {
+  opacity: 0.92;
+  border-color: rgba(255, 209, 102, 0.45);
+  box-shadow: var(--pixel-shadow), 0 0 10px rgba(255, 209, 102, 0.2);
 }
 
 .progress-card.milestone-card.claimed {
