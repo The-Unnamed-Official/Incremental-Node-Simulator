@@ -173,7 +173,7 @@ const TAB_UNLOCK_RULES = {
   area: { label: 'Damage Area', stateKey: 'areaUnlocked', minLevel: 10, cost: { currency: 'lp', amount: 5, label: '5 LP' } },
   collect: {
     label: 'Bit Magnetics',
-    minLevel: 5,
+    minLevel: 20,
     requirement: hasCompletedPhaseHaloI,
     requirementLabel: 'Complete Phase Halo I',
   },
