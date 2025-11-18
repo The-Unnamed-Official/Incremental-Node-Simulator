@@ -335,6 +335,27 @@ body.disable-scanlines #crt-overlay {
   letter-spacing: 1px;
 }
 
+.level-select .custom-dropdown__button {
+  background: repeating-linear-gradient(135deg, rgba(255, 109, 145, 0.15) 0 8px, rgba(118, 244, 198, 0.08) 8px 16px),
+    repeating-linear-gradient(90deg, rgba(16, 22, 36, 0.95) 0 10px, rgba(12, 20, 32, 0.92) 10px 20px);
+  border-color: rgba(255, 116, 150, 0.65);
+  color: #ffe9f2;
+}
+
+.level-select .custom-dropdown__option {
+  border-color: rgba(255, 116, 150, 0.45);
+}
+
+#tab-settings .custom-dropdown__button {
+  background: repeating-linear-gradient(135deg, rgba(68, 255, 204, 0.1) 0 8px, rgba(132, 255, 222, 0.08) 8px 16px),
+    repeating-linear-gradient(90deg, rgba(10, 18, 28, 0.95) 0 12px, rgba(14, 22, 34, 0.92) 12px 24px);
+  border-color: rgba(127, 255, 214, 0.7);
+}
+
+#tab-settings .custom-dropdown__option {
+  border-color: rgba(127, 255, 214, 0.35);
+}
+
 .select-shell {
   position: relative;
   min-width: 150px;
@@ -351,15 +372,17 @@ body.disable-scanlines #crt-overlay {
 
 .custom-dropdown {
   position: relative;
+  filter: drop-shadow(var(--pixel-shadow));
 }
 
 .custom-dropdown__button {
   width: 100%;
   text-align: left;
-  background: repeating-linear-gradient(135deg, rgba(12, 18, 30, 0.9) 0 10px, rgba(18, 26, 38, 0.9) 10px 20px);
+  background: repeating-linear-gradient(90deg, rgba(14, 20, 30, 0.94) 0 12px, rgba(18, 28, 42, 0.94) 12px 24px),
+    repeating-linear-gradient(135deg, rgba(22, 32, 46, 0.3) 0 6px, rgba(8, 10, 20, 0.2) 6px 12px);
   color: var(--text);
-  border: var(--pixel-border) solid rgba(127, 255, 214, 0.3);
-  padding: 10px 12px;
+  border: var(--pixel-border) solid rgba(127, 255, 214, 0.55);
+  padding: 12px 14px;
   text-transform: uppercase;
   box-shadow: var(--pixel-shadow);
   display: flex;
@@ -368,6 +391,7 @@ body.disable-scanlines #crt-overlay {
   gap: 8px;
   width: 100%;
   cursor: pointer;
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 
 .custom-dropdown__button .chevron {
@@ -382,7 +406,7 @@ body.disable-scanlines #crt-overlay {
   right: 0;
   background: rgba(8, 12, 20, 0.96);
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.3);
-  box-shadow: var(--pixel-shadow);
+  box-shadow: var(--pixel-shadow), 0 8px 0 0 rgba(8, 12, 18, 0.45);
   max-height: 240px;
   overflow-y: auto;
   display: grid;
@@ -394,6 +418,13 @@ body.disable-scanlines #crt-overlay {
   pointer-events: none;
   transition: opacity var(--transition-fast) ease, transform var(--transition-fast) ease;
   z-index: 5;
+}
+
+.custom-dropdown__button:focus-visible,
+.custom-dropdown.open .custom-dropdown__button {
+  outline: none;
+  transform: translate(-2px, -2px);
+  box-shadow: var(--pixel-shadow), 0 0 0 4px rgba(127, 255, 214, 0.2);
 }
 
 .custom-dropdown.open .custom-dropdown__list {
@@ -1744,6 +1775,23 @@ body.disable-scanlines #crt-overlay {
   overflow: hidden;
 }
 
+.progress-card.ready::before {
+  content: '!';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(255, 116, 150, 0.9), rgba(255, 214, 102, 0.8));
+  color: #0b0f1b;
+  border: var(--pixel-border) solid rgba(255, 255, 255, 0.35);
+  box-shadow: var(--pixel-shadow), 0 0 0 6px rgba(255, 109, 145, 0.08);
+  font-size: 0.68rem;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.45);
+}
+
 .progress-card .card-header {
   display: flex;
   justify-content: space-between;
@@ -2007,14 +2055,24 @@ body.disable-scanlines #crt-overlay {
   position: absolute;
   width: 32px;
   height: 32px;
-  background: repeating-linear-gradient(135deg, rgba(255, 209, 102, 0.85) 0 8px, rgba(196, 144, 48, 0.85) 8px 16px);
-  border: var(--pixel-border) solid rgba(48, 28, 0, 0.88);
-  box-shadow: var(--pixel-shadow);
+  background: linear-gradient(135deg, #ff99c8 0%, #ff5f9f 50%, #c2154f 100%);
+  border: var(--pixel-border) solid rgba(79, 12, 38, 0.95);
+  box-shadow: var(--pixel-shadow), 0 0 12px rgba(255, 92, 146, 0.3);
   opacity: 0;
   transform: translate(-50%, -60%) scale(0.45) rotate(0deg);
   pointer-events: auto;
   will-change: transform, left, top, opacity;
   image-rendering: pixelated;
+  clip-path: polygon(50% 6%, 6% 94%, 94% 94%);
+}
+
+.bit-token::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: var(--pixel-border) solid rgba(255, 178, 217, 0.4);
+  clip-path: polygon(50% 4%, 4% 96%, 96% 96%);
+  pointer-events: none;
 }
 
 .bit-token.visible {

@@ -4,9 +4,22 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.499';
+const GAME_VERSION = 'v0.501';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.501',
+    title: 'Palette selector & execution protocols',
+    description:
+      'New pixel dropdowns, heavier boss-hunting upgrades, and refreshed progress calls keep the simulator sharp while the battlefield gets a bit makeover.',
+    changes: [
+      'Level and palette selectors now render as chunky 8-bit dropdowns with crisp focus rings and fast keyboard support.',
+      'Bit tokens now shatter into rose-colored triangles that tumble at random angles instead of the old yellow squares.',
+      'Added Boss Execution tiers: an expensive upgrade line that adds a growing boss damage multiplier per boss kill.',
+      'Achievements and milestones call out unclaimed rewards with brighter glows and new tier goals for bosses and loot.',
+      'Enemy payouts and prices have been retuned alongside the new dropdown menus and palette selector styling.',
+    ],
+  },
   {
     version: 'v0.499',
     title: 'Boss polish & golden jackpots',
@@ -125,6 +138,7 @@ function createInitialState() {
     achievementClaims: {},
     achievementLog: {},
     statsSnapshot: null,
+    paletteChangeCount: 0,
     settings: {
       crt: true,
       scanlines: true,
@@ -169,6 +183,7 @@ const stats = {
   bossHPFactor: 1,
   nodeCountDamageBonus: 0,
   anomalySynergy: 0,
+  bossKillDamageRamp: 0,
 };
 
 const BIT_REWARD_TABLE = {
@@ -622,6 +637,9 @@ function hydrateState(source = {}) {
   state.prestige = Number.isFinite(Number(source.prestige)) ? Number(source.prestige) : defaults.prestige;
   state.xp = Number.isFinite(Number(source.xp)) ? Number(source.xp) : defaults.xp;
   state.playtime = Number.isFinite(Number(source.playtime)) ? Number(source.playtime) : defaults.playtime;
+  state.paletteChangeCount = Number.isFinite(Number(source.paletteChangeCount))
+    ? Number(source.paletteChangeCount)
+    : defaults.paletteChangeCount;
   state.level = Math.max(1, Number.isFinite(Number(source.level)) ? Number(source.level) : defaults.level);
   state.highestCompletedLevel = Math.max(
     0,
@@ -1367,7 +1385,11 @@ function setupSettings() {
   const paletteSelect = document.getElementById('palette-select');
   if (paletteSelect) {
     paletteSelect.addEventListener('change', (e) => {
-      state.settings.palette = e.target.value;
+      const nextPalette = e.target.value;
+      if (state.settings.palette !== nextPalette) {
+        state.paletteChangeCount = (state.paletteChangeCount || 0) + 1;
+      }
+      state.settings.palette = nextPalette;
       applyDisplaySettings();
       queueSave();
     });
@@ -1600,6 +1622,24 @@ function generateUpgrades() {
     sequenceIndex: idCounter,
     effect: (statsObj, level, upgrade) => {
       statsObj.pointerSize += (upgrade.perLevel || 0) * level;
+    },
+  });
+  idCounter += 1;
+
+  upgrades.push({
+    id: 'BOSS_EXECUTION',
+    category: 'damage',
+    name: 'Boss Execution',
+    description: '+6% boss damage per boss kill per level',
+    maxLevel: 4,
+    perKillBonus: 0.06,
+    costBase: 240000,
+    costScale: 2.1,
+    currency: 'prestige',
+    requirements: { prestige: 12 },
+    sequenceIndex: idCounter,
+    effect: (statsObj, level, upgrade) => {
+      statsObj.bossKillDamageRamp += (upgrade.perKillBonus || 0) * level;
     },
   });
 }
@@ -2400,6 +2440,13 @@ function generateMilestones() {
         grantBits(20000);
       },
     },
+    {
+      goal: 75,
+      reward: () => {
+        grantPrestige(140);
+        grantBits(120000);
+      },
+    },
   ];
 
   bossMilestones.forEach((entry, index) => {
@@ -2779,6 +2826,14 @@ function generateAchievements() {
       stat: () => state.level,
     }),
     createAchievement({
+      id: 'palette-swaps',
+      label: 'Palette Switcher',
+      description: 'Swap your palette three times.',
+      goal: 3,
+      difficulty: 'trivial',
+      stat: () => state.paletteChangeCount || 0,
+    }),
+    createAchievement({
       id: 'prestige-10',
       label: 'Prestige Initiate',
       description: 'Earn 10 prestige.',
@@ -2828,6 +2883,33 @@ function generateAchievements() {
       difficulty: 'legendary',
       category: 'crypto',
       stat: () => state.cryptcoins,
+    }),
+    createAchievement({
+      id: 'boss-hunter',
+      label: 'Boss Circuit',
+      description: 'Neutralise 3 bosses.',
+      goal: 3,
+      difficulty: 'standard',
+      category: 'boss',
+      stat: () => state.bossKills,
+    }),
+    createAchievement({
+      id: 'executioner',
+      label: 'Executioner',
+      description: 'Neutralise 20 bosses.',
+      goal: 20,
+      difficulty: 'legendary',
+      category: 'boss',
+      stat: () => state.bossKills,
+    }),
+    createAchievement({
+      id: 'bit-avalanche',
+      label: 'Bit Avalanche',
+      description: 'Hold 250,000 bits at once.',
+      goal: 250000,
+      difficulty: 'hard',
+      category: 'economy',
+      stat: () => state.bits,
     }),
   ];
 }
@@ -3886,7 +3968,7 @@ function spawnBitTokens(node, rewardBits = 0) {
     token.style.left = `${centerX + offsetX}px`;
     token.style.top = `${centerY + offsetY}px`;
     if (!state.settings.reducedAnimation) {
-      token.style.setProperty('--bit-rotation', `${(Math.random() - 0.5) * 18}deg`);
+      token.style.setProperty('--bit-rotation', `${Math.random() * 360}deg`);
       token.style.setProperty('--bit-bob', `${6 + Math.random() * 14}px`);
       token.style.animationDelay = `${Math.random() * 0.12}s`;
     } else {
@@ -4140,11 +4222,13 @@ function applyBossDamage(amount, sourceEl = activeBoss?.el) {
   if (!state.currentLevel.bossActive) return;
   const damage = Math.max(0, Number(amount) || 0);
   if (damage <= 0) return;
-  state.currentLevel.bossHP -= damage;
-  state.currentLevel.bossDamageDealt = Math.max(0, (state.currentLevel.bossDamageDealt || 0) + damage);
+  const ramp = 1 + state.bossKills * (stats.bossKillDamageRamp || 0);
+  const effectiveDamage = Math.max(0, damage * ramp);
+  state.currentLevel.bossHP -= effectiveDamage;
+  state.currentLevel.bossDamageDealt = Math.max(0, (state.currentLevel.bossDamageDealt || 0) + effectiveDamage);
   if (activeBoss?.el) {
-    createFloatText(activeBoss.el, `-${Math.round(damage)}`, 'var(--accent)');
-    showBossDamageNumber(damage);
+    createFloatText(activeBoss.el, `-${Math.round(effectiveDamage)}`, 'var(--accent)');
+    showBossDamageNumber(effectiveDamage);
   }
   updateBossDamageCounter();
   updateBossBar();
@@ -4283,6 +4367,7 @@ function updateStats() {
   stats.bossHPFactor = 1;
   stats.nodeCountDamageBonus = 0;
   stats.anomalySynergy = 0;
+  stats.bossKillDamageRamp = 0;
   stats.maxHealth = 100 + state.level * 5;
   const levelPressure = Math.max(0, state.currentLevel.index - 1);
   const spawnAcceleration = Math.min(1.2, levelPressure * 0.04);
