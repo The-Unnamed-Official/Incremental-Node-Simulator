@@ -220,7 +220,7 @@ body.disable-scanlines #crt-overlay {
 
 .resource-bar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 12px;
   width: 100%;
 }
@@ -381,15 +381,6 @@ body.disable-scanlines #crt-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: conic-gradient(
-    from 90deg,
-    var(--hp-color, rgba(127, 255, 214, 0.9)) calc(var(--hp-ratio, 1) * 360deg),
-    rgba(13, 16, 28, 0.45) calc(var(--hp-ratio, 1) * 360deg)
-  );
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 58%, black 60%);
-  mask-image: radial-gradient(circle at 50% 50%, transparent 58%, black 60%);
-  filter: drop-shadow(0 0 8px rgba(127, 255, 214, 0.2));
-  opacity: 0.9;
 }
 
 .node .health-ring::after {
