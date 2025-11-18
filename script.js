@@ -120,7 +120,6 @@ function createInitialState() {
     areaUnlocked: false,
     spawnUnlocked: false,
     cryptoUnlocked: false,
-    anomalySkillsPurchased: 0,
     labUnlocked: false,
     labProgress: 0,
     labSpeed: 0,
@@ -182,7 +181,6 @@ const stats = {
   nodeHPFactor: 1,
   bossHPFactor: 1,
   nodeCountDamageBonus: 0,
-  anomalySynergy: 0,
   bossKillDamageRamp: 0,
 };
 
@@ -405,7 +403,6 @@ function cacheElements() {
   UI.skillTree = document.getElementById('skill-tree');
   UI.upgradeCount = document.getElementById('upgrade-count');
   UI.upgradeTotal = document.getElementById('upgrade-total');
-  UI.anomalyProgress = document.getElementById('anomaly-progress');
   UI.nodeArea = document.getElementById('node-area');
   UI.particleLayer = document.getElementById('particle-layer');
   UI.bitLayer = document.getElementById('bit-layer');
@@ -773,10 +770,6 @@ function hydrateState(source = {}) {
   }
   state.areaUpgrades = {};
   state.areaUpgradeVersions = {};
-  const savedAnomalyCount = Number.isFinite(Number(source.anomalySkillsPurchased))
-    ? Number(source.anomalySkillsPurchased)
-    : Number(source.weirdSkillsPurchased);
-  state.anomalySkillsPurchased = Math.max(0, Number.isFinite(savedAnomalyCount) ? savedAnomalyCount : defaults.anomalySkillsPurchased);
   state.areaUnlocked = coerceBoolean(source.areaUnlocked, defaults.areaUnlocked);
   state.spawnUnlocked = coerceBoolean(source.spawnUnlocked, defaults.spawnUnlocked);
   state.cryptoUnlocked = coerceBoolean(source.cryptoUnlocked, defaults.cryptoUnlocked);
@@ -1636,7 +1629,6 @@ function generateUpgrades() {
     { key: 'economyNode', category: 'economy', count: 350, baseName: 'Bit Condenser', minLevel: 4, maxLevel: 20, baseCost: 110, scale: 1.32, perLevel: 3 },
     { key: 'economy', count: 300, baseName: 'Extraction Protocol', minLevel: 6, maxLevel: 24, baseCost: 90, scale: 1.35, perLevel: 0.05 },
     { key: 'control', count: 20, baseName: 'Node Field', minLevel: 4, maxLevel: 18, baseCost: 140, scale: 1.38, perLevel: 0.04 },
-    { key: 'anomaly', count: 40, baseName: 'Anomaly Protocol', minLevel: 1, maxLevel: 6, baseCost: 1, scale: 2.5, perLevel: 0.15 },
   ];
   const effects = {
     damage: (stats, level, data) => {
@@ -1654,10 +1646,6 @@ function generateUpgrades() {
     control: (stats, level) => {
       stats.maxNodes += Math.floor(level / 2);
       stats.nodeSpawnDelay = Math.max(0.3, stats.nodeSpawnDelay - level * 0.02);
-    },
-    anomaly: (stats, level, data) => {
-      stats.anomalySynergy += data.perLevel * level;
-      stats.nodeCountDamageBonus += 0.03 * level;
     },
   };
 
@@ -1678,12 +1666,7 @@ function generateUpgrades() {
       const name = `${family.baseName}${tierLabel} ${romanNumeral(withinTier + 1)}`;
       const desc = describeUpgrade(family.key, perLevel, maxLevel);
       const requirements = {};
-      let currency = 'bits';
-      if (family.key === 'anomaly') {
-        requirements.prestige = Math.floor(i / 4) + 1;
-        requirements.lp = Math.floor(i / 6);
-        currency = 'prestige';
-      }
+      const currency = 'bits';
       const category = family.category || family.key;
       const previousId = previousByCategory.get(category) || null;
       const upgrade = {
@@ -1762,8 +1745,6 @@ function describeUpgrade(category, perLevel, maxLevel) {
       return `+${(perLevel * 100).toFixed(1)}% bit gains / level`;
     case 'control':
       return 'Faster spawns & higher node cap';
-    case 'anomaly':
-      return `+${(perLevel * 100).toFixed(1)}% anomaly damage / level`;
     default:
       return '';
   }
@@ -1806,17 +1787,15 @@ function generateSpawnUpgrades() {
     {
       id: 'entropy-splicer',
       name: 'Entropy Splicer',
-      description: '-0.15s spawn delay & +anomaly synergy',
+      description: '-0.15s spawn delay per level',
       maxLevel: 6,
       costBase: 5200,
       costScale: 1.7,
       currency: 'prestige',
       delayReduction: 0.15,
-      anomalyBonus: 0.08,
       minDelay: 0.05,
       effect: (statsObj, level, upgrade) => {
         statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
-        statsObj.anomalySynergy += upgrade.anomalyBonus * level;
       },
     },
     {
@@ -2248,9 +2227,6 @@ function buildCategorySequences() {
 }
 
 function isCategoryVisible(category, activeFilter) {
-  if (activeFilter === 'control' && category === 'anomaly') {
-    return true;
-  }
   return activeFilter === 'all' || category === activeFilter;
 }
 
@@ -2364,9 +2340,6 @@ function renderUpgrades(filter) {
   if (UI.upgradeTotal) {
     UI.upgradeTotal.textContent = upgrades.length;
   }
-  if (UI.anomalyProgress) {
-    UI.anomalyProgress.textContent = `${state.anomalySkillsPurchased} / 20`;
-  }
 }
 
 
@@ -2424,9 +2397,6 @@ function attemptPurchase(upgrade) {
   if (state[upgrade.currency] >= cost) {
     state[upgrade.currency] -= cost;
     state.upgrades[upgrade.id] = level + 1;
-    if (upgrade.category === 'anomaly') {
-      state.anomalySkillsPurchased += 1;
-    }
     updateStats();
     updateResources();
     const activeFilter =
@@ -2441,11 +2411,10 @@ function attemptPurchase(upgrade) {
 function maybeStartSkillCheck(upgrade, cost) {
   if (skillCheckState.active) return;
   const baseChance = 0.18;
-  const bonusChance = upgrade.category === 'anomaly' ? 0.12 : 0;
-  if (Math.random() > baseChance + bonusChance) {
+  if (Math.random() > baseChance) {
     return;
   }
-  const difficulty = upgrade.category === 'damage' ? 'easy' : upgrade.category === 'anomaly' ? 'hard' : 'normal';
+  const difficulty = upgrade.category === 'damage' ? 'easy' : 'normal';
   const rewardBits = Math.ceil(cost * (difficulty === 'hard' ? 0.95 : difficulty === 'normal' ? 0.7 : 0.45));
   const rewardXP = Math.ceil(15 * (difficulty === 'hard' ? 2.2 : difficulty === 'normal' ? 1.4 : 1));
   startSkillCheck({
@@ -2995,15 +2964,6 @@ function generateAchievements() {
       stat: () => Object.keys(state.upgrades).length,
     }),
     createAchievement({
-      id: 'anomaly-10',
-      label: 'Anomaly Whisperer',
-      description: 'Purchase 10 anomaly upgrades.',
-      goal: 10,
-      difficulty: 'hard',
-      category: 'anomaly',
-      stat: () => state.anomalySkillsPurchased,
-    }),
-    createAchievement({
       id: 'lab-unlock',
       label: 'Researcher',
       description: 'Assemble the lab.',
@@ -3134,7 +3094,7 @@ function depositToCrypto(amount) {
   if (state.bits >= amount) {
     state.bits -= amount;
     state.crypto.deposit += amount;
-    state.crypto.rate = Math.sqrt(state.crypto.deposit) / 10 + stats.anomalySynergy;
+    state.crypto.rate = Math.sqrt(state.crypto.deposit) / 10;
     state.crypto.timeRemaining = Math.max(10, Math.log(state.crypto.deposit + 1) * 30);
     updateCryptoUI();
     updateResources();
@@ -3162,7 +3122,7 @@ function setupLabControls() {
     if (Number.isFinite(amount) && amount > 0 && state.cryptcoins >= amount) {
       state.cryptcoins -= amount;
       state.labDeposited += amount;
-      state.labSpeed = Math.sqrt(state.labDeposited) / 5 + state.anomalySkillsPurchased * 0.25;
+      state.labSpeed = Math.sqrt(state.labDeposited) / 5;
       updateLabUI();
       updateResources();
       queueSave();
@@ -3533,7 +3493,7 @@ function updateNodes(delta) {
   nodeSpawnTimer -= delta;
   if (nodeSpawnTimer <= 0 && activeNodes.size < stats.maxNodes) {
     spawnNode();
-    nodeSpawnTimer = Math.max(0.15, stats.nodeSpawnDelay - stats.anomalySynergy * 0.2);
+    nodeSpawnTimer = Math.max(0.15, stats.nodeSpawnDelay);
   }
   const areaRect = UI.nodeArea.getBoundingClientRect();
   const width = UI.nodeArea.clientWidth || areaRect.width;
@@ -4506,7 +4466,6 @@ function updateStats() {
   stats.nodeHPFactor = 1 + state.currentLevel.index * 0.03;
   stats.bossHPFactor = 1;
   stats.nodeCountDamageBonus = 0;
-  stats.anomalySynergy = 0;
   stats.bossKillDamageRamp = 0;
   stats.maxHealth = 100 + state.level * 5;
   const levelPressure = Math.max(0, state.currentLevel.index - 1);
