@@ -192,6 +192,9 @@ const BIT_REWARD_TABLE = {
   gold: { min: 50, max: 100 },
 };
 
+const UPGRADE_LEVEL_GROWTH = 1.1;
+const UPGRADE_TIER_GROWTH = 1.5;
+
 const TAB_UNLOCK_RULES = {
   collect: {
     label: 'Bit Magnetics',
@@ -214,7 +217,8 @@ const nodeTypes = [
       return { bits: getLevelBitReward('red', level) };
     },
     hp(level) {
-      return 15 * Math.pow(5, Math.max(0, level - 1));
+      const safeLevel = Math.max(1, Math.floor(level));
+      return 15 * Math.pow(5, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -225,7 +229,8 @@ const nodeTypes = [
       return { bits: getLevelBitReward('blue', level), xp: 4 + level };
     },
     hp(level) {
-      return 30 * Math.pow(5, Math.max(0, level - 1));
+      const safeLevel = Math.max(1, Math.floor(level));
+      return 30 * Math.pow(5, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -236,7 +241,8 @@ const nodeTypes = [
       return { bits: getLevelBitReward('gold', level), cryptcoins: 1 + level * 0.15 };
     },
     hp(level) {
-      return 115 * Math.pow(5, Math.max(0, level - 1));
+      const safeLevel = Math.max(1, Math.floor(level));
+      return 115 * Math.pow(5, Math.max(0, safeLevel - 1));
     },
   },
 ];
@@ -259,6 +265,7 @@ const SKILL_CHECK_DIFFICULTIES = {
 };
 
 let upgrades = [];
+let upgradeLookup = new Map();
 let areaUpgradeDefs = [];
 let collectUpgradeDefs = [];
 let spawnUpgradeDefs = [];
@@ -1570,6 +1577,8 @@ function generateUpgrades() {
   };
 
   upgrades = [];
+  upgradeLookup = new Map();
+  const previousByCategory = new Map();
   let idCounter = 1;
   families.forEach((family) => {
     for (let i = 0; i < family.count; i += 1) {
@@ -1590,9 +1599,11 @@ function generateUpgrades() {
         requirements.lp = Math.floor(i / 6);
         currency = 'prestige';
       }
-      upgrades.push({
+      const category = family.category || family.key;
+      const previousId = previousByCategory.get(category) || null;
+      const upgrade = {
         id,
-        category: family.category || family.key,
+        category,
         name,
         description: desc,
         maxLevel,
@@ -1602,15 +1613,20 @@ function generateUpgrades() {
         currency,
         requirements,
         sequenceIndex: i,
+        previousId,
         effect: (statsObj, level) => effects[family.key](statsObj, level, { perLevel, family }),
-      });
+      };
+      upgrades.push(upgrade);
+      upgradeLookup.set(id, upgrade);
+      previousByCategory.set(category, id);
       idCounter += 1;
     }
   });
 
-  upgrades.push({
+  const phaseHaloPrevious = previousByCategory.get('point-area') || null;
+  const phaseHalo = {
     id: 'PHASE_HALO',
-    category: 'control',
+    category: 'point-area',
     name: 'Phase Halo',
     description: '+6px pointer size per level',
     maxLevel: 10,
@@ -1620,10 +1636,14 @@ function generateUpgrades() {
     currency: 'bits',
     requirements: {},
     sequenceIndex: idCounter,
+    previousId: phaseHaloPrevious,
     effect: (statsObj, level, upgrade) => {
       statsObj.pointerSize += (upgrade.perLevel || 0) * level;
     },
-  });
+  };
+  upgrades.push(phaseHalo);
+  upgradeLookup.set(phaseHalo.id, phaseHalo);
+  previousByCategory.set('point-area', phaseHalo.id);
   idCounter += 1;
 
   upgrades.push({
@@ -1642,6 +1662,7 @@ function generateUpgrades() {
       statsObj.bossKillDamageRamp += (upgrade.perKillBonus || 0) * level;
     },
   });
+  upgradeLookup.set('BOSS_EXECUTION', upgrades[upgrades.length - 1]);
 }
 
 function describeUpgrade(category, perLevel, maxLevel) {
@@ -2267,8 +2288,19 @@ function getUpgradeCost(upgrade, level) {
   if (!upgrade || level >= upgrade.maxLevel) {
     return 0;
   }
-  const growth = 4.5;
-  return Math.ceil(upgrade.costBase * growth ** level);
+  const startingCost = getUpgradeStartingCost(upgrade);
+  return Math.ceil(startingCost * UPGRADE_LEVEL_GROWTH ** level);
+}
+
+function getUpgradeStartingCost(upgrade) {
+  if (!upgrade) return 0;
+  const previous = upgrade.previousId ? upgradeLookup.get(upgrade.previousId) : null;
+  if (!previous) {
+    return upgrade.costBase;
+  }
+  const previousFinalLevel = Math.max(0, (previous.maxLevel || 1) - 1);
+  const previousCost = getUpgradeCost(previous, previousFinalLevel);
+  return Math.ceil(previousCost * UPGRADE_TIER_GROWTH);
 }
 
 function formatCost(upgrade, level) {
@@ -3807,8 +3839,9 @@ function randomInRange(min, max) {
 }
 
 function getLevelBitReward(typeId, levelIndex = 1) {
+  const level = Math.max(1, Math.floor(levelIndex));
   const baseRange = BIT_REWARD_TABLE[typeId] || BIT_REWARD_TABLE.red;
-  const levelMultiplier = Math.pow(3, Math.max(0, levelIndex - 1));
+  const levelMultiplier = Math.pow(3, Math.max(0, level - 1));
   const min = baseRange.min * levelMultiplier;
   const max = baseRange.max * levelMultiplier;
   return Math.round(randomInRange(min, max));
