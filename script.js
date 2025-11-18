@@ -9,16 +9,16 @@ const GAME_VERSION = 'v0.498';
 const UPDATE_LOGS = [
   {
     version: 'v0.498',
-    title: 'Fill this in.',
+    title: 'Boss conduits & slimmer sidebars',
     description:
-      'Fill this in.',
+      'Boss damage now flows from your harvesting runs while the interface tucks tabs and upgrade filters into tighter rows.',
     changes: [
-      'Fill this in.',
-      'Fill this in.',
-      'Fill this in.',
-      'Fill this in.',
-      'Fill this in.',
-      'Fill this in.',
+      'Bosses now take damage from the bits you harvest instead of direct cursor pokes, with a running damage meter on their frame.',
+      'Added new Bit Magnetics upgrades that boost collection reach while converting gathered scraps into extra bit income.',
+      'Refreshed the sticky top resource bar spacing so it stays pinned and readable while you scroll.',
+      'Adjusted the node arena padding and hover tooltip timing so upgrade details stay anchored instead of clipping off-screen.',
+      'Side panel tabs and upgrade filters render as a compact horizontal row to reclaim sidebar space.',
+      'Retired Defense and Ability upgrade families, rebranding Weird into the Anomaly track to match the current progression.',
     ],
   },
   {
@@ -81,6 +81,7 @@ function createInitialState() {
       bossActive: false,
       bossHP: 0,
       bossMaxHP: 0,
+      bossDamageDealt: 0,
     },
     upgrades: {},
     areaUpgrades: {},
@@ -91,7 +92,7 @@ function createInitialState() {
     areaUnlocked: false,
     spawnUnlocked: false,
     cryptoUnlocked: false,
-    weirdSkillsPurchased: 0,
+    anomalySkillsPurchased: 0,
     labUnlocked: false,
     labProgress: 0,
     labSpeed: 0,
@@ -138,7 +139,6 @@ const stats = {
   damage: 5,
   critChance: 0.05,
   critMultiplier: 2,
-  autoDamage: 0,
   autoInterval: 1,
   pointerSize: 32,
   bitGain: 1,
@@ -150,11 +150,8 @@ const stats = {
   maxNodes: 4,
   nodeHPFactor: 1,
   bossHPFactor: 1,
-  defense: 0,
-  regen: 0,
-  healthDamageBonus: 0,
   nodeCountDamageBonus: 0,
-  weirdSynergy: 0,
+  anomalySynergy: 0,
 };
 
 const TAB_UNLOCK_RULES = {
@@ -359,7 +356,8 @@ function cacheElements() {
   UI.lp = document.getElementById('lp-display');
   UI.skillTree = document.getElementById('skill-tree');
   UI.upgradeCount = document.getElementById('upgrade-count');
-  UI.weirdProgress = document.getElementById('weird-progress');
+  UI.upgradeTotal = document.getElementById('upgrade-total');
+  UI.anomalyProgress = document.getElementById('anomaly-progress');
   UI.nodeArea = document.getElementById('node-area');
   UI.particleLayer = document.getElementById('particle-layer');
   UI.bitLayer = document.getElementById('bit-layer');
@@ -515,6 +513,10 @@ function hydrateState(source = {}) {
     bossActive: coerceBoolean(mergedLevel.bossActive, defaults.currentLevel.bossActive),
     bossHP: Number.isFinite(Number(mergedLevel.bossHP)) ? Number(mergedLevel.bossHP) : defaults.currentLevel.bossHP,
     bossMaxHP: Number.isFinite(Number(mergedLevel.bossMaxHP)) ? Number(mergedLevel.bossMaxHP) : defaults.currentLevel.bossMaxHP,
+    bossDamageDealt: Math.max(
+      0,
+      Number.isFinite(Number(mergedLevel.bossDamageDealt)) ? Number(mergedLevel.bossDamageDealt) : defaults.currentLevel.bossDamageDealt,
+    ),
   };
   const expectedTimer = getLevelDuration(state.currentLevel.index);
   state.currentLevel.timer = Math.min(expectedTimer, Math.max(0, state.currentLevel.timer || expectedTimer));
@@ -527,10 +529,11 @@ function hydrateState(source = {}) {
     }
     nodeSpawnTimer = 0;
   }
+  const validUpgradeIds = new Set(upgrades.map((upgrade) => upgrade.id));
   const sanitizedUpgrades = {};
   Object.entries(mergedUpgrades).forEach(([id, level]) => {
     const numeric = Number(level);
-    if (Number.isFinite(numeric) && numeric > 0) {
+    if (Number.isFinite(numeric) && numeric > 0 && validUpgradeIds.has(id)) {
       sanitizedUpgrades[id] = numeric;
     }
   });
@@ -561,10 +564,10 @@ function hydrateState(source = {}) {
   });
   state.spawnUpgrades = sanitizedSpawn;
   state.spawnUpgradeVersions = sanitizeUpgradeVersions(mergedSpawnVersions);
-  state.weirdSkillsPurchased = Math.max(
-    0,
-    Number.isFinite(Number(source.weirdSkillsPurchased)) ? Number(source.weirdSkillsPurchased) : defaults.weirdSkillsPurchased,
-  );
+  const savedAnomalyCount = Number.isFinite(Number(source.anomalySkillsPurchased))
+    ? Number(source.anomalySkillsPurchased)
+    : Number(source.weirdSkillsPurchased);
+  state.anomalySkillsPurchased = Math.max(0, Number.isFinite(savedAnomalyCount) ? savedAnomalyCount : defaults.anomalySkillsPurchased);
   state.areaUnlocked = coerceBoolean(source.areaUnlocked, defaults.areaUnlocked);
   state.spawnUnlocked = coerceBoolean(source.spawnUnlocked, defaults.spawnUnlocked);
   state.cryptoUnlocked = coerceBoolean(source.cryptoUnlocked, defaults.cryptoUnlocked);
@@ -1373,9 +1376,7 @@ function generateUpgrades() {
     { key: 'economyNode', category: 'economy', count: 40, baseName: 'Bit Condenser', minLevel: 4, maxLevel: 20, baseCost: 110, scale: 1.32, perLevel: 3 },
     { key: 'economy', count: 30, baseName: 'Extraction Protocol', minLevel: 6, maxLevel: 24, baseCost: 90, scale: 1.35, perLevel: 0.05 },
     { key: 'control', count: 50, baseName: 'Node Field', minLevel: 4, maxLevel: 18, baseCost: 140, scale: 1.38, perLevel: 0.04 },
-    { key: 'defense', count: 50, baseName: 'Resilience Matrix', minLevel: 4, maxLevel: 15, baseCost: 100, scale: 1.36, perLevel: 4 },
-    { key: 'ability', count: 50, baseName: 'Catalyst Drive', minLevel: 3, maxLevel: 10, baseCost: 160, scale: 1.42, perLevel: 0.08 },
-    { key: 'weird', count: 40, baseName: 'Paradox Glyph', minLevel: 1, maxLevel: 6, baseCost: 1, scale: 2.5, perLevel: 0.15 },
+    { key: 'anomaly', count: 40, baseName: 'Anomaly Protocol', minLevel: 1, maxLevel: 6, baseCost: 1, scale: 2.5, perLevel: 0.15 },
   ];
   const effects = {
     damage: (stats, level, data) => {
@@ -1394,17 +1395,8 @@ function generateUpgrades() {
       stats.maxNodes += Math.floor(level / 2);
       stats.nodeSpawnDelay = Math.max(0.3, stats.nodeSpawnDelay - level * 0.02);
     },
-    defense: (stats, level, data) => {
-      stats.maxHealth += data.perLevel * level;
-      stats.regen += 0.05 * level;
-      stats.defense += 0.4 * level;
-    },
-    ability: (stats, level, data) => {
-      stats.autoDamage += 1.2 * level;
-      stats.healthDamageBonus += data.perLevel * level;
-    },
-    weird: (stats, level, data) => {
-      stats.weirdSynergy += data.perLevel * level;
+    anomaly: (stats, level, data) => {
+      stats.anomalySynergy += data.perLevel * level;
       stats.nodeCountDamageBonus += 0.03 * level;
     },
   };
@@ -1425,12 +1417,10 @@ function generateUpgrades() {
       const desc = describeUpgrade(family.key, perLevel, maxLevel);
       const requirements = {};
       let currency = 'bits';
-      if (family.key === 'weird') {
+      if (family.key === 'anomaly') {
         requirements.prestige = Math.floor(i / 4) + 1;
         requirements.lp = Math.floor(i / 6);
         currency = 'prestige';
-      } else if (family.key === 'ability' && i % 5 === 0) {
-        requirements.lp = Math.floor(i / 5) + 1;
       }
       upgrades.push({
         id,
@@ -1463,11 +1453,7 @@ function describeUpgrade(category, perLevel, maxLevel) {
       return `+${(perLevel * 100).toFixed(1)}% bit gains / level`;
     case 'control':
       return 'Faster spawns & higher node cap';
-    case 'defense':
-      return `+${perLevel.toFixed(0)} HP, regen & defense / level`;
-    case 'ability':
-      return '+auto damage & health scaling';
-    case 'weird':
+    case 'anomaly':
       return `+${(perLevel * 100).toFixed(1)}% anomaly damage / level`;
     default:
       return '';
@@ -1555,17 +1541,17 @@ function generateSpawnUpgrades() {
     {
       id: 'entropy-splicer',
       name: 'Entropy Splicer',
-      description: '-0.15s spawn delay & +weird synergy',
+      description: '-0.15s spawn delay & +anomaly synergy',
       maxLevel: 6,
       costBase: 5200,
       costScale: 1.7,
       currency: 'prestige',
       delayReduction: 0.15,
-      weirdBonus: 0.08,
+      anomalyBonus: 0.08,
       minDelay: 0.05,
       effect: (statsObj, level, upgrade) => {
         statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
-        statsObj.weirdSynergy += upgrade.weirdBonus * level;
+        statsObj.anomalySynergy += upgrade.anomalyBonus * level;
       },
     },
     {
@@ -1642,6 +1628,36 @@ function generateCollectUpgrades() {
       radiusPerLevel: 42,
       effect: (statsObj, level, upgrade) => {
         statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
+      },
+    },
+    {
+      id: 'flux-harvester',
+      name: 'Flux Harvester',
+      description: '+16px collection radius & +8% bit gains per level',
+      maxLevel: 6,
+      costBase: 12600,
+      costScale: 1.44,
+      currency: 'bits',
+      radiusPerLevel: 16,
+      bitGainPerLevel: 0.08,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
+        statsObj.bitGain += upgrade.bitGainPerLevel * level;
+      },
+    },
+    {
+      id: 'quantum-rake',
+      name: 'Quantum Rake',
+      description: '+22px collection radius & +12% bit gains per level',
+      maxLevel: 4,
+      costBase: 22000,
+      costScale: 1.56,
+      currency: 'prestige',
+      radiusPerLevel: 22,
+      bitGainPerLevel: 0.12,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
+        statsObj.bitGain += upgrade.bitGainPerLevel * level;
       },
     },
   ];
@@ -2064,8 +2080,15 @@ function renderUpgrades(filter) {
 
   UI.skillTree.appendChild(fragment);
   const totalPurchased = Object.keys(state.upgrades).length;
-  UI.upgradeCount.textContent = `${totalPurchased}`;
-  UI.weirdProgress.textContent = `${state.weirdSkillsPurchased} / 20`;
+  if (UI.upgradeCount) {
+    UI.upgradeCount.textContent = `${totalPurchased}`;
+  }
+  if (UI.upgradeTotal) {
+    UI.upgradeTotal.textContent = upgrades.length;
+  }
+  if (UI.anomalyProgress) {
+    UI.anomalyProgress.textContent = `${state.anomalySkillsPurchased} / 20`;
+  }
 }
 
 
@@ -2111,8 +2134,8 @@ function attemptPurchase(upgrade) {
   if (state[upgrade.currency] >= cost) {
     state[upgrade.currency] -= cost;
     state.upgrades[upgrade.id] = level + 1;
-    if (upgrade.category === 'weird') {
-      state.weirdSkillsPurchased += 1;
+    if (upgrade.category === 'anomaly') {
+      state.anomalySkillsPurchased += 1;
     }
     updateStats();
     updateResources();
@@ -2125,11 +2148,11 @@ function attemptPurchase(upgrade) {
 function maybeStartSkillCheck(upgrade, cost) {
   if (skillCheckState.active) return;
   const baseChance = 0.18;
-  const bonusChance = upgrade.category === 'weird' ? 0.12 : upgrade.category === 'ability' ? 0.08 : 0;
+  const bonusChance = upgrade.category === 'anomaly' ? 0.12 : 0;
   if (Math.random() > baseChance + bonusChance) {
     return;
   }
-  const difficulty = upgrade.category === 'damage' ? 'easy' : upgrade.category === 'weird' ? 'hard' : 'normal';
+  const difficulty = upgrade.category === 'damage' ? 'easy' : upgrade.category === 'anomaly' ? 'hard' : 'normal';
   const rewardBits = Math.ceil(cost * (difficulty === 'hard' ? 0.95 : difficulty === 'normal' ? 0.7 : 0.45));
   const rewardXP = Math.ceil(15 * (difficulty === 'hard' ? 2.2 : difficulty === 'normal' ? 1.4 : 1));
   startSkillCheck({
@@ -2157,14 +2180,15 @@ function showUpgradeTooltip(event, upgrade) {
   tooltipEl.style.display = 'block';
   const offset = 12;
   const { clientX, clientY } = event;
-  const tooltipWidth = tooltipEl.offsetWidth;
-  const tooltipHeight = tooltipEl.offsetHeight;
-  const maxLeft = window.innerWidth - tooltipWidth - offset;
-  const maxTop = window.innerHeight - tooltipHeight - offset;
-  const left = Math.min(clientX + offset, Math.max(offset, maxLeft));
-  const top = Math.min(clientY + offset, Math.max(offset, maxTop));
-  tooltipEl.style.left = `${left}px`;
-  tooltipEl.style.top = `${top}px`;
+  window.requestAnimationFrame(() => {
+    const { width, height } = tooltipEl.getBoundingClientRect();
+    const maxLeft = window.innerWidth - width - offset;
+    const maxTop = window.innerHeight - height - offset;
+    const left = Math.min(clientX + offset, Math.max(offset, maxLeft));
+    const top = Math.min(clientY + offset, Math.max(offset, maxTop));
+    tooltipEl.style.left = `${left}px`;
+    tooltipEl.style.top = `${top}px`;
+  });
 }
 
 function hideTooltip() {
@@ -2461,13 +2485,13 @@ function generateAchievements() {
       stat: () => Object.keys(state.upgrades).length,
     }),
     createAchievement({
-      id: 'weird-10',
-      label: 'Weird Whisperer',
-      description: 'Purchase 10 weird upgrades.',
+      id: 'anomaly-10',
+      label: 'Anomaly Whisperer',
+      description: 'Purchase 10 anomaly upgrades.',
       goal: 10,
       difficulty: 'hard',
-      category: 'weird',
-      stat: () => state.weirdSkillsPurchased,
+      category: 'anomaly',
+      stat: () => state.anomalySkillsPurchased,
     }),
     createAchievement({
       id: 'lab-unlock',
@@ -2572,7 +2596,7 @@ function depositToCrypto(amount) {
   if (state.bits >= amount) {
     state.bits -= amount;
     state.crypto.deposit += amount;
-    state.crypto.rate = Math.sqrt(state.crypto.deposit) / 10 + stats.weirdSynergy;
+    state.crypto.rate = Math.sqrt(state.crypto.deposit) / 10 + stats.anomalySynergy;
     state.crypto.timeRemaining = Math.max(10, Math.log(state.crypto.deposit + 1) * 30);
     updateCryptoUI();
     updateResources();
@@ -2600,7 +2624,7 @@ function setupLabControls() {
     if (Number.isFinite(amount) && amount > 0 && state.cryptcoins >= amount) {
       state.cryptcoins -= amount;
       state.labDeposited += amount;
-      state.labSpeed = Math.sqrt(state.labDeposited) / 5 + state.weirdSkillsPurchased * 0.25;
+      state.labSpeed = Math.sqrt(state.labDeposited) / 5 + state.anomalySkillsPurchased * 0.25;
       updateLabUI();
       updateResources();
       queueSave();
@@ -2928,13 +2952,12 @@ function updateNodes(delta) {
   nodeSpawnTimer -= delta;
   if (nodeSpawnTimer <= 0 && activeNodes.size < stats.maxNodes) {
     spawnNode();
-    nodeSpawnTimer = Math.max(0.15, stats.nodeSpawnDelay - stats.weirdSynergy * 0.2);
+    nodeSpawnTimer = Math.max(0.15, stats.nodeSpawnDelay - stats.anomalySynergy * 0.2);
   }
   const areaRect = UI.nodeArea.getBoundingClientRect();
   const width = UI.nodeArea.clientWidth || areaRect.width;
   const height = UI.nodeArea.clientHeight || areaRect.height;
   activeNodes.forEach((node) => {
-    node.hp = Math.min(node.maxHP, node.hp + stats.regen * delta);
     node.position.x += node.velocity.x * delta;
     node.position.y += node.velocity.y * delta;
     node.rotation += node.rotationSpeed * delta;
@@ -3140,13 +3163,6 @@ function performAutoClick() {
   const pointerRect = getPointerRect(pointerX, pointerY);
   const pointerPolygon = getPointerPolygon(pointerRect);
   let hitSomething = false;
-  if (state.currentLevel.bossActive && activeBoss?.el) {
-    const bossRect = activeBoss.el.getBoundingClientRect();
-    if (pointerIntersectsRect(pointerRect, bossRect)) {
-      damageBoss();
-      hitSomething = true;
-    }
-  }
   const nodesHit = [];
   activeNodes.forEach((node) => {
     if (!node.el) return;
@@ -3169,7 +3185,11 @@ function spawnNode() {
   const areaRect = UI.nodeArea.getBoundingClientRect();
   const width = UI.nodeArea.clientWidth || areaRect.width;
   const height = UI.nodeArea.clientHeight || areaRect.height;
-  const margin = 120;
+  const margin = 90;
+  const horizontalRange = Math.max(0, width - NODE_SIZE);
+  const verticalRange = Math.max(0, height - NODE_SIZE);
+  const randomX = () => Math.random() * horizontalRange;
+  const randomY = () => Math.random() * verticalRange;
   const side = Math.floor(Math.random() * 4);
   let startX = 0;
   let startY = 0;
@@ -3178,26 +3198,26 @@ function spawnNode() {
   switch (side) {
     case 0:
       startX = -margin;
-      startY = Math.random() * height;
+      startY = randomY();
       targetX = width + margin;
-      targetY = Math.random() * height;
+      targetY = randomY();
       break;
     case 1:
       startX = width + margin;
-      startY = Math.random() * height;
+      startY = randomY();
       targetX = -margin;
-      targetY = Math.random() * height;
+      targetY = randomY();
       break;
     case 2:
-      startX = Math.random() * width;
+      startX = randomX();
       startY = -margin;
-      targetX = Math.random() * width;
+      targetX = randomX();
       targetY = height + margin;
       break;
     default:
-      startX = Math.random() * width;
+      startX = randomX();
       startY = height + margin;
-      targetX = Math.random() * width;
+      targetX = randomX();
       targetY = -margin;
       break;
   }
@@ -3263,7 +3283,6 @@ function weightedNodeType() {
 function calculateCursorDamage(options = {}) {
   const { allowCrit = true } = options;
   let damage = stats.damage;
-  damage += state.health / state.maxHealth * stats.healthDamageBonus * stats.damage;
   damage += activeNodes.size * stats.nodeCountDamageBonus * stats.damage;
   let crit = false;
   if (allowCrit && Math.random() < stats.critChance) {
@@ -3315,7 +3334,7 @@ function createFloatText(target, text, color = 'var(--accent-strong)') {
 }
 
 function destroyNode(node) {
-  dropRewards(node.type);
+  dropRewards(node);
   playSFX('nodeDie');
   const key = node.type.id;
   state.nodesDestroyed[key] = (state.nodesDestroyed[key] || 0) + 1;
@@ -3328,12 +3347,19 @@ function destroyNode(node) {
   renderMilestones();
 }
 
-function dropRewards(type) {
+function dropRewards(node) {
+  const type = node?.type || nodeTypes[0];
   const rewards = type.reward(state.currentLevel.index);
   const baseBits = rewards.bits ?? 0;
+  const nodeElement = node?.el;
   if (baseBits || stats.bitNodeBonus) {
     const totalBits = Math.max(0, baseBits + stats.bitNodeBonus);
-    state.bits += totalBits * stats.bitGain;
+    const harvestedBits = Math.max(0, totalBits * stats.bitGain);
+    state.bits += harvestedBits;
+    if (state.currentLevel.bossActive) {
+      const payload = Math.max(6, harvestedBits * 0.35 + stats.damage * 0.25 + stats.anomalySynergy * 3);
+      applyBossDamage(payload, nodeElement);
+    }
   }
   if (rewards.xp) {
     gainXP(rewards.xp * stats.xpGain);
@@ -3542,6 +3568,7 @@ function resetLevel(increase = true) {
   autoClickTimer = 0;
   state.currentLevel.active = true;
   state.currentLevel.bossActive = false;
+  state.currentLevel.bossDamageDealt = 0;
   activeBoss = null;
   if (increase) {
     state.currentLevel.index += 1;
@@ -3573,6 +3600,7 @@ function spawnBoss(options = {}) {
     state.currentLevel.bossActive = true;
     state.currentLevel.bossMaxHP = bossMaxHP;
     state.currentLevel.bossHP = Math.min(bossMaxHP, bossHP);
+    state.currentLevel.bossDamageDealt = Math.max(0, Number(state.currentLevel.bossDamageDealt) || 0);
   } else {
     const baseHP = getBossBaseHP(state.currentLevel.index);
     bossHP = Math.ceil(baseHP * stats.bossHPFactor);
@@ -3580,12 +3608,16 @@ function spawnBoss(options = {}) {
     state.currentLevel.bossActive = true;
     state.currentLevel.bossHP = bossHP;
     state.currentLevel.bossMaxHP = bossMaxHP;
+    state.currentLevel.bossDamageDealt = 0;
   }
   const boss = document.createElement('div');
   boss.className = 'boss-node';
   const name = bossNames[(state.currentLevel.index - 1) % bossNames.length];
   boss.innerHTML = `
-    <div class="boss-name">${name}</div>
+    <div class="boss-header">
+      <div class="boss-name">${name}</div>
+      <div class="boss-damage">Damage dealt <span class="boss-damage-value">${Math.round(state.currentLevel.bossDamageDealt).toLocaleString()}</span></div>
+    </div>
     <div class="hp-bar"><div class="hp-fill"></div></div>
   `;
   UI.nodeArea.appendChild(boss);
@@ -3596,9 +3628,17 @@ function spawnBoss(options = {}) {
     rotation: Math.random() * 360,
     rotationSpeed: (Math.random() - 0.5) * 18,
     size: 144,
+    damageValueEl: boss.querySelector('.boss-damage-value'),
   };
   configureBossPath(activeBoss, true);
+  updateBossDamageCounter();
   updateBossBar();
+}
+
+function updateBossDamageCounter() {
+  if (!activeBoss?.damageValueEl) return;
+  const dealt = Math.max(0, Math.round(state.currentLevel.bossDamageDealt || 0));
+  activeBoss.damageValueEl.textContent = dealt.toLocaleString();
 }
 
 function getBossCursorDamage() {
@@ -3611,12 +3651,19 @@ function getBossCursorDamage() {
 }
 
 function damageBoss() {
+  applyBossDamage(getBossCursorDamage());
+}
+
+function applyBossDamage(amount, sourceEl = activeBoss?.el) {
   if (!state.currentLevel.bossActive) return;
-  const bossDamage = getBossCursorDamage();
-  state.currentLevel.bossHP -= bossDamage;
+  const damage = Math.max(0, Number(amount) || 0);
+  if (damage <= 0) return;
+  state.currentLevel.bossHP -= damage;
+  state.currentLevel.bossDamageDealt = Math.max(0, (state.currentLevel.bossDamageDealt || 0) + damage);
   if (activeBoss?.el) {
-    createFloatText(activeBoss.el, `-${Math.round(bossDamage)}`, 'var(--accent)');
+    createFloatText(sourceEl || activeBoss.el, `-${Math.round(damage)}`, 'var(--accent)');
   }
+  updateBossDamageCounter();
   updateBossBar();
   if (state.currentLevel.bossHP <= 0) {
     defeatBoss();
@@ -3659,6 +3706,7 @@ function updateBossBar() {
   const denominator = state.currentLevel.bossMaxHP || 1;
   const ratio = Math.max(0, state.currentLevel.bossHP) / denominator;
   fill.style.width = `${ratio * 100}%`;
+  updateBossDamageCounter();
 }
 
 function defeatBoss() {
@@ -3697,7 +3745,6 @@ function updateStats() {
   stats.damage = stats.baseDamage;
   stats.critChance = 0.05;
   stats.critMultiplier = 2;
-  stats.autoDamage = 0;
   stats.autoInterval = 1;
   stats.pointerSize = 32;
   stats.bitGain = 1;
@@ -3709,11 +3756,8 @@ function updateStats() {
   stats.maxNodes = 4;
   stats.nodeHPFactor = 1 + state.currentLevel.index * 0.03;
   stats.bossHPFactor = 1;
-  stats.defense = 0;
-  stats.regen = 0;
-  stats.healthDamageBonus = 0;
   stats.nodeCountDamageBonus = 0;
-  stats.weirdSynergy = 0;
+  stats.anomalySynergy = 0;
   stats.maxHealth = 100 + state.level * 5;
   const levelPressure = Math.max(0, state.currentLevel.index - 1);
   const spawnAcceleration = Math.min(1.2, levelPressure * 0.04);
