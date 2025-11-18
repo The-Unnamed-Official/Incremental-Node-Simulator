@@ -147,7 +147,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 15 * Math.pow(5, Math.max(0, safeLevel - 1));
+      return 30 * Math.pow(5, Math.max(0, safeLevel - 1));
     },
   },
   {
