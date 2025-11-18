@@ -53,7 +53,10 @@
           <button class="tab-button" data-tab="area" data-label="Damage Area">Damage Area</button>
           <button class="tab-button" data-tab="collect" data-label="Bit Magnetics">Bit Magnetics</button>
           <button class="tab-button" data-tab="spawn" data-label="Spawn Matrix">Spawn Matrix</button>
-          <button class="tab-button" data-tab="milestones" data-label="Milestones">Milestones</button>
+          <button class="tab-button" data-tab="milestones" data-label="Milestones">
+            Milestones
+            <span class="notification-dot" data-dot="milestone-tab" aria-hidden="true"></span>
+          </button>
           <button class="tab-button" data-tab="crypto" data-label="Crypto Mine">Crypto Mine</button>
           <button class="tab-button" data-tab="lab" data-label="Lab">Lab</button>
           <button class="tab-button" data-tab="settings" data-label="Settings">Settings</button>
@@ -237,7 +240,8 @@
             aria-controls="progress-achievements"
             data-progress-tab="achievements"
           >
-            Achievements
+            <span>Achievements</span>
+            <span class="notification-dot" data-dot="achievements" aria-hidden="true"></span>
           </button>
           <button
             class="progress-tab"
@@ -247,7 +251,8 @@
             aria-controls="progress-milestones"
             data-progress-tab="milestones"
           >
-            Milestones
+            <span>Milestones</span>
+            <span class="notification-dot" data-dot="milestones" aria-hidden="true"></span>
           </button>
         </div>
       </div>
