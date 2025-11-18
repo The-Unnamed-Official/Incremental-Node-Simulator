@@ -276,13 +276,15 @@
     </div>
   </div>
   <div id="update-log" class="update-log hidden" role="dialog" aria-modal="true" aria-labelledby="update-log-title">
-    <div class="update-log-panel">
-      <div class="update-log-header">
-        <h2 id="update-log-title">Update Logs</h2>
-        <button id="update-log-close" class="pill">Close</button>
-      </div>
+    <div class="update-log-shell">
       <div id="update-log-tabs" class="update-log-tabs" role="tablist"></div>
-      <div id="update-log-body" class="update-log-body" role="tabpanel" aria-live="polite"></div>
+      <div class="update-log-panel">
+        <div class="update-log-header">
+          <h2 id="update-log-title">Update Logs</h2>
+          <button id="update-log-close" class="pill">Close</button>
+        </div>
+        <div id="update-log-body" class="update-log-body" role="tabpanel" aria-live="polite"></div>
+      </div>
     </div>
   </div>
   <div id="custom-cursor" aria-hidden="true">

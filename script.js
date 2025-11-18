@@ -3389,6 +3389,9 @@ function damageBoss() {
   if (!state.currentLevel.bossActive) return;
   const bossDamage = getBossCursorDamage();
   state.currentLevel.bossHP -= bossDamage;
+  if (activeBoss?.el) {
+    createFloatText(activeBoss.el, `-${Math.round(bossDamage)}`, 'var(--accent)');
+  }
   updateBossBar();
   if (state.currentLevel.bossHP <= 0) {
     defeatBoss();
