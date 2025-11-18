@@ -86,54 +86,68 @@
       <aside class="side-panel">
         <nav class="tabs">
           <button class="tab-button active" data-tab="upgrades" data-label="Upgrades">Upgrades</button>
-          <button class="tab-button" data-tab="collect" data-label="Bit Magnetics">Bit Magnetics</button>
-          <button class="tab-button" data-tab="spawn" data-label="Spawn Matrix">Spawn Matrix</button>
-          <button class="tab-button" data-tab="milestones" data-label="Milestones">
-            Milestones
-            <span class="notification-dot" data-dot="milestone-tab" aria-hidden="true"></span>
-          </button>
           <button class="tab-button" data-tab="crypto" data-label="Crypto Mine">Crypto Mine</button>
           <button class="tab-button" data-tab="lab" data-label="Lab">Lab</button>
         </nav>
 
         <section id="tab-upgrades" class="tab-content active">
-          <div class="tab-toolbar">
-            <div class="pill-group tab-filter-row">
-              <button class="filter-chip filter active" data-filter="damage" aria-pressed="true">damage</button>
-              <button class="filter-chip filter" data-filter="crit" aria-pressed="false">crit</button>
-              <button class="filter-chip filter" data-filter="economy" aria-pressed="false">economy</button>
-              <button class="filter-chip filter" data-filter="control" aria-pressed="false">control</button>
-              <button class="filter-chip filter" data-filter="point-area" aria-pressed="false">Point Area</button>
+          <div class="upgrade-tabs" role="tablist">
+            <button class="upgrade-tab active" type="button" data-upgrade-tab="skill-tree" data-label="Skill Tree">
+              Skill Tree
+            </button>
+            <button class="upgrade-tab" type="button" data-upgrade-tab="point-magnet" data-label="Point Magnet">
+              Point Magnet
+            </button>
+            <button class="upgrade-tab" type="button" data-upgrade-tab="faster-nodes" data-label="Faster Nodes">
+              Faster Nodes
+            </button>
+            <button class="upgrade-tab" type="button" data-upgrade-tab="point-speed" data-label="Point Speed">
+              Point Speed
+            </button>
+          </div>
+
+          <div id="upgrade-panel-skill-tree" class="upgrade-panel active">
+            <div class="tab-toolbar">
+              <div class="pill-group tab-filter-row">
+                <button class="filter-chip filter active" data-filter="damage" aria-pressed="true">damage</button>
+                <button class="filter-chip filter" data-filter="crit" aria-pressed="false">crit</button>
+                <button class="filter-chip filter" data-filter="economy" aria-pressed="false">economy</button>
+                <button class="filter-chip filter" data-filter="control" aria-pressed="false">control</button>
+                <button class="filter-chip filter" data-filter="point-area" aria-pressed="false">Point Area</button>
+              </div>
+              <div class="upgrade-summary">
+                <span>Purchased <span id="upgrade-count">0</span> / <span id="upgrade-total">0</span></span>
+              </div>
             </div>
-            <div class="upgrade-summary">
-              <span>Purchased <span id="upgrade-count">0</span> / <span id="upgrade-total">0</span></span>
+            <div id="skill-tree" class="skill-tree" role="list"></div>
+          </div>
+
+          <div id="upgrade-panel-point-magnet" class="upgrade-panel">
+            <div class="area-header">
+              <h2>Point Magnet</h2>
+              <p>Stretch a dedicated magnetic envelope around your cursor to vacuum nearby bit shards.</p>
+              <p class="system-note">Unlocked at level 5 once Phase Halo I is fully synced.</p>
             </div>
+            <div id="collect-upgrade-grid" class="area-upgrade-grid" role="list"></div>
           </div>
-          <div id="skill-tree" class="skill-tree" role="list"></div>
-        </section>
 
-        <section id="tab-collect" class="tab-content">
-          <div class="area-header">
-            <h2>Bit Magnetics</h2>
-            <p>Stretch a dedicated magnetic envelope around your cursor to vacuum nearby bit shards.</p>
-            <p class="system-note">Unlocked at level 5 once Phase Halo I is fully synced.</p>
+          <div id="upgrade-panel-faster-nodes" class="upgrade-panel">
+            <div class="area-header">
+              <h2>Faster Nodes</h2>
+              <p>Refine the conduit that feeds new nodes into the field, amplifying spawn cadence and density.</p>
+              <p class="system-note">Each matrix tier now calls out its version, with Prestige powering bigger spawn surges.</p>
+            </div>
+            <div id="spawn-upgrade-grid" class="area-upgrade-grid" role="list"></div>
           </div>
-          <div id="collect-upgrade-grid" class="area-upgrade-grid" role="list"></div>
-        </section>
 
-        <section id="tab-spawn" class="tab-content">
-          <div class="area-header">
-            <h2>Spawn Matrix</h2>
-            <p>Refine the conduit that feeds new nodes into the field, amplifying spawn cadence and density.</p>
-            <p class="system-note">Each matrix tier now calls out its version, with Prestige powering bigger spawn surges.</p>
+          <div id="upgrade-panel-point-speed" class="upgrade-panel">
+            <div class="area-header">
+              <h2>Point Speed</h2>
+              <p>Accelerate your autonomous firing routines to chew through nodes faster.</p>
+              <p class="system-note">Stack interval cuts to keep the cursor striking at max tempo.</p>
+            </div>
+            <div id="speed-upgrade-grid" class="area-upgrade-grid" role="list"></div>
           </div>
-          <div id="spawn-upgrade-grid" class="area-upgrade-grid" role="list"></div>
-        </section>
-
-        <section id="tab-milestones" class="tab-content">
-          <h2>Milestones</h2>
-          <p>Push the simulacrum to earn rewards for your dedication.</p>
-          <div id="milestone-list" class="milestone-list"></div>
         </section>
 
         <section id="tab-crypto" class="tab-content">
@@ -322,7 +336,7 @@
     <div class="new-game-panel">
       <h2 id="new-game-title">Launch a fresh simulation?</h2>
       <p id="new-game-warning">
-        Your current progress will be wiped. This action cannot be undone.
+        Launching a new simulation will purge your nodes, upgrades, crypto, and prestige. This wipe is permanent.
       </p>
       <div class="new-game-actions">
         <button id="cancel-new-game" class="pill">Return</button>

@@ -18,6 +18,7 @@ const UPDATE_LOGS = [
       'Added Boss Execution tiers: an expensive upgrade line that adds a growing boss damage multiplier per boss kill.',
       'Achievements and milestones call out unclaimed rewards with brighter glows and new tier goals for bosses and loot.',
       'Enemy payouts and prices have been retuned alongside the new dropdown menus and palette selector styling.',
+      'Moved settings button, updated skill pricing and Point Speed upgrade, renamed Bit Magnetics to Point Magnet and Spawn Matrix to Faster Nodes while moving them under Upgrades, removed milestones and anomaly upgrade tabs, added a custom new game warning, fixed level access, optimized the code, and reduced cursor lag with Reduced Animations.',
     ],
   },
   {
@@ -117,6 +118,7 @@ function createInitialState() {
     collectUpgrades: {},
     spawnUpgrades: {},
     spawnUpgradeVersions: {},
+    speedUpgrades: {},
     areaUnlocked: false,
     spawnUnlocked: false,
     cryptoUnlocked: false,
@@ -194,16 +196,19 @@ const UPGRADE_LEVEL_GROWTH = 1.1;
 const UPGRADE_TIER_GROWTH = 1.5;
 
 const TAB_UNLOCK_RULES = {
-  collect: {
-    label: 'Bit Magnetics',
+  crypto: { label: 'Crypto Mine', stateKey: 'cryptoUnlocked', cost: { currency: 'bits', amount: 100000, label: '100k Bits' } },
+  lab: { label: 'Lab', stateKey: 'labUnlocked', cost: { currency: 'cryptcoins', amount: 1000, label: '1k Cryptcoins' } },
+};
+
+const UPGRADE_SECTION_RULES = {
+  'point-magnet': {
+    label: 'Point Magnet',
     minLevel: 20,
     requirement: hasCompletedPhaseHaloI,
     requirementLabel: 'Complete Phase Halo I',
   },
-  spawn: { label: 'Spawn Matrix', stateKey: 'spawnUnlocked', cost: { currency: 'prestige', amount: 5, label: '5 Prestige' } },
-  crypto: { label: 'Crypto Mine', stateKey: 'cryptoUnlocked', cost: { currency: 'bits', amount: 100000, label: '100k Bits' } },
-  lab: { label: 'Lab', stateKey: 'labUnlocked', cost: { currency: 'cryptcoins', amount: 1000, label: '1k Cryptcoins' } },
-  milestones: { label: 'Milestones', minLevel: 25 },
+  'faster-nodes': { label: 'Faster Nodes', stateKey: 'spawnUnlocked', cost: { currency: 'prestige', amount: 5, label: '5 Prestige' } },
+  'point-speed': { label: 'Point Speed' },
 };
 
 const nodeTypes = [
@@ -267,6 +272,7 @@ let upgradeLookup = new Map();
 let areaUpgradeDefs = [];
 let collectUpgradeDefs = [];
 let spawnUpgradeDefs = [];
+let speedUpgradeDefs = [];
 let milestones = [];
 let achievements = [];
 let skins = [];
@@ -365,10 +371,12 @@ document.addEventListener('DOMContentLoaded', () => {
   generateAreaUpgrades();
   generateCollectUpgrades();
   generateSpawnUpgrades();
+  generateSpeedUpgrades();
   generateMilestones();
   generateAchievements();
   loadGame();
   setupTabs();
+  setupUpgradeTabs();
   setupFilters();
   setupProgressDock();
   applySavedUpgradeFilter();
@@ -379,6 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderAreaUpgrades();
   renderCollectUpgrades();
   renderSpawnUpgrades();
+  renderSpeedUpgrades();
   initTooltip();
   setupCryptoControls();
   setupLabControls();
@@ -406,6 +415,8 @@ function cacheElements() {
   UI.skillTree = document.getElementById('skill-tree');
   UI.upgradeCount = document.getElementById('upgrade-count');
   UI.upgradeTotal = document.getElementById('upgrade-total');
+  UI.upgradeTabs = document.querySelectorAll('.upgrade-tab');
+  UI.upgradePanels = document.querySelectorAll('.upgrade-panel');
   UI.nodeArea = document.getElementById('node-area');
   UI.particleLayer = document.getElementById('particle-layer');
   UI.bitLayer = document.getElementById('bit-layer');
@@ -421,10 +432,10 @@ function cacheElements() {
   UI.areaUpgradeGrid = document.getElementById('area-upgrade-grid');
   UI.collectUpgradeGrid = document.getElementById('collect-upgrade-grid');
   UI.spawnUpgradeGrid = document.getElementById('spawn-upgrade-grid');
+  UI.speedUpgradeGrid = document.getElementById('speed-upgrade-grid');
   UI.milestoneDock = document.getElementById('milestone-dock');
   UI.achievementDot = document.querySelector('[data-dot="achievements"]');
   UI.milestoneDot = document.querySelector('[data-dot="milestones"]');
-  UI.milestoneTabDot = document.querySelector('[data-dot="milestone-tab"]');
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
   UI.cryptoReturns = document.getElementById('crypto-returns');
   UI.cryptoTimer = document.getElementById('crypto-timer');
@@ -673,6 +684,7 @@ function hydrateState(source = {}) {
   const mergedCollect = { ...(defaults.collectUpgrades || {}), ...(source.collectUpgrades || {}) };
   const mergedSpawn = { ...(defaults.spawnUpgrades || {}), ...(source.spawnUpgrades || {}) };
   const mergedSpawnVersions = { ...(defaults.spawnUpgradeVersions || {}), ...(source.spawnUpgradeVersions || {}) };
+  const mergedSpeed = { ...(defaults.speedUpgrades || {}), ...(source.speedUpgrades || {}) };
   const mergedMilestones = { ...(defaults.milestoneClaims || {}), ...(source.milestoneClaims || {}) };
   const mergedAchievementClaims = { ...(defaults.achievementClaims || {}), ...(source.achievementClaims || {}) };
   const mergedAchievementLog = { ...(defaults.achievementLog || {}), ...(source.achievementLog || {}) };
@@ -765,6 +777,14 @@ function hydrateState(source = {}) {
   });
   state.spawnUpgrades = sanitizedSpawn;
   state.spawnUpgradeVersions = sanitizeUpgradeVersions(mergedSpawnVersions);
+  const sanitizedSpeed = {};
+  Object.entries(mergedSpeed).forEach(([id, level]) => {
+    const numeric = Number(level);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      sanitizedSpeed[id] = numeric;
+    }
+  });
+  state.speedUpgrades = sanitizedSpeed;
   const legacyPhaseLevel = Math.max(0, state.areaUpgrades['phase-halo'] || 0);
   const legacyPhaseVersion = Math.max(1, state.areaUpgradeVersions['phase-halo'] || 1);
   const legacyPhaseTotal = (legacyPhaseVersion - 1) * 10 + legacyPhaseLevel;
@@ -1054,6 +1074,31 @@ function isTabUnlocked(tabId) {
   return true;
 }
 
+function getUpgradeSectionRule(sectionId) {
+  return UPGRADE_SECTION_RULES[sectionId] || null;
+}
+
+function isUpgradeSectionUnlocked(sectionId) {
+  const rule = getUpgradeSectionRule(sectionId);
+  if (!rule) return true;
+  if (rule.minLevel && state.level < rule.minLevel) return false;
+  if (rule.requirement && typeof rule.requirement === 'function' && !rule.requirement()) return false;
+  if (rule.stateKey) {
+    return Boolean(state[rule.stateKey]);
+  }
+  return true;
+}
+
+function canPurchaseUpgradeSection(sectionId) {
+  const rule = getUpgradeSectionRule(sectionId);
+  if (!rule || isUpgradeSectionUnlocked(sectionId)) return false;
+  if (rule.minLevel && state.level < rule.minLevel) return false;
+  if (rule.requirement && typeof rule.requirement === 'function' && !rule.requirement()) return false;
+  if (!rule.cost) return false;
+  const { currency, amount } = rule.cost;
+  return state[currency] >= amount;
+}
+
 function canPurchaseTab(tabId) {
   const rule = getTabRule(tabId);
   if (!rule || isTabUnlocked(tabId)) return false;
@@ -1126,6 +1171,28 @@ function attemptTabUnlock(tabId, sourceEl) {
   return true;
 }
 
+function attemptUpgradeSectionUnlock(sectionId, sourceEl) {
+  const rule = getUpgradeSectionRule(sectionId);
+  if (!rule || isUpgradeSectionUnlocked(sectionId)) return true;
+  if (rule.minLevel && state.level < rule.minLevel) {
+    if (sourceEl) createFloatText(sourceEl, `Reach level ${rule.minLevel}`, '#ff6ea8');
+    return false;
+  }
+  if (!rule.cost) return false;
+  const { currency, amount } = rule.cost;
+  if (state[currency] < amount) {
+    if (sourceEl) createFloatText(sourceEl, 'Insufficient resources', '#ff6ea8');
+    return false;
+  }
+  state[currency] -= amount;
+  if (rule.stateKey) {
+    state[rule.stateKey] = true;
+  }
+  updateResources();
+  if (sourceEl) createFloatText(sourceEl, 'Unlocked!', '#76f4c6');
+  return true;
+}
+
 function setupTabs() {
   const buttons = document.querySelectorAll('.tab-button');
   const buttonsSettings = document.querySelectorAll('.setting-button');
@@ -1145,13 +1212,6 @@ function setupTabs() {
       contents.forEach((c) => c.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(`tab-${tabId}`).classList.add('active');
-      if (tabId === 'area') {
-        renderAreaUpgrades();
-      } else if (tabId === 'collect') {
-        renderCollectUpgrades();
-      } else if (tabId === 'spawn') {
-        renderSpawnUpgrades();
-      }
       updateTabAvailability();
     });
   });
@@ -1170,17 +1230,67 @@ function setupTabs() {
       contents.forEach((c) => c.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(`tab-${tabId}`).classList.add('active');
-      if (tabId === 'area') {
-        renderAreaUpgrades();
-      } else if (tabId === 'collect') {
-        renderCollectUpgrades();
-      } else if (tabId === 'spawn') {
-        renderSpawnUpgrades();
-      }
       updateTabAvailability();
     });
   });
   updateTabAvailability();
+}
+
+function updateUpgradeTabAvailability() {
+  if (!UI.upgradeTabs?.length) return;
+  UI.upgradeTabs.forEach((btn) => {
+    const sectionId = btn.dataset.upgradeTab;
+    const rule = getUpgradeSectionRule(sectionId);
+    const unlocked = isUpgradeSectionUnlocked(sectionId);
+    const purchasable = canPurchaseUpgradeSection(sectionId);
+    btn.classList.toggle('locked', !unlocked);
+    btn.classList.toggle('purchasable', !unlocked && purchasable);
+    const baseLabel = rule?.label || btn.dataset.label || btn.textContent;
+    const requirement = !unlocked ? formatTabRequirement(rule) : '';
+    btn.textContent = requirement ? `${baseLabel} (${requirement})` : baseLabel;
+    btn.setAttribute('aria-disabled', unlocked ? 'false' : 'true');
+  });
+}
+
+function activateUpgradeSection(sectionId) {
+  const buttons = Array.from(UI.upgradeTabs || []);
+  const panels = Array.from(UI.upgradePanels || []);
+  buttons.forEach((btn) => {
+    const isActive = btn.dataset.upgradeTab === sectionId;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+  panels.forEach((panel) => {
+    panel.classList.toggle('active', panel.id === `upgrade-panel-${sectionId}`);
+  });
+  if (sectionId === 'point-magnet') {
+    renderCollectUpgrades();
+  } else if (sectionId === 'faster-nodes') {
+    renderSpawnUpgrades();
+  } else if (sectionId === 'point-speed') {
+    renderSpeedUpgrades();
+  }
+}
+
+function setupUpgradeTabs() {
+  if (!UI.upgradeTabs?.length) return;
+  UI.upgradeTabs.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const sectionId = btn.dataset.upgradeTab;
+      const rule = getUpgradeSectionRule(sectionId);
+      if (rule && !isUpgradeSectionUnlocked(sectionId)) {
+        const unlocked = attemptUpgradeSectionUnlock(sectionId, btn);
+        if (!unlocked || !isUpgradeSectionUnlocked(sectionId)) {
+          updateUpgradeTabAvailability();
+          return;
+        }
+      }
+      activateUpgradeSection(sectionId);
+      updateUpgradeTabAvailability();
+    });
+  });
+  activateUpgradeSection('skill-tree');
+  updateUpgradeTabAvailability();
 }
 
 function syncFilterButtons(activeFilter) {
@@ -1837,6 +1947,53 @@ function generateSpawnUpgrades() {
   ];
 }
 
+function generateSpeedUpgrades() {
+  speedUpgradeDefs = [
+    {
+      id: 'servo-haste',
+      name: 'Servo Haste',
+      description: '-0.05s auto interval per level',
+      maxLevel: 10,
+      costBase: 260,
+      costScale: 1.38,
+      currency: 'bits',
+      intervalReduction: 0.05,
+      minInterval: 0.12,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.autoInterval = Math.max(upgrade.minInterval, statsObj.autoInterval - upgrade.intervalReduction * level);
+      },
+    },
+    {
+      id: 'neural-overdrive',
+      name: 'Neural Overdrive',
+      description: '-0.08s auto interval per level',
+      maxLevel: 8,
+      costBase: 4200,
+      costScale: 1.44,
+      currency: 'bits',
+      intervalReduction: 0.08,
+      minInterval: 0.1,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.autoInterval = Math.max(upgrade.minInterval, statsObj.autoInterval - upgrade.intervalReduction * level);
+      },
+    },
+    {
+      id: 'tachyon-conductors',
+      name: 'Tachyon Conductors',
+      description: '-0.12s auto interval per level',
+      maxLevel: 6,
+      costBase: 12000,
+      costScale: 1.52,
+      currency: 'prestige',
+      intervalReduction: 0.12,
+      minInterval: 0.08,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.autoInterval = Math.max(upgrade.minInterval, statsObj.autoInterval - upgrade.intervalReduction * level);
+      },
+    },
+  ];
+}
+
 function generateCollectUpgrades() {
   collectUpgradeDefs = [
     {
@@ -2186,6 +2343,67 @@ function attemptSpawnPurchase(upgrade) {
 function applySpawnUpgrades(statsObj) {
   spawnUpgradeDefs.forEach((upgrade) => {
     const level = (getSpawnUpgradeVersion(upgrade.id) - 1) * upgrade.maxLevel + (state.spawnUpgrades[upgrade.id] || 0);
+    if (level > 0 && typeof upgrade.effect === 'function') {
+      upgrade.effect(statsObj, level, upgrade);
+    }
+  });
+}
+
+function renderSpeedUpgrades() {
+  if (!UI.speedUpgradeGrid) return;
+  UI.speedUpgradeGrid.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  speedUpgradeDefs.forEach((upgrade) => {
+    const level = state.speedUpgrades[upgrade.id] || 0;
+    const maxed = level >= upgrade.maxLevel;
+    const cost = getCollectUpgradeCost(upgrade, level);
+    const percent = Math.min(100, (level / upgrade.maxLevel) * 100);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'area-upgrade';
+    button.dataset.id = upgrade.id;
+    button.setAttribute('role', 'listitem');
+    if (maxed) {
+      button.classList.add('maxed');
+    }
+    button.innerHTML = `
+      <div class="title">${upgrade.name}</div>
+      <div class="desc">${upgrade.description}</div>
+      <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
+      <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
+      <div class="cost">${maxed ? 'Fully synced' : `Cost: <span>${cost.toLocaleString()}</span> ${upgrade.currency}`}</div>
+    `;
+    const affordable = !maxed && state[upgrade.currency] >= cost;
+    button.classList.toggle('available', affordable);
+    button.disabled = maxed || !affordable;
+    button.addEventListener('click', () => attemptSpeedPurchase(upgrade));
+    fragment.appendChild(button);
+  });
+  UI.speedUpgradeGrid.appendChild(fragment);
+}
+
+function attemptSpeedPurchase(upgrade) {
+  if (!upgrade) return;
+  const level = state.speedUpgrades[upgrade.id] || 0;
+  if (level >= upgrade.maxLevel) {
+    return;
+  }
+  const cost = getCollectUpgradeCost(upgrade, level);
+  if (state[upgrade.currency] < cost) {
+    return;
+  }
+  state[upgrade.currency] -= cost;
+  const nextLevel = level + 1;
+  state.speedUpgrades[upgrade.id] = nextLevel;
+  updateStats();
+  updateResources();
+  renderSpeedUpgrades();
+  queueSave();
+}
+
+function applySpeedUpgrades(statsObj) {
+  speedUpgradeDefs.forEach((upgrade) => {
+    const level = state.speedUpgrades[upgrade.id] || 0;
     if (level > 0 && typeof upgrade.effect === 'function') {
       upgrade.effect(statsObj, level, upgrade);
     }
@@ -2807,7 +3025,6 @@ function updateProgressIndicators() {
   const claimableMilestones = getClaimableMilestoneCount();
   toggleNotificationDot(UI.achievementDot, claimableAchievements > 0);
   toggleNotificationDot(UI.milestoneDot, claimableMilestones > 0);
-  toggleNotificationDot(UI.milestoneTabDot, claimableMilestones > 0);
 }
 
 const ACHIEVEMENT_DIFFICULTY_WEIGHTS = {
@@ -4509,6 +4726,7 @@ function updateStats() {
   applyAreaUpgrades(stats);
   applyCollectUpgrades(stats);
   applySpawnUpgrades(stats);
+  applySpeedUpgrades(stats);
   stats.nodeSpawnDelay = Math.max(0.05, stats.nodeSpawnDelay);
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
@@ -4529,7 +4747,9 @@ function updateResources() {
   renderAreaUpgrades();
   renderCollectUpgrades();
   renderSpawnUpgrades();
+  renderSpeedUpgrades();
   updateTabAvailability();
+  updateUpgradeTabAvailability();
 }
 
 function gainXP(amount) {
