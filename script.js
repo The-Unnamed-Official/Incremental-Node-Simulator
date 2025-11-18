@@ -44,7 +44,9 @@ function createInitialState() {
     },
     upgrades: {},
     areaUpgrades: {},
+    areaUpgradeVersions: {},
     spawnUpgrades: {},
+    spawnUpgradeVersions: {},
     areaUnlocked: false,
     spawnUnlocked: false,
     cryptoUnlocked: false,
@@ -415,7 +417,9 @@ function hydrateState(source = {}) {
   const mergedSettings = { ...defaults.settings, ...(source.settings || {}) };
   const mergedUpgrades = { ...(defaults.upgrades || {}), ...(source.upgrades || {}) };
   const mergedArea = { ...(defaults.areaUpgrades || {}), ...(source.areaUpgrades || {}) };
+  const mergedAreaVersions = { ...(defaults.areaUpgradeVersions || {}), ...(source.areaUpgradeVersions || {}) };
   const mergedSpawn = { ...(defaults.spawnUpgrades || {}), ...(source.spawnUpgrades || {}) };
+  const mergedSpawnVersions = { ...(defaults.spawnUpgradeVersions || {}), ...(source.spawnUpgradeVersions || {}) };
   const mergedMilestones = { ...(defaults.milestoneClaims || {}), ...(source.milestoneClaims || {}) };
   const mergedAchievementClaims = { ...(defaults.achievementClaims || {}), ...(source.achievementClaims || {}) };
   const mergedAchievementLog = { ...(defaults.achievementLog || {}), ...(source.achievementLog || {}) };
@@ -475,6 +479,7 @@ function hydrateState(source = {}) {
     }
   });
   state.areaUpgrades = sanitizedArea;
+  state.areaUpgradeVersions = sanitizeUpgradeVersions(mergedAreaVersions);
   const sanitizedSpawn = {};
   Object.entries(mergedSpawn).forEach(([id, level]) => {
     const numeric = Number(level);
@@ -483,6 +488,7 @@ function hydrateState(source = {}) {
     }
   });
   state.spawnUpgrades = sanitizedSpawn;
+  state.spawnUpgradeVersions = sanitizeUpgradeVersions(mergedSpawnVersions);
   state.weirdSkillsPurchased = Math.max(
     0,
     Number.isFinite(Number(source.weirdSkillsPurchased)) ? Number(source.weirdSkillsPurchased) : defaults.weirdSkillsPurchased,
@@ -584,6 +590,19 @@ function sanitizeRecord(candidate) {
   }
   return Object.keys(candidate).reduce((acc, key) => {
     acc[key] = Boolean(candidate[key]);
+    return acc;
+  }, {});
+}
+
+function sanitizeUpgradeVersions(candidate) {
+  if (!candidate || typeof candidate !== 'object') {
+    return {};
+  }
+  return Object.keys(candidate).reduce((acc, key) => {
+    const numeric = Number(candidate[key]);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      acc[key] = numeric;
+    }
     return acc;
   }, {});
 }
@@ -1130,12 +1149,15 @@ function generateUpgrades() {
   let idCounter = 1;
   families.forEach((family) => {
     for (let i = 0; i < family.count; i += 1) {
+      const tierIndex = Math.floor(i / 10);
+      const withinTier = i % 10;
       const maxLevel = family.minLevel + (i % (family.maxLevel - family.minLevel + 1));
       const perLevel = family.perLevel * (1 + (i % 3) * 0.25);
-      const costBase = family.baseCost * (1 + (i % 5) * 0.4);
-      const costScale = family.scale + (i % 4) * 0.03;
+      const costBase = family.baseCost * 2 ** tierIndex;
+      const costScale = 1.5;
       const id = `${family.key.toUpperCase()}_${idCounter}`;
-      const name = `${family.baseName} ${romanNumeral((i % 24) + 1)}`;
+      const tierLabel = tierIndex === 0 ? '' : ` ${romanNumeral(tierIndex + 1)}`;
+      const name = `${family.baseName}${tierLabel} ${romanNumeral(withinTier + 1)}`;
       const desc = describeUpgrade(family.key, perLevel, maxLevel);
       const requirements = {};
       let currency = 'bits';
@@ -1157,6 +1179,7 @@ function generateUpgrades() {
         costScale,
         currency,
         requirements,
+        sequenceIndex: i,
         effect: (statsObj, level) => effects[family.key](statsObj, level, { perLevel, family }),
       });
       idCounter += 1;
@@ -1316,18 +1339,56 @@ function generateSpawnUpgrades() {
   ];
 }
 
-function getAreaUpgradeCost(upgrade, level) {
-  if (!upgrade || level >= upgrade.maxLevel) {
-    return 0;
-  }
-  return Math.ceil(upgrade.costBase * upgrade.costScale ** level);
+function getAreaUpgradeVersion(id) {
+  return Math.max(1, state.areaUpgradeVersions[id] || 1);
 }
 
-function getSpawnUpgradeCost(upgrade, level) {
+function getSpawnUpgradeVersion(id) {
+  return Math.max(1, state.spawnUpgradeVersions[id] || 1);
+}
+
+function getAreaVersionBaseCost(upgrade, version) {
+  if (version === 1) {
+    return upgrade.costBase;
+  }
+  const previousCost = getAreaUpgradeCost(upgrade, upgrade.maxLevel - 1, version - 1);
+  return Math.ceil(previousCost * 3);
+}
+
+function getSpawnVersionBaseCost(upgrade, version) {
+  if (version === 1) {
+    return upgrade.costBase;
+  }
+  const previousCost = getSpawnUpgradeCost(upgrade, upgrade.maxLevel - 1, version - 1);
+  return Math.ceil(previousCost * 3);
+}
+
+function getAreaUpgradeCost(upgrade, level, version = getAreaUpgradeVersion(upgrade.id)) {
   if (!upgrade || level >= upgrade.maxLevel) {
     return 0;
   }
-  return Math.ceil(upgrade.costBase * upgrade.costScale ** level);
+  const base = getAreaVersionBaseCost(upgrade, version);
+  return Math.ceil(base * 1.8 ** level);
+}
+
+function getSpawnUpgradeCost(upgrade, level, version = getSpawnUpgradeVersion(upgrade.id)) {
+  if (!upgrade || level >= upgrade.maxLevel) {
+    return 0;
+  }
+  const base = getSpawnVersionBaseCost(upgrade, version);
+  return Math.ceil(base * 1.8 ** level);
+}
+
+function getAreaUpgradeLpCost(version) {
+  if (version <= 1) return 0;
+  const costs = [0, 1, 3, 5, 10, 15];
+  return costs[Math.min(version, costs.length - 1)];
+}
+
+function getSpawnUpgradePrestigeCost(version) {
+  if (version <= 1) return 0;
+  const costs = [0, 1, 2, 4, 8];
+  return costs[Math.min(version, costs.length - 1)];
 }
 
 function renderAreaUpgrades() {
@@ -1336,8 +1397,10 @@ function renderAreaUpgrades() {
   const fragment = document.createDocumentFragment();
   areaUpgradeDefs.forEach((upgrade) => {
     const level = state.areaUpgrades[upgrade.id] || 0;
+    const version = getAreaUpgradeVersion(upgrade.id);
     const maxed = level >= upgrade.maxLevel;
-    const cost = getAreaUpgradeCost(upgrade, level);
+    const cost = getAreaUpgradeCost(upgrade, level, version);
+    const lpCost = getAreaUpgradeLpCost(version);
     const percent = Math.min(100, (level / upgrade.maxLevel) * 100);
     const button = document.createElement('button');
     button.type = 'button';
@@ -1348,13 +1411,15 @@ function renderAreaUpgrades() {
       button.classList.add('maxed');
     }
     button.innerHTML = `
-      <div class="title">${upgrade.name}</div>
+      <div class="title">${upgrade.name} ${romanNumeral(version)}</div>
       <div class="desc">${upgrade.description}</div>
       <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
       <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
-      <div class="cost">${maxed ? 'Fully synced' : `Cost: <span>${cost.toLocaleString()}</span> ${upgrade.currency}`}</div>
+      <div class="cost">${maxed
+        ? 'Fully synced'
+        : `Cost: <span>${cost.toLocaleString()}</span> ${upgrade.currency}${lpCost ? ` + ${lpCost} LP` : ''}`}</div>
     `;
-    const affordable = !maxed && state[upgrade.currency] >= cost;
+    const affordable = !maxed && state[upgrade.currency] >= cost && state.lp >= lpCost;
     button.classList.toggle('available', affordable);
     button.disabled = maxed || !affordable;
     button.addEventListener('click', () => attemptAreaPurchase(upgrade));
@@ -1366,23 +1431,37 @@ function renderAreaUpgrades() {
 function attemptAreaPurchase(upgrade) {
   if (!upgrade) return;
   const level = state.areaUpgrades[upgrade.id] || 0;
+  const version = getAreaUpgradeVersion(upgrade.id);
   if (level >= upgrade.maxLevel) {
+    if (version < 5) {
+      state.areaUpgradeVersions[upgrade.id] = version + 1;
+      state.areaUpgrades[upgrade.id] = 0;
+      renderAreaUpgrades();
+    }
     return;
   }
-  const cost = getAreaUpgradeCost(upgrade, level);
-  if (state[upgrade.currency] < cost) {
+  const cost = getAreaUpgradeCost(upgrade, level, version);
+  const lpCost = getAreaUpgradeLpCost(version);
+  if (state[upgrade.currency] < cost || state.lp < lpCost) {
     return;
   }
   state[upgrade.currency] -= cost;
-  state.areaUpgrades[upgrade.id] = level + 1;
+  state.lp -= lpCost;
+  const nextLevel = level + 1;
+  state.areaUpgrades[upgrade.id] = nextLevel;
+  if (nextLevel >= upgrade.maxLevel && version < 5) {
+    state.areaUpgradeVersions[upgrade.id] = version + 1;
+    state.areaUpgrades[upgrade.id] = 0;
+  }
   updateStats();
   updateResources();
+  renderAreaUpgrades();
   queueSave();
 }
 
 function applyAreaUpgrades(statsObj) {
   areaUpgradeDefs.forEach((upgrade) => {
-    const level = state.areaUpgrades[upgrade.id] || 0;
+    const level = (getAreaUpgradeVersion(upgrade.id) - 1) * upgrade.maxLevel + (state.areaUpgrades[upgrade.id] || 0);
     if (level > 0 && typeof upgrade.effect === 'function') {
       upgrade.effect(statsObj, level, upgrade);
     }
@@ -1395,8 +1474,10 @@ function renderSpawnUpgrades() {
   const fragment = document.createDocumentFragment();
   spawnUpgradeDefs.forEach((upgrade) => {
     const level = state.spawnUpgrades[upgrade.id] || 0;
+    const version = getSpawnUpgradeVersion(upgrade.id);
     const maxed = level >= upgrade.maxLevel;
-    const cost = getSpawnUpgradeCost(upgrade, level);
+    const cost = getSpawnUpgradeCost(upgrade, level, version);
+    const prestigeCost = getSpawnUpgradePrestigeCost(version);
     const percent = Math.min(100, (level / upgrade.maxLevel) * 100);
     const button = document.createElement('button');
     button.type = 'button';
@@ -1407,14 +1488,16 @@ function renderSpawnUpgrades() {
       button.classList.add('maxed');
     }
     button.innerHTML = `
-      <div class="title">${upgrade.name}</div>
+      <div class="title">${upgrade.name} ${romanNumeral(version)}</div>
       <div class="desc">${upgrade.description}</div>
       <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
       <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
-      <div class="cost">${maxed ? 'Fully synced' : `Cost: <span>${cost.toLocaleString()}</span> ${upgrade.currency}`}</div>
+      <div class="cost">${maxed
+        ? 'Fully synced'
+        : `Cost: <span>${cost.toLocaleString()}</span> ${upgrade.currency}${prestigeCost ? ` + ${prestigeCost} Prestige` : ''}`}</div>
     `;
     const resourcePool = upgrade.currency === 'prestige' ? state.prestige : state.bits;
-    const affordable = !maxed && resourcePool >= cost;
+    const affordable = !maxed && resourcePool >= cost && state.prestige >= prestigeCost;
     button.classList.toggle('available', affordable);
     button.disabled = maxed || !affordable;
     button.addEventListener('click', () => attemptSpawnPurchase(upgrade));
@@ -1426,24 +1509,38 @@ function renderSpawnUpgrades() {
 function attemptSpawnPurchase(upgrade) {
   if (!upgrade) return;
   const level = state.spawnUpgrades[upgrade.id] || 0;
+  const version = getSpawnUpgradeVersion(upgrade.id);
   if (level >= upgrade.maxLevel) {
+    if (version < 5) {
+      state.spawnUpgradeVersions[upgrade.id] = version + 1;
+      state.spawnUpgrades[upgrade.id] = 0;
+      renderSpawnUpgrades();
+    }
     return;
   }
-  const cost = getSpawnUpgradeCost(upgrade, level);
+  const cost = getSpawnUpgradeCost(upgrade, level, version);
   const currency = upgrade.currency === 'prestige' ? 'prestige' : 'bits';
-  if (state[currency] < cost) {
+  const prestigeBonus = getSpawnUpgradePrestigeCost(version);
+  if (state[currency] < cost || state.prestige < prestigeBonus) {
     return;
   }
   state[currency] -= cost;
-  state.spawnUpgrades[upgrade.id] = level + 1;
+  state.prestige -= prestigeBonus;
+  const nextLevel = level + 1;
+  state.spawnUpgrades[upgrade.id] = nextLevel;
+  if (nextLevel >= upgrade.maxLevel && version < 5) {
+    state.spawnUpgradeVersions[upgrade.id] = version + 1;
+    state.spawnUpgrades[upgrade.id] = 0;
+  }
   updateStats();
   updateResources();
+  renderSpawnUpgrades();
   queueSave();
 }
 
 function applySpawnUpgrades(statsObj) {
   spawnUpgradeDefs.forEach((upgrade) => {
-    const level = state.spawnUpgrades[upgrade.id] || 0;
+    const level = (getSpawnUpgradeVersion(upgrade.id) - 1) * upgrade.maxLevel + (state.spawnUpgrades[upgrade.id] || 0);
     if (level > 0 && typeof upgrade.effect === 'function') {
       upgrade.effect(statsObj, level, upgrade);
     }
@@ -1477,6 +1574,35 @@ function romanNumeral(num) {
   return result;
 }
 
+function buildCategorySequences() {
+  const sequences = new Map();
+  upgrades.forEach((upgrade, index) => {
+    const list = sequences.get(upgrade.category) || [];
+    list.push({ upgrade, order: index });
+    sequences.set(upgrade.category, list);
+  });
+  sequences.forEach((list) => list.sort((a, b) => a.order - b.order));
+  return sequences;
+}
+
+function getVisibleUpgradeSet(activeFilter, categorySequences) {
+  const visible = new Set();
+  categorySequences.forEach((list, category) => {
+    if (activeFilter !== 'all' && category !== activeFilter) {
+      return;
+    }
+    const firstPendingIndex = list.findIndex(({ upgrade }) => {
+      const level = state.upgrades[upgrade.id] || 0;
+      return level < upgrade.maxLevel;
+    });
+    const cutoff = firstPendingIndex === -1 ? list.length - 1 : firstPendingIndex;
+    list.slice(0, cutoff + 1).forEach(({ upgrade }) => {
+      visible.add(upgrade.id);
+    });
+  });
+  return visible;
+}
+
 function renderUpgrades(filter) {
   if (!UI.skillTree) return;
   const buttonFilter = document.querySelector('.filter.active')?.dataset.filter;
@@ -1485,10 +1611,15 @@ function renderUpgrades(filter) {
   syncFilterButtons(activeFilter);
   UI.skillTree.innerHTML = '';
   const fragment = document.createDocumentFragment();
+  const categorySequences = buildCategorySequences();
+  const visibleUpgrades = getVisibleUpgradeSet(activeFilter, categorySequences);
   const branchMap = new Map();
   const branchCounters = new Map();
   upgrades.forEach((upgrade) => {
     if (activeFilter !== 'all' && upgrade.category !== activeFilter) {
+      return;
+    }
+    if (!visibleUpgrades.has(upgrade.id)) {
       return;
     }
     const level = state.upgrades[upgrade.id] || 0;
@@ -1569,11 +1700,18 @@ function meetsRequirements(upgrade) {
   return true;
 }
 
+function getUpgradeCost(upgrade, level) {
+  if (!upgrade || level >= upgrade.maxLevel) {
+    return 0;
+  }
+  return Math.ceil(upgrade.costBase * upgrade.costScale ** level);
+}
+
 function formatCost(upgrade, level) {
   if (level >= upgrade.maxLevel) {
     return 'max';
   }
-  const cost = Math.ceil(upgrade.costBase * upgrade.costScale ** level);
+  const cost = getUpgradeCost(upgrade, level);
   return cost.toLocaleString();
 }
 
@@ -1585,7 +1723,7 @@ function attemptPurchase(upgrade) {
   if (!meetsRequirements(upgrade)) {
     return;
   }
-  const cost = Math.ceil(upgrade.costBase * upgrade.costScale ** level);
+  const cost = getUpgradeCost(upgrade, level);
   if (state[upgrade.currency] >= cost) {
     state[upgrade.currency] -= cost;
     state.upgrades[upgrade.id] = level + 1;
@@ -1625,7 +1763,7 @@ function maybeStartSkillCheck(upgrade, cost) {
 function showUpgradeTooltip(event, upgrade) {
   if (!tooltipEl) return;
   const level = state.upgrades[upgrade.id] || 0;
-  const nextCost = level < upgrade.maxLevel ? Math.ceil(upgrade.costBase * upgrade.costScale ** level) : null;
+  const nextCost = level < upgrade.maxLevel ? getUpgradeCost(upgrade, level) : null;
   tooltipEl.innerHTML = `
     <strong>${upgrade.name}</strong><br/>
     ${upgrade.description}<br/>
