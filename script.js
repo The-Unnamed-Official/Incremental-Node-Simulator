@@ -206,7 +206,7 @@ const UPGRADE_TIER_GROWTH = 1.5;
 
 const TAB_UNLOCK_RULES = {
   crypto: { label: 'Crypto Mine', stateKey: 'cryptoUnlocked', cost: { currency: 'bits', amount: 100000, label: '100k Bits' } },
-  lab: { label: 'Lab', stateKey: 'labUnlocked', cost: { currency: 'cryptcoins', amount: 1000, label: '1k Cryptcoins' } },
+  lab: { label: 'Lab', stateKey: 'labUnlocked', cost: { currency: 'cryptcoins', amount: 1000, label: '1k CC' } },
 };
 
 const UPGRADE_SECTION_RULES = {
@@ -3403,7 +3403,7 @@ function generateAchievements() {
     createAchievement({
       id: 'crypto-hoard',
       label: 'Miner 49k',
-      description: 'Accumulate 50k cryptcoins.',
+      description: 'Accumulate 50k CC.',
       goal: 50000,
       difficulty: 'legendary',
       category: 'crypto',
@@ -3534,7 +3534,7 @@ function generateAchievements() {
     createAchievement({
       id: 'crypto-elite',
       label: 'Crypt Billionaire',
-      description: 'Accumulate 10,000,000 cryptcoins.',
+      description: 'Accumulate 10,000,000 CC.',
       goal: 10_000_000,
       difficulty: 'legendary',
       category: 'crypto',
@@ -3666,7 +3666,7 @@ function renderCryptoSpeedUpgrades() {
     button.disabled = purchased || !affordable;
     button.textContent = purchased
       ? `${tier.label}: +${tier.bonus}/s (owned)`
-      : `${tier.label}: +${tier.bonus}/s — ${formatNumberShort(tier.cost)} Cryptcoins`;
+      : `${tier.label}: +${tier.bonus}/s — ${formatNumberShort(tier.cost)} CC`;
     button.addEventListener('click', () => purchaseCryptoSpeedUpgrade(tier));
     UI.cryptoSpeedUpgrades.appendChild(button);
   });
