@@ -4,7 +4,33 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.485';
+const GAME_VERSION = 'v0.492';
+
+const UPDATE_LOGS = [
+  {
+    version: 'v0.492',
+    title: 'Signal clarity & steadier nodes',
+    description:
+      'A polish pass that makes the battlefield easier to read while reinforcing the new upgrade matrices.',
+    changes: [
+      'Nodes now broadcast a health perimeter that drains smoothly as you carve through them, so their condition is obvious without reading numbers.',
+      'Movement, shake, and hit reactions have been retuned to glide instead of jitter, keeping combat satisfying even during swarms.',
+      'Damage Area and Spawn Matrix upgrades surface their versioned tiers more cleanly to match the refreshed systems and pacing.',
+    ],
+  },
+  {
+    version: 'v0.485',
+    title: 'Foundations for the rework',
+    description:
+      'Lays the groundwork for the new simulator loop with achievement flow fixes and a sturdier UI structure.',
+    changes: [
+      'Achievements now queue at the bottom of the chronicle with a dedicated claim action so you never miss a reward.',
+      'The node spawn field now sticks to the viewport, keeping the fight space glued to your screen as you scroll.',
+      'Primary game tabs were reworked to enforce unlock requirements, guiding progression instead of overwhelming new players.',
+      'Upgrade costs were rebalanced with a tighter scale, capping most tracks at level X (10) and letting you focus on the current version tier only.',
+    ],
+  },
+];
 
 function getLevelDuration(levelIndex = 1) {
   const safeIndex = Math.max(1, levelIndex);
@@ -78,6 +104,7 @@ function createInitialState() {
       reducedAnimation: false,
     },
     selectedUpgradeFilter: 'damage',
+    lastSeenVersion: null,
     lastSavedAt: null,
   };
 }
@@ -187,6 +214,7 @@ let skins = [];
 let nodeSpawnTimer = 0;
 let tooltipEl;
 let achievementTimer = 0;
+let activeUpdateLogVersion = null;
 
 const UI = {};
 const skillCheckState = {
@@ -262,6 +290,7 @@ function playPointerHitSFX() {
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
+  setupUpdateLogs();
   generateSkins();
   generateUpgrades();
   generateAreaUpgrades();
@@ -291,6 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateResources();
   setupPersistence();
   startGameLoop();
+  maybeShowUpdateLog();
 });
 
 function cacheElements() {
@@ -341,6 +371,10 @@ function cacheElements() {
   UI.levelDialogSummary = document.getElementById('level-dialog-summary');
   UI.levelContinue = document.getElementById('level-continue');
   UI.levelReplay = document.getElementById('level-replay');
+  UI.updateLog = document.getElementById('update-log');
+  UI.updateLogTabs = document.getElementById('update-log-tabs');
+  UI.updateLogBody = document.getElementById('update-log-body');
+  UI.updateLogClose = document.getElementById('update-log-close');
 }
 
 function setupPersistence() {
@@ -550,6 +584,7 @@ function hydrateState(source = {}) {
   state.selectedUpgradeFilter = typeof source.selectedUpgradeFilter === 'string'
     ? source.selectedUpgradeFilter
     : defaults.selectedUpgradeFilter;
+  state.lastSeenVersion = typeof source.lastSeenVersion === 'string' ? source.lastSeenVersion : defaults.lastSeenVersion;
   const lastSavedCandidate = Number(source.lastSavedAt);
   state.lastSavedAt = Number.isFinite(lastSavedCandidate) && lastSavedCandidate > 0 ? lastSavedCandidate : defaults.lastSavedAt;
   state.health = Math.min(state.maxHealth, Math.max(0, state.health));
@@ -921,6 +956,169 @@ function setupProgressDock() {
       });
     });
   });
+}
+
+function setupUpdateLogs() {
+  if (UI.versionDisplay) {
+    UI.versionDisplay.addEventListener('click', () => openUpdateLog(GAME_VERSION));
+  }
+  if (UI.updateLogClose) {
+    UI.updateLogClose.addEventListener('click', closeUpdateLog);
+  }
+  if (UI.updateLog) {
+    UI.updateLog.addEventListener('click', (event) => {
+      if (event.target === UI.updateLog) {
+        closeUpdateLog();
+      }
+    });
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && isUpdateLogOpen()) {
+      closeUpdateLog();
+    }
+  });
+  renderUpdateLogs();
+  selectUpdateLog(GAME_VERSION, false);
+}
+
+function getUpdateLogs() {
+  return UPDATE_LOGS.slice(0, 6).map((log) => ({
+    ...log,
+    isLatest: log.version === GAME_VERSION,
+  }));
+}
+
+function renderUpdateLogs() {
+  if (!UI.updateLogTabs) return;
+  const logs = getUpdateLogs();
+  UI.updateLogTabs.innerHTML = '';
+  logs.forEach((log) => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'update-log-tab';
+    tab.dataset.version = log.version;
+    const safeId = log.version.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+    tab.id = `update-log-tab-${safeId}`;
+    tab.setAttribute('role', 'tab');
+    tab.innerHTML = `
+      <span>${log.version}${log.isLatest ? ' (Latest Update)' : ''}</span>
+      ${log.isLatest ? '<span class="tag">(Latest Update)</span>' : ''}
+    `;
+    tab.addEventListener('click', () => selectUpdateLog(log.version));
+    UI.updateLogTabs.appendChild(tab);
+  });
+}
+
+function selectUpdateLog(version, animate = true) {
+  const logs = getUpdateLogs();
+  const target = logs.find((log) => log.version === version) || logs[0];
+  if (!target) return;
+  activeUpdateLogVersion = target.version;
+  const tabs = UI.updateLogTabs?.querySelectorAll('.update-log-tab');
+  tabs?.forEach((tab) => {
+    const isActive = tab.dataset.version === target.version;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    tab.setAttribute('tabindex', isActive ? '0' : '-1');
+    if (isActive && UI.updateLogBody) {
+      UI.updateLogBody.setAttribute('aria-labelledby', tab.id);
+    }
+  });
+  renderUpdateLogContent(target, animate);
+}
+
+function renderUpdateLogContent(log, animate = true) {
+  if (!UI.updateLogBody || !log) return;
+  const body = UI.updateLogBody;
+  const previousHeight = body.getBoundingClientRect().height || 1;
+  const entry = document.createElement('div');
+  entry.className = 'update-log-entry';
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const versionPill = document.createElement('span');
+  versionPill.className = 'version-pill';
+  versionPill.textContent = `${log.version}${log.isLatest ? ' (Latest Update)' : ''}`;
+  meta.appendChild(versionPill);
+  if (log.isLatest) {
+    const latest = document.createElement('span');
+    latest.className = 'latest-label';
+    latest.textContent = '(Latest Update)';
+    meta.appendChild(latest);
+  }
+  entry.appendChild(meta);
+  const title = document.createElement('h3');
+  title.textContent = log.title;
+  entry.appendChild(title);
+  const description = document.createElement('p');
+  description.textContent = log.description;
+  entry.appendChild(description);
+  const list = document.createElement('ul');
+  list.className = 'update-log-list';
+  log.changes.forEach((change) => {
+    const item = document.createElement('li');
+    item.textContent = change;
+    list.appendChild(item);
+  });
+  entry.appendChild(list);
+  body.classList.add('changing');
+  body.innerHTML = '';
+  body.appendChild(entry);
+  const targetHeight = entry.getBoundingClientRect().height || previousHeight;
+  const startHeight = previousHeight || targetHeight;
+  const heightDelta = Math.abs(targetHeight - startHeight);
+  const cleanup = () => {
+    body.style.height = '';
+    body.style.opacity = '1';
+    body.classList.remove('changing');
+  };
+  if (animate && heightDelta > 0.5) {
+    body.style.height = `${startHeight}px`;
+    body.style.opacity = '0.2';
+    requestAnimationFrame(() => {
+      body.style.height = `${targetHeight}px`;
+      body.style.opacity = '1';
+    });
+    body.addEventListener(
+      'transitionend',
+      () => {
+        cleanup();
+      },
+      { once: true }
+    );
+  } else {
+    cleanup();
+  }
+}
+
+function openUpdateLog(targetVersion = GAME_VERSION, animateContent = true) {
+  renderUpdateLogs();
+  selectUpdateLog(targetVersion, animateContent);
+  if (UI.updateLog) {
+    UI.updateLog.classList.remove('hidden');
+    UI.updateLog.setAttribute('aria-hidden', 'false');
+  }
+  document.body.style.overflow = 'hidden';
+}
+
+function isUpdateLogOpen() {
+  return Boolean(UI.updateLog && !UI.updateLog.classList.contains('hidden'));
+}
+
+function closeUpdateLog() {
+  if (UI.updateLog) {
+    UI.updateLog.classList.add('hidden');
+    UI.updateLog.setAttribute('aria-hidden', 'true');
+  }
+  document.body.style.overflow = '';
+}
+
+function maybeShowUpdateLog() {
+  const seen = typeof state.lastSeenVersion === 'string' ? state.lastSeenVersion : null;
+  if (seen !== GAME_VERSION) {
+    openUpdateLog(GAME_VERSION, false);
+    state.lastSeenVersion = GAME_VERSION;
+    queueSave();
+  }
 }
 
 function setupSettings() {
@@ -2802,18 +3000,20 @@ function spawnNode() {
     position: { x: startX, y: startY },
     velocity,
     rotation: Math.random() * 360,
-    rotationSpeed: (Math.random() - 0.5) * 45,
+    rotationSpeed: (Math.random() - 0.5) * 28,
     bounds: margin,
   };
   const el = document.createElement('div');
   el.className = `node ${type.color} skin-${state.skins.active}`;
   const visual = document.createElement('div');
   visual.className = 'node-visual';
+  const healthRing = document.createElement('div');
+  healthRing.className = 'health-ring';
   const fill = document.createElement('div');
   fill.className = 'fill';
   const core = document.createElement('div');
   core.className = 'core';
-  visual.append(fill, core);
+  visual.append(healthRing, fill, core);
   const hpLabel = document.createElement('div');
   hpLabel.className = 'hp';
   el.append(visual, hpLabel);
@@ -2821,6 +3021,7 @@ function spawnNode() {
   node.el = el;
   node.visualEl = visual;
   node.fillEl = fill;
+  node.healthRingEl = healthRing;
   node.hpEl = hpLabel;
   applyNodeTransform(node);
   UI.nodeArea.appendChild(el);
@@ -2925,6 +3126,13 @@ function updateNodeElement(node) {
   const fillEl = node.fillEl || node.el.querySelector('.fill');
   if (fillEl) {
     const ratio = Math.max(0, Math.min(1, node.hp / node.maxHP));
+    const healthColor = ratio > 0.66 ? 'rgba(127, 255, 214, 0.95)' : ratio > 0.33 ? '#ffd166' : '#ff6ea8';
+    node.el.style.setProperty('--hp-ratio', ratio);
+    node.el.style.setProperty('--hp-color', healthColor);
+    if (node.healthRingEl) {
+      node.healthRingEl.style.setProperty('--hp-ratio', ratio);
+      node.healthRingEl.style.setProperty('--hp-color', healthColor);
+    }
     fillEl.style.transform = `scaleY(${ratio})`;
     node.fillEl = fillEl;
   }
