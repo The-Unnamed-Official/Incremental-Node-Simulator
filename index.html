@@ -57,18 +57,16 @@
 
         <section id="tab-upgrades" class="tab-content active">
           <div class="tab-toolbar">
-            <div class="pill-group">
+            <div class="pill-group tab-filter-row">
               <button class="toggle-switch filter active" data-filter="damage" aria-pressed="true">damage</button>
               <button class="toggle-switch filter" data-filter="crit" aria-pressed="false">crit</button>
               <button class="toggle-switch filter" data-filter="economy" aria-pressed="false">economy</button>
               <button class="toggle-switch filter" data-filter="control" aria-pressed="false">control</button>
-              <button class="toggle-switch filter" data-filter="defense" aria-pressed="false">defense</button>
-              <button class="toggle-switch filter" data-filter="ability" aria-pressed="false">ability</button>
-              <button class="toggle-switch filter" data-filter="weird" aria-pressed="false">weird</button>
+              <button class="toggle-switch filter" data-filter="anomaly" aria-pressed="false">anomaly</button>
             </div>
             <div class="upgrade-summary">
-              <span>Purchased <span id="upgrade-count">0</span> / 400</span>
-              <span>Weird resonance <span id="weird-progress">0 / 20</span></span>
+              <span>Purchased <span id="upgrade-count">0</span> / <span id="upgrade-total">0</span></span>
+              <span>Anomaly resonance <span id="anomaly-progress">0 / 20</span></span>
             </div>
           </div>
           <div id="skill-tree" class="skill-tree" role="list"></div>
@@ -141,7 +139,7 @@
         <section id="tab-lab" class="tab-content">
           <div id="lab-locked">
             <h2>???</h2>
-            <p>The lab interface is assembling from broken realities. Purchase more weird skills to stabilise it.</p>
+            <p>The lab interface is assembling from broken realities. Purchase more anomaly skills to stabilise it.</p>
           </div>
           <div id="lab-panel" class="hidden">
             <h2>godvirus research lab</h2>
