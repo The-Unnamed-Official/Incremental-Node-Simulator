@@ -45,6 +45,9 @@ function createInitialState() {
     upgrades: {},
     areaUpgrades: {},
     spawnUpgrades: {},
+    areaUnlocked: false,
+    spawnUnlocked: false,
+    cryptoUnlocked: false,
     weirdSkillsPurchased: 0,
     labUnlocked: false,
     labProgress: 0,
@@ -59,7 +62,6 @@ function createInitialState() {
       owned: new Set(['default']),
       active: 'default',
     },
-    automationSkills: {},
     milestoneClaims: {},
     achievementClaims: {},
     achievementLog: {},
@@ -108,6 +110,14 @@ const stats = {
   healthDamageBonus: 0,
   nodeCountDamageBonus: 0,
   weirdSynergy: 0,
+};
+
+const TAB_UNLOCK_RULES = {
+  area: { label: 'Damage Area', stateKey: 'areaUnlocked', minLevel: 10, cost: { currency: 'lp', amount: 5, label: '5 LP' } },
+  spawn: { label: 'Spawn Matrix', stateKey: 'spawnUnlocked', cost: { currency: 'prestige', amount: 5, label: '5 Prestige' } },
+  crypto: { label: 'Crypto Mine', stateKey: 'cryptoUnlocked', cost: { currency: 'bits', amount: 100000, label: '100k Bits' } },
+  lab: { label: 'Lab', stateKey: 'labUnlocked', cost: { currency: 'cryptcoins', amount: 1000, label: '1k Cryptcoins' } },
+  milestones: { label: 'Milestones', minLevel: 25 },
 };
 
 const nodeTypes = [
@@ -172,7 +182,6 @@ let spawnUpgradeDefs = [];
 let milestones = [];
 let achievements = [];
 let skins = [];
-let automationNodes = [];
 let nodeSpawnTimer = 0;
 let tooltipEl;
 let achievementTimer = 0;
@@ -255,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
   generateUpgrades();
   generateAreaUpgrades();
   generateSpawnUpgrades();
-  generateAutomationSkills();
   generateMilestones();
   generateAchievements();
   loadGame();
@@ -269,7 +277,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderAchievements();
   renderAreaUpgrades();
   renderSpawnUpgrades();
-  renderAutomationTree();
   initTooltip();
   setupCryptoControls();
   setupLabControls();
@@ -316,7 +323,6 @@ function cacheElements() {
   UI.labProgressText = document.getElementById('lab-progress-text');
   UI.labSpeed = document.getElementById('lab-speed');
   UI.skinGrid = document.getElementById('skin-grid');
-  UI.automationTree = document.getElementById('automation-tree');
   UI.saveGame = document.getElementById('save-game');
   UI.newGame = document.getElementById('new-game');
   UI.saveStatus = document.getElementById('save-status');
@@ -407,7 +413,6 @@ function hydrateState(source = {}) {
   const mergedLevel = { ...defaults.currentLevel, ...(source.currentLevel || {}) };
   const mergedCrypto = { ...defaults.crypto, ...(source.crypto || {}) };
   const mergedSettings = { ...defaults.settings, ...(source.settings || {}) };
-  const mergedAutomation = { ...defaults.automationSkills, ...(source.automationSkills || {}) };
   const mergedUpgrades = { ...(defaults.upgrades || {}), ...(source.upgrades || {}) };
   const mergedArea = { ...(defaults.areaUpgrades || {}), ...(source.areaUpgrades || {}) };
   const mergedSpawn = { ...(defaults.spawnUpgrades || {}), ...(source.spawnUpgrades || {}) };
@@ -482,7 +487,16 @@ function hydrateState(source = {}) {
     0,
     Number.isFinite(Number(source.weirdSkillsPurchased)) ? Number(source.weirdSkillsPurchased) : defaults.weirdSkillsPurchased,
   );
+  state.areaUnlocked = coerceBoolean(source.areaUnlocked, defaults.areaUnlocked);
+  state.spawnUnlocked = coerceBoolean(source.spawnUnlocked, defaults.spawnUnlocked);
+  state.cryptoUnlocked = coerceBoolean(source.cryptoUnlocked, defaults.cryptoUnlocked);
   state.labUnlocked = coerceBoolean(source.labUnlocked, defaults.labUnlocked);
+  if (!state.areaUnlocked && Object.keys(state.areaUpgrades).length > 0) {
+    state.areaUnlocked = true;
+  }
+  if (!state.spawnUnlocked && Object.keys(state.spawnUpgrades).length > 0) {
+    state.spawnUnlocked = true;
+  }
   state.labProgress = Math.max(0, Number.isFinite(Number(source.labProgress)) ? Number(source.labProgress) : defaults.labProgress);
   state.labSpeed = Math.max(0, Number.isFinite(Number(source.labSpeed)) ? Number(source.labSpeed) : defaults.labSpeed);
   state.labDeposited = Math.max(0, Number.isFinite(Number(source.labDeposited)) ? Number(source.labDeposited) : defaults.labDeposited);
@@ -494,6 +508,9 @@ function hydrateState(source = {}) {
       Number.isFinite(Number(mergedCrypto.timeRemaining)) ? Number(mergedCrypto.timeRemaining) : defaults.crypto.timeRemaining,
     ),
   };
+  if (!state.cryptoUnlocked && (state.crypto.deposit > 0 || state.crypto.rate > 0)) {
+    state.cryptoUnlocked = true;
+  }
   state.skins = {
     active: typeof mergedSkins.active === 'string' ? mergedSkins.active : defaults.skins.active,
     owned: new Set(Array.isArray(mergedSkins.owned) ? mergedSkins.owned : defaults.skins.owned),
@@ -513,13 +530,6 @@ function hydrateState(source = {}) {
   if (!state.skins.owned.has('default')) {
     state.skins.owned.add('default');
   }
-  const sanitizedAutomation = {};
-  Object.entries(mergedAutomation).forEach(([id, purchased]) => {
-    if (purchased) {
-      sanitizedAutomation[id] = true;
-    }
-  });
-  state.automationSkills = sanitizedAutomation;
   state.settings = {
     crt: coerceBoolean(mergedSettings.crt, defaults.settings.crt),
     scanlines: coerceBoolean(mergedSettings.scanlines, defaults.settings.scanlines),
@@ -702,7 +712,6 @@ function startNewGame() {
   renderMilestones();
   renderAchievements();
   renderAreaUpgrades();
-  renderAutomationTree();
   syncLabVisibility();
   applySettingsToControls();
   applyDisplaySettings();
@@ -730,24 +739,115 @@ function syncLabVisibility() {
   }
 }
 
+function getTabRule(tabId) {
+  return TAB_UNLOCK_RULES[tabId] || null;
+}
+
+function isTabUnlocked(tabId) {
+  const rule = getTabRule(tabId);
+  if (!rule) return true;
+  if (rule.minLevel && state.level < rule.minLevel) return false;
+  if (rule.stateKey) {
+    return Boolean(state[rule.stateKey]);
+  }
+  return true;
+}
+
+function canPurchaseTab(tabId) {
+  const rule = getTabRule(tabId);
+  if (!rule || isTabUnlocked(tabId)) return false;
+  if (rule.minLevel && state.level < rule.minLevel) return false;
+  if (!rule.cost) return false;
+  const { currency, amount } = rule.cost;
+  return state[currency] >= amount;
+}
+
+function formatTabRequirement(rule) {
+  if (!rule) return '';
+  const parts = [];
+  if (rule.minLevel) {
+    parts.push(`Lv ${rule.minLevel}`);
+  }
+  if (rule.cost) {
+    const label = rule.cost.label || `${rule.cost.amount.toLocaleString()} ${rule.cost.currency}`;
+    parts.push(label);
+  }
+  return parts.join(' • ');
+}
+
+function updateTabAvailability() {
+  const buttons = document.querySelectorAll('.tab-button');
+  buttons.forEach((btn) => {
+    const tabId = btn.dataset.tab;
+    const rule = getTabRule(tabId);
+    const unlocked = isTabUnlocked(tabId);
+    const canPurchase = canPurchaseTab(tabId);
+    btn.classList.toggle('locked', !unlocked);
+    btn.classList.toggle('purchasable', !unlocked && canPurchase);
+    const baseLabel = rule?.label || btn.dataset.label || btn.textContent;
+    const requirement = !unlocked ? formatTabRequirement(rule) : '';
+    btn.textContent = requirement ? `${baseLabel} (${requirement})` : baseLabel;
+    btn.setAttribute('aria-disabled', unlocked ? 'false' : 'true');
+    if (unlocked) {
+      btn.removeAttribute('title');
+    } else {
+      btn.title = rule?.label ? `${rule.label} locked` : 'Locked';
+    }
+  });
+}
+
+function attemptTabUnlock(tabId, sourceEl) {
+  const rule = getTabRule(tabId);
+  if (!rule || isTabUnlocked(tabId)) return true;
+  if (rule.minLevel && state.level < rule.minLevel) {
+    if (sourceEl) createFloatText(sourceEl, `Reach level ${rule.minLevel}`, '#ff6ea8');
+    return false;
+  }
+  if (!rule.cost) return false;
+  const { currency, amount } = rule.cost;
+  if (state[currency] < amount) {
+    if (sourceEl) createFloatText(sourceEl, 'Insufficient resources', '#ff6ea8');
+    return false;
+  }
+  state[currency] -= amount;
+  if (tabId === 'lab') {
+    unlockLab();
+  } else if (rule.stateKey) {
+    state[rule.stateKey] = true;
+    queueSave();
+  }
+  updateResources();
+  if (sourceEl) createFloatText(sourceEl, 'Unlocked!', '#76f4c6');
+  return true;
+}
+
 function setupTabs() {
   const buttons = document.querySelectorAll('.tab-button');
   const contents = document.querySelectorAll('.tab-content');
   buttons.forEach((btn) => {
     btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      const rule = getTabRule(tabId);
+      if (rule && !isTabUnlocked(tabId)) {
+        const purchased = attemptTabUnlock(tabId, btn);
+        if (!purchased || !isTabUnlocked(tabId)) {
+          updateTabAvailability();
+          return;
+        }
+      }
       buttons.forEach((b) => b.classList.remove('active'));
       contents.forEach((c) => c.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
-      if (btn.dataset.tab === 'automation') {
-        requestAnimationFrame(drawAutomationConnectors);
-      } else if (btn.dataset.tab === 'area') {
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+      if (tabId === 'area') {
         renderAreaUpgrades();
-      } else if (btn.dataset.tab === 'spawn') {
+      } else if (tabId === 'spawn') {
         renderSpawnUpgrades();
       }
+      updateTabAvailability();
     });
   });
+  updateTabAvailability();
 }
 
 function syncFilterButtons(activeFilter) {
@@ -1453,209 +1553,6 @@ function renderUpgrades(filter) {
   UI.weirdProgress.textContent = `${state.weirdSkillsPurchased} / 20`;
 }
 
-function generateAutomationSkills() {
-  automationNodes = [
-    {
-      id: 'sync-core',
-      name: 'Sync Core',
-      tagline: 'Auto interval -8%',
-      position: { row: 2, col: 5 },
-      cost: { prestige: 2, lp: 3 },
-      prereqs: [],
-      effect: (statsObj) => {
-        statsObj.autoInterval *= 0.92;
-      },
-    },
-    {
-      id: 'signal-doubler',
-      name: 'Signal Doubler',
-      tagline: 'Auto interval -10%',
-      position: { row: 3, col: 3 },
-      cost: { prestige: 4, lp: 4 },
-      prereqs: ['sync-core'],
-      effect: (statsObj) => {
-        statsObj.autoInterval *= 0.9;
-      },
-    },
-    {
-      id: 'frequency-gate',
-      name: 'Frequency Gate',
-      tagline: 'Auto interval -10%',
-      position: { row: 3, col: 7 },
-      cost: { prestige: 4, lp: 5 },
-      prereqs: ['sync-core'],
-      effect: (statsObj) => {
-        statsObj.autoInterval *= 0.9;
-      },
-    },
-    {
-      id: 'servo-cluster',
-      name: 'Servo Cluster',
-      tagline: 'Auto interval -8%',
-      position: { row: 4, col: 2 },
-      cost: { prestige: 6, lp: 7 },
-      prereqs: ['signal-doubler'],
-      effect: (statsObj) => {
-        statsObj.autoInterval *= 0.92;
-      },
-    },
-    {
-      id: 'phase-weaver',
-      name: 'Phase Weaver',
-      tagline: 'Auto interval -12%',
-      position: { row: 4, col: 5 },
-      cost: { prestige: 8, lp: 9 },
-      prereqs: ['signal-doubler', 'frequency-gate'],
-      effect: (statsObj) => {
-        statsObj.autoInterval *= 0.88;
-      },
-    },
-    {
-      id: 'quantum-latch',
-      name: 'Quantum Latch',
-      tagline: 'Auto interval -10%',
-      position: { row: 4, col: 8 },
-      cost: { prestige: 8, lp: 9 },
-      prereqs: ['frequency-gate'],
-      effect: (statsObj) => {
-        statsObj.autoInterval *= 0.9;
-      },
-    },
-    {
-      id: 'tachyon-loop',
-      name: 'Tachyon Loop',
-      tagline: 'Auto interval -18%',
-      position: { row: 5, col: 4 },
-      cost: { prestige: 12, lp: 13 },
-      prereqs: ['servo-cluster', 'phase-weaver'],
-      effect: (statsObj) => {
-        statsObj.autoInterval *= 0.82;
-      },
-    },
-    {
-      id: 'singularity-array',
-      name: 'Singularity Array',
-      tagline: 'Auto interval -15%',
-      position: { row: 5, col: 6 },
-      cost: { prestige: 12, lp: 13 },
-      prereqs: ['phase-weaver', 'quantum-latch'],
-      effect: (statsObj) => {
-        statsObj.autoInterval *= 0.85;
-      },
-    },
-    {
-      id: 'autonomy-core',
-      name: 'Autonomy Core',
-      tagline: 'Auto interval -25%',
-      position: { row: 6, col: 5 },
-      cost: { prestige: 18, lp: 18 },
-      prereqs: ['tachyon-loop', 'singularity-array'],
-      effect: (statsObj) => {
-        statsObj.autoInterval *= 0.75;
-      },
-    },
-  ];
-  const validSkillIds = new Set(automationNodes.map((skill) => skill.id));
-  Object.keys(state.automationSkills).forEach((id) => {
-    if (!validSkillIds.has(id)) {
-      delete state.automationSkills[id];
-    }
-  });
-}
-
-function renderAutomationTree() {
-  if (!UI.automationTree) return;
-  UI.automationTree.innerHTML = '';
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.classList.add('automation-links');
-  UI.automationTree.appendChild(svg);
-  automationNodes.forEach((skill) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'automation-node';
-    button.dataset.skill = skill.id;
-    button.style.gridColumn = `${skill.position.col}`;
-    button.style.gridRow = `${skill.position.row}`;
-    const purchased = Boolean(state.automationSkills[skill.id]);
-    const unlocked = skill.prereqs.length === 0 || skill.prereqs.every((id) => state.automationSkills[id]);
-    const canAfford = state.prestige >= (skill.cost?.prestige || 0) && state.lp >= (skill.cost?.lp || 0);
-    if (purchased) {
-      button.classList.add('purchased');
-    } else if (!unlocked) {
-      button.classList.add('locked');
-    }
-    let costText = 'installed';
-    if (!purchased) {
-      const prestigeCost = skill.cost?.prestige || 0;
-      const lpCost = skill.cost?.lp || 0;
-      costText = `${prestigeCost} prestige · ${lpCost} LP`;
-    }
-    button.innerHTML = `
-      <strong>${skill.name}</strong>
-      <span>${skill.tagline}</span>
-      <div class="cost">${costText}</div>
-    `;
-    button.disabled = purchased || !unlocked || !canAfford;
-    button.addEventListener('click', () => purchaseAutomationSkill(skill));
-    UI.automationTree.appendChild(button);
-  });
-  requestAnimationFrame(drawAutomationConnectors);
-}
-
-function purchaseAutomationSkill(skill) {
-  if (!skill || state.automationSkills[skill.id]) return;
-  const unlocked = skill.prereqs.length === 0 || skill.prereqs.every((id) => state.automationSkills[id]);
-  if (!unlocked) return;
-  const prestigeCost = skill.cost?.prestige || 0;
-  const lpCost = skill.cost?.lp || 0;
-  if (state.prestige < prestigeCost || state.lp < lpCost) return;
-  state.prestige -= prestigeCost;
-  state.lp -= lpCost;
-  state.automationSkills[skill.id] = true;
-  updateStats();
-  updateResources();
-  queueSave();
-}
-
-function drawAutomationConnectors() {
-  if (!UI.automationTree) return;
-  const svg = UI.automationTree.querySelector('.automation-links');
-  if (!svg) return;
-  const rect = UI.automationTree.getBoundingClientRect();
-  svg.setAttribute('width', rect.width);
-  svg.setAttribute('height', rect.height);
-  svg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
-  while (svg.firstChild) {
-    svg.firstChild.remove();
-  }
-  automationNodes.forEach((skill) => {
-    const child = UI.automationTree.querySelector(`[data-skill='${skill.id}']`);
-    if (!child) return;
-    const childRect = child.getBoundingClientRect();
-    const childCenter = {
-      x: childRect.left - rect.left + childRect.width / 2,
-      y: childRect.top - rect.top + childRect.height / 2,
-    };
-    skill.prereqs.forEach((parentId) => {
-      const parent = UI.automationTree.querySelector(`[data-skill='${parentId}']`);
-      if (!parent) return;
-      const parentRect = parent.getBoundingClientRect();
-      const parentCenter = {
-        x: parentRect.left - rect.left + parentRect.width / 2,
-        y: parentRect.top - rect.top + parentRect.height / 2,
-      };
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', parentCenter.x);
-      line.setAttribute('y1', parentCenter.y);
-      line.setAttribute('x2', childCenter.x);
-      line.setAttribute('y2', childCenter.y);
-      if (state.automationSkills[parentId] && state.automationSkills[skill.id]) {
-        line.setAttribute('stroke', 'rgba(118, 244, 198, 0.85)');
-      }
-      svg.appendChild(line);
-    });
-  });
-}
 
 function meetsRequirements(upgrade) {
   const level = state.upgrades[upgrade.id] || 0;
@@ -1694,9 +1591,6 @@ function attemptPurchase(upgrade) {
     state.upgrades[upgrade.id] = level + 1;
     if (upgrade.category === 'weird') {
       state.weirdSkillsPurchased += 1;
-      if (!state.labUnlocked && state.weirdSkillsPurchased >= 20) {
-        unlockLab();
-      }
     }
     updateStats();
     updateResources();
@@ -2144,6 +2038,7 @@ function setupCryptoControls() {
 }
 
 function depositToCrypto(amount) {
+  if (!state.cryptoUnlocked) return;
   if (state.bits >= amount) {
     state.bits -= amount;
     state.crypto.deposit += amount;
@@ -3132,7 +3027,7 @@ function spawnBoss(options = {}) {
 }
 
 function getBossCursorDamage() {
-  // Boss damage is fixed to the base cursor power so upgrades and automation do not apply.
+  // Boss damage is fixed to the base cursor power so bonuses do not apply.
   return Math.max(1, stats.baseDamage);
 }
 
@@ -3250,21 +3145,11 @@ function updateStats() {
   });
   applyAreaUpgrades(stats);
   applySpawnUpgrades(stats);
-  applyAutomationBonuses();
   stats.nodeSpawnDelay = Math.max(0.05, stats.nodeSpawnDelay);
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
   applyCursorSize();
   persistStatsSnapshot();
-}
-
-function applyAutomationBonuses() {
-  automationNodes.forEach((skill) => {
-    if (state.automationSkills[skill.id] && typeof skill.effect === 'function') {
-      skill.effect(stats);
-    }
-  });
-  stats.autoInterval = Math.max(0.08, stats.autoInterval);
 }
 
 function updateResources() {
@@ -3279,7 +3164,7 @@ function updateResources() {
   updateLabUI();
   renderAreaUpgrades();
   renderSpawnUpgrades();
-  renderAutomationTree();
+  updateTabAvailability();
 }
 
 function gainXP(amount) {
@@ -3298,21 +3183,24 @@ function gainXP(amount) {
 
 function grantBits(amount) {
   state.bits += amount;
+  updateResources();
   queueSave(2000);
 }
 
 function grantCryptcoins(amount) {
   state.cryptcoins += amount;
+  updateResources();
   queueSave(2000);
 }
 
 function grantPrestige(amount) {
   state.prestige += amount;
+  updateResources();
   queueSave();
 }
 
 function updateCrypto(delta) {
-  if (state.crypto.deposit <= 0 || state.crypto.rate <= 0) return;
+  if (!state.cryptoUnlocked || state.crypto.deposit <= 0 || state.crypto.rate <= 0) return;
   state.crypto.timeRemaining = Math.max(0, state.crypto.timeRemaining - delta);
   const generated = state.crypto.rate * delta;
   state.cryptcoins += generated;
@@ -3336,5 +3224,4 @@ function totalNodesDestroyed() {
 
 window.addEventListener('resize', () => {
   activeNodes.forEach((node) => updateNodeElement(node));
-  drawAutomationConnectors();
 });
