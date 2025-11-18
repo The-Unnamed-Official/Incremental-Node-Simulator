@@ -3245,7 +3245,8 @@ function setupLevelSelector() {
 
 function refreshLevelOptions() {
   if (!UI.levelSelect) return;
-  const maxLevel = Math.max(1, state.highestCompletedLevel, state.currentLevel.index);
+  const unlockedLevel = Math.max(1, state.highestCompletedLevel + 1);
+  const maxLevel = Math.max(unlockedLevel, state.currentLevel.index);
   UI.levelSelect.innerHTML = '';
   for (let i = 1; i <= maxLevel; i += 1) {
     const option = document.createElement('option');
@@ -3260,7 +3261,7 @@ function refreshLevelOptions() {
 }
 
 function jumpToLevel(targetLevel) {
-  const maxLevel = Math.max(1, state.highestCompletedLevel, state.currentLevel.index);
+  const maxLevel = Math.max(Math.max(1, state.highestCompletedLevel + 1), state.currentLevel.index);
   const desired = Math.max(1, Math.min(Math.floor(targetLevel), maxLevel));
   setCurrentLevel(desired);
 }
@@ -4461,6 +4462,7 @@ function defeatBoss() {
   const summary = `Recovered ${Math.round(rewardBits).toLocaleString()} bits, ${xp.toFixed(0)} XP, ${prestige.toFixed(0)} prestige.`;
 
   const cleanup = () => {
+    state.highestCompletedLevel = Math.max(state.highestCompletedLevel, state.currentLevel.index);
     activeBoss = null;
     state.bits += rewardBits;
     gainXP(xp);
@@ -4471,6 +4473,7 @@ function defeatBoss() {
       defeatedBossEl.remove();
     }
     updateResources();
+    refreshLevelOptions();
     showLevelDialog(summary);
     queueSave();
   };
