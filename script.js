@@ -300,6 +300,7 @@ let bitTokenSweepScheduled = false;
 let bgmAudio;
 let audioUnlocked = false;
 let topBarObserver = null;
+let topBarStickyObserver = null;
 
 const SFX_DEFINITIONS = {
   pointerAtk: { src: 'files/pointer_atk.mp3', baseVolume: 0.65 },
@@ -356,6 +357,7 @@ function playPointerHitSFX() {
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
   setupLayoutMetrics();
+  setupStickyTopBarState();
   setupUpdateLogs();
   generateSkins();
   generateUpgrades();
@@ -1171,6 +1173,23 @@ function setupProgressDock() {
       });
     });
   });
+}
+
+function setupStickyTopBarState() {
+  if (!UI.topBar || typeof IntersectionObserver === 'undefined') {
+    return;
+  }
+  const sentinel = document.createElement('div');
+  sentinel.className = 'top-bar-sentinel';
+  UI.topBar.parentElement?.insertBefore(sentinel, UI.topBar);
+
+  topBarStickyObserver = new IntersectionObserver((entries) => {
+    const [entry] = entries;
+    const isStuck = entry && !entry.isIntersecting && entry.boundingClientRect.top < 0;
+    UI.topBar.classList.toggle('is-sticky', Boolean(isStuck));
+  });
+
+  topBarStickyObserver.observe(sentinel);
 }
 
 function updateTopBarOffset() {
