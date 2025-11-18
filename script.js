@@ -4,9 +4,23 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.493';
+const GAME_VERSION = 'v0.498';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.498',
+    title: 'Fill this in.',
+    description:
+      'Fill this in.',
+    changes: [
+      'Fill this in.',
+      'Fill this in.',
+      'Fill this in.',
+      'Fill this in.',
+      'Fill this in.',
+      'Fill this in.',
+    ],
+  },
   {
     version: 'v0.492',
     title: 'Signal clarity & steadier nodes',
