@@ -1132,8 +1132,34 @@ function attemptTabUnlock(tabId, sourceEl) {
 
 function setupTabs() {
   const buttons = document.querySelectorAll('.tab-button');
+  const buttonsSettings = document.querySelectorAll('.setting-button');
   const contents = document.querySelectorAll('.tab-content');
   buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      const rule = getTabRule(tabId);
+      if (rule && !isTabUnlocked(tabId)) {
+        const purchased = attemptTabUnlock(tabId, btn);
+        if (!purchased || !isTabUnlocked(tabId)) {
+          updateTabAvailability();
+          return;
+        }
+      }
+      buttons.forEach((b) => b.classList.remove('active'));
+      contents.forEach((c) => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+      if (tabId === 'area') {
+        renderAreaUpgrades();
+      } else if (tabId === 'collect') {
+        renderCollectUpgrades();
+      } else if (tabId === 'spawn') {
+        renderSpawnUpgrades();
+      }
+      updateTabAvailability();
+    });
+  });
+  buttonsSettings.forEach((btn) => {
     btn.addEventListener('click', () => {
       const tabId = btn.dataset.tab;
       const rule = getTabRule(tabId);
@@ -4488,7 +4514,7 @@ function updateStats() {
   Object.entries(state.upgrades).forEach(([id, level]) => {
     const upgrade = upgrades.find((u) => u.id === id);
     if (upgrade) {
-      upgrade.effect(stats, level);
+      upgrade.effect(stats, level, upgrade);
     }
   });
   applyAreaUpgrades(stats);

@@ -284,8 +284,8 @@ body.disable-scanlines #crt-overlay {
 }
 
 .top-bar-settings .gear-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 36px;
+  height: 36px;
 }
 
 .top-bar-settings:hover,
