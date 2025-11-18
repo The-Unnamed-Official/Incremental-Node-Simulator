@@ -4,7 +4,7 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.401';
+const GAME_VERSION = 'v0.485';
 
 function getLevelDuration(levelIndex = 1) {
   const safeIndex = Math.max(1, levelIndex);
