@@ -323,6 +323,28 @@ body.disable-scanlines #crt-overlay {
   color: var(--muted);
 }
 
+.level-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.level-select .label {
+  letter-spacing: 1px;
+}
+
+.level-select select {
+  background: repeating-linear-gradient(135deg, rgba(12, 18, 30, 0.9) 0 10px, rgba(18, 26, 38, 0.9) 10px 20px);
+  color: var(--text);
+  border: var(--pixel-border) solid rgba(127, 255, 214, 0.3);
+  padding: 8px 12px;
+  text-transform: uppercase;
+  min-width: 140px;
+  box-shadow: var(--pixel-shadow);
+}
+
 .node-area {
   position: sticky;
   top: var(--sticky-offset);
@@ -794,58 +816,95 @@ body.disable-scanlines #crt-overlay {
   border: var(--pixel-border) solid rgba(255, 109, 145, 0.8);
   background: repeating-linear-gradient(135deg, rgba(255, 142, 170, 0.35) 0 12px, rgba(52, 14, 28, 0.95) 12px 24px);
   box-shadow: var(--pixel-shadow);
-  display: grid;
-  place-items: center;
-  justify-items: center;
-  align-content: center;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
   transform-origin: center;
-  padding: 18px;
-  gap: 10px;
+  padding: 14px;
+  gap: 8px;
   image-rendering: pixelated;
   overflow: hidden;
 }
 
-.boss-node .boss-header {
+.boss-core {
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: grid;
-  gap: 6px;
+  place-items: center;
   justify-items: center;
+  gap: 12px;
 }
 
-.boss-node .boss-name {
-  font-size: 0.68rem;
-  letter-spacing: 1.4px;
+.boss-health-shell {
+  position: relative;
+  width: 80%;
+  height: 80%;
+  border: var(--pixel-border) solid rgba(255, 109, 145, 0.6);
+  background: repeating-linear-gradient(135deg, rgba(36, 8, 18, 0.9) 0 10px, rgba(52, 14, 26, 0.92) 10px 20px);
+  box-shadow: inset 0 0 18px rgba(255, 109, 145, 0.35);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.boss-health-fill {
+  position: absolute;
+  inset: 0;
+  --boss-hp: 1;
+  transform-origin: center bottom;
+  transform: scaleY(var(--boss-hp, 1));
+  background: linear-gradient(180deg, rgba(255, 182, 196, 0.9) 0%, rgba(255, 109, 145, 0.9) 100%);
+  transition: transform var(--transition-fast) linear, filter var(--transition-fast) linear;
+  filter: drop-shadow(0 0 12px rgba(255, 182, 196, 0.35));
+}
+
+.boss-health-overlay {
+  position: relative;
+  z-index: 1;
+  color: rgba(255, 225, 237, 0.92);
   text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 0.75rem;
   text-align: center;
-  color: rgba(255, 200, 224, 0.85);
+  display: grid;
+  gap: 4px;
 }
 
-.boss-node .boss-damage {
-  font-size: 0.7rem;
-  color: rgba(255, 225, 237, 0.88);
+.boss-health-overlay .value {
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.boss-damage-readout {
+  font-size: 0.75rem;
+  color: rgba(255, 225, 237, 0.9);
   display: flex;
-  justify-content: center;
   gap: 6px;
+  align-items: center;
+  justify-content: center;
 }
 
-.boss-node .boss-damage-value {
+.boss-damage-readout .boss-damage-value {
   color: var(--accent);
 }
 
-.boss-node .hp-bar {
-  width: 100%;
-  height: 12px;
-  background: repeating-linear-gradient(90deg, rgba(40, 6, 12, 0.92) 0 6px, rgba(58, 8, 18, 0.92) 6px 12px);
-  border: var(--pixel-border) solid rgba(255, 109, 145, 0.5);
-  overflow: hidden;
+.boss-damage-number {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -20%) scale(0.9);
+  color: var(--accent);
+  font-size: 0.9rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
-.boss-node .hp-fill {
-  height: 100%;
-  width: 100%;
-  background: linear-gradient(90deg, rgba(255, 109, 145, 0.45), rgba(255, 220, 237, 0.95));
-  transition: width var(--transition-fast) linear;
+.boss-damage-number.visible {
+  opacity: 1;
+  transform: translate(-50%, -42%) scale(1.05);
 }
 
 .controls {

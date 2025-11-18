@@ -169,6 +169,12 @@ const stats = {
   anomalySynergy: 0,
 };
 
+const BIT_REWARD_TABLE = {
+  red: { min: 5, max: 10 },
+  blue: { min: 15, max: 30 },
+  gold: { min: 50, max: 100 },
+};
+
 const TAB_UNLOCK_RULES = {
   area: { label: 'Damage Area', stateKey: 'areaUnlocked', minLevel: 10, cost: { currency: 'lp', amount: 5, label: '5 LP' } },
   collect: {
@@ -189,8 +195,7 @@ const nodeTypes = [
     name: 'Red Node',
     color: 'red',
     reward(level) {
-      const base = 5 + Math.max(0, level - 1) * 1.4;
-      return { bits: Math.round(base) };
+      return { bits: getLevelBitReward('red', level) };
     },
     hp(level) {
       return 24 + level * 4;
@@ -201,8 +206,7 @@ const nodeTypes = [
     name: 'Blue Node',
     color: 'blue',
     reward(level) {
-      const bits = 7 + Math.max(0, level - 1) * 2;
-      return { bits: Math.round(bits), xp: 4 + level };
+      return { bits: getLevelBitReward('blue', level), xp: 4 + level };
     },
     hp(level) {
       return 30 + level * 5;
@@ -213,8 +217,7 @@ const nodeTypes = [
     name: 'Gold Node',
     color: 'gold',
     reward(level) {
-      const bits = 15 + Math.max(0, level - 1) * 3.5;
-      return { bits: Math.round(bits), cryptcoins: 1 + level * 0.15 };
+      return { bits: getLevelBitReward('gold', level), cryptcoins: 1 + level * 0.15 };
     },
     hp(level) {
       return 120 + level * 22;
@@ -352,6 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCryptoControls();
   setupLabControls();
   setupLevelDialog();
+  setupLevelSelector();
   setupCursor();
   setupAudio();
   setupSkillCheck();
@@ -378,6 +382,7 @@ function cacheElements() {
   UI.particleLayer = document.getElementById('particle-layer');
   UI.bitLayer = document.getElementById('bit-layer');
   UI.currentLevel = document.getElementById('current-level');
+  UI.levelSelect = document.getElementById('level-select');
   UI.versionDisplay = document.getElementById('version-display');
   UI.topBar = document.querySelector('.top-bar');
   if (UI.versionDisplay) {
@@ -2708,6 +2713,37 @@ function hideLevelDialog() {
   UI.levelDialog.classList.add('hidden');
 }
 
+function setupLevelSelector() {
+  if (!UI.levelSelect) UI.levelSelect = document.getElementById('level-select');
+  if (!UI.levelSelect) return;
+  UI.levelSelect.addEventListener('change', () => {
+    const desired = Number(UI.levelSelect.value);
+    if (Number.isFinite(desired)) {
+      jumpToLevel(desired);
+    }
+  });
+  refreshLevelOptions();
+}
+
+function refreshLevelOptions() {
+  if (!UI.levelSelect) return;
+  const maxLevel = Math.max(1, state.level, state.currentLevel.index);
+  UI.levelSelect.innerHTML = '';
+  for (let i = 1; i <= maxLevel; i += 1) {
+    const option = document.createElement('option');
+    option.value = `${i}`;
+    option.textContent = `Level ${i}`;
+    UI.levelSelect.appendChild(option);
+  }
+  UI.levelSelect.value = `${state.currentLevel.index}`;
+}
+
+function jumpToLevel(targetLevel) {
+  const maxLevel = Math.max(1, state.level, state.currentLevel.index);
+  const desired = Math.max(1, Math.min(Math.floor(targetLevel), maxLevel));
+  setCurrentLevel(desired);
+}
+
 function setupCursor() {
   if (!UI.customCursor) return;
   const cursor = UI.customCursor;
@@ -2717,7 +2753,7 @@ function setupCursor() {
     cursorPosition.y = y;
     cursor.style.left = `${x}px`;
     cursor.style.top = `${y}px`;
-    updateCursorAreaState(isPointerInsideNodeArea(x, y));
+    updateCursorAreaState(isNodeAreaInteractive(x, y));
     requestBitTokenSweep();
   };
   updateCursorPosition(cursorPosition.x, cursorPosition.y);
@@ -3384,6 +3420,14 @@ function randomInRange(min, max) {
   return safeMin + Math.random() * (safeMax - safeMin);
 }
 
+function getLevelBitReward(typeId, levelIndex = 1) {
+  const baseRange = BIT_REWARD_TABLE[typeId] || BIT_REWARD_TABLE.red;
+  const levelMultiplier = Math.pow(3, Math.max(0, levelIndex - 1));
+  const min = baseRange.min * levelMultiplier;
+  const max = baseRange.max * levelMultiplier;
+  return Math.round(randomInRange(min, max));
+}
+
 function getBossDamageFromNodeType(typeId) {
   if (typeId === 'red') return Math.round(randomInRange(15, 20));
   if (typeId === 'blue') return Math.round(randomInRange(30, 40));
@@ -3659,28 +3703,46 @@ function updateLevel(delta) {
   }
 }
 
-function resetLevel(increase = true) {
-  hideLevelDialog();
-  activeNodes.forEach((node) => node.el.remove());
+function clearActiveEntities() {
+  activeNodes.forEach((node) => node.el?.remove());
   activeNodes.clear();
   if (activeBoss?.el) {
     activeBoss.el.remove();
   }
-  autoClickTimer = 0;
-  state.currentLevel.active = true;
-  state.currentLevel.bossActive = false;
-  state.currentLevel.bossDamageDealt = 0;
   activeBoss = null;
-  if (increase) {
-    state.currentLevel.index += 1;
-    state.level = Math.max(state.level, state.currentLevel.index);
-    gainXP(50 * state.currentLevel.index);
-    state.lp += 1;
+  state.currentLevel.bossActive = false;
+  state.currentLevel.bossHP = 0;
+  state.currentLevel.bossMaxHP = 0;
+  state.currentLevel.bossDamageDealt = 0;
+}
+
+function setCurrentLevel(levelIndex) {
+  const targetLevel = Math.max(1, Math.floor(levelIndex || 1));
+  hideLevelDialog();
+  clearActiveEntities();
+  autoClickTimer = 0;
+  state.currentLevel.index = targetLevel;
+  state.currentLevel.active = true;
+  state.currentLevel.timer = getLevelDuration(targetLevel);
+  UI.currentLevel.textContent = targetLevel;
+  refreshLevelOptions();
+  if (UI.levelSelect) {
+    UI.levelSelect.value = `${targetLevel}`;
   }
-  state.currentLevel.timer = getLevelDuration(state.currentLevel.index);
-  UI.currentLevel.textContent = state.currentLevel.index;
+  nodeSpawnTimer = 0;
   updateStats();
   updateResources();
+  queueSave(500);
+}
+
+function resetLevel(increase = true) {
+  const nextLevel = increase ? state.currentLevel.index + 1 : state.currentLevel.index;
+  if (increase) {
+    state.level = Math.max(state.level, nextLevel);
+    gainXP(50 * nextLevel);
+    state.lp += 1;
+  }
+  setCurrentLevel(nextLevel);
 }
 
 function spawnBoss(options = {}) {
@@ -3713,13 +3775,19 @@ function spawnBoss(options = {}) {
   }
   const boss = document.createElement('div');
   boss.className = 'boss-node';
-  const name = bossNames[(state.currentLevel.index - 1) % bossNames.length];
   boss.innerHTML = `
-    <div class="boss-header">
-      <div class="boss-name">${name}</div>
-      <div class="boss-damage">Damage dealt <span class="boss-damage-value">${Math.round(state.currentLevel.bossDamageDealt).toLocaleString()}</span></div>
+    <div class="boss-core">
+      <div class="boss-health-shell">
+        <div class="boss-health-fill"></div>
+        <div class="boss-health-overlay">
+          <span>Boss Core</span>
+          <span class="value">100%</span>
+        </div>
+      </div>
+      <div class="boss-damage-readout">Damage dealt <span class="boss-damage-value">${Math.round(
+        state.currentLevel.bossDamageDealt,
+      ).toLocaleString()}</span></div>
     </div>
-    <div class="hp-bar"><div class="hp-fill"></div></div>
   `;
   UI.nodeArea.appendChild(boss);
   activeBoss = {
@@ -3730,6 +3798,8 @@ function spawnBoss(options = {}) {
     rotationSpeed: (Math.random() - 0.5) * 18,
     size: 144,
     damageValueEl: boss.querySelector('.boss-damage-value'),
+    healthFillEl: boss.querySelector('.boss-health-fill'),
+    healthValueEl: boss.querySelector('.boss-health-overlay .value'),
   };
   configureBossPath(activeBoss, true);
   updateBossDamageCounter();
@@ -3762,13 +3832,24 @@ function applyBossDamage(amount, sourceEl = activeBoss?.el) {
   state.currentLevel.bossHP -= damage;
   state.currentLevel.bossDamageDealt = Math.max(0, (state.currentLevel.bossDamageDealt || 0) + damage);
   if (activeBoss?.el) {
-    createFloatText(sourceEl || activeBoss.el, `-${Math.round(damage)}`, 'var(--accent)');
+    createFloatText(activeBoss.el, `-${Math.round(damage)}`, 'var(--accent)');
+    showBossDamageNumber(damage);
   }
   updateBossDamageCounter();
   updateBossBar();
   if (state.currentLevel.bossHP <= 0) {
     defeatBoss();
   }
+}
+
+function showBossDamageNumber(damage) {
+  if (!activeBoss?.el) return;
+  const number = document.createElement('div');
+  number.className = 'boss-damage-number';
+  number.textContent = `-${Math.round(damage)}`;
+  activeBoss.el.appendChild(number);
+  requestAnimationFrame(() => number.classList.add('visible'));
+  setTimeout(() => number.remove(), 320);
 }
 
 function updateBoss(delta) {
@@ -3803,10 +3884,18 @@ function updateBossBar() {
   if (!UI.nodeArea) return;
   const bossEl = UI.nodeArea.querySelector('.boss-node');
   if (!bossEl) return;
-  const fill = bossEl.querySelector('.hp-fill');
-  const denominator = state.currentLevel.bossMaxHP || 1;
+  const fill = activeBoss?.healthFillEl || bossEl.querySelector('.boss-health-fill');
+  const value = activeBoss?.healthValueEl || bossEl.querySelector('.boss-health-overlay .value');
+  const denominator = Math.max(1, state.currentLevel.bossMaxHP || 1);
   const ratio = Math.max(0, state.currentLevel.bossHP) / denominator;
-  fill.style.width = `${ratio * 100}%`;
+  if (fill) {
+    const healthColor = ratio > 0.66 ? 'rgba(255, 182, 196, 0.9)' : ratio > 0.33 ? '#ffd166' : '#ff6ea8';
+    fill.style.setProperty('--boss-hp', ratio);
+    fill.style.background = `linear-gradient(180deg, ${healthColor} 0%, rgba(255, 109, 145, 0.9) 100%)`;
+  }
+  if (value) {
+    value.textContent = `${Math.round(ratio * 100)}%`;
+  }
   updateBossDamageCounter();
 }
 
