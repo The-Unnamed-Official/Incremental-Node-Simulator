@@ -1624,11 +1624,11 @@ function renderSkins() {
 
 function generateUpgrades() {
   const families = [
-    { key: 'damage', count: 400, baseName: 'Node Piercer', minLevel: 5, maxLevel: 20, baseCost: 50, scale: 1.35, perLevel: 0.06 },
-    { key: 'crit', count: 300, baseName: 'Critical Bloom', minLevel: 3, maxLevel: 12, baseCost: 120, scale: 1.4, perLevel: 0.02 },
-    { key: 'economyNode', category: 'economy', count: 350, baseName: 'Bit Condenser', minLevel: 4, maxLevel: 20, baseCost: 110, scale: 1.32, perLevel: 3 },
-    { key: 'economy', count: 300, baseName: 'Extraction Protocol', minLevel: 6, maxLevel: 24, baseCost: 90, scale: 1.35, perLevel: 0.05 },
-    { key: 'control', count: 20, baseName: 'Node Field', minLevel: 4, maxLevel: 18, baseCost: 140, scale: 1.38, perLevel: 0.04 },
+    { key: 'damage', count: 400, baseName: 'Node Piercer', minLevel: 5, maxLevel: 20, baseCost: 50, scale: 1.35 },
+    { key: 'crit', count: 300, baseName: 'Critical Bloom', minLevel: 3, maxLevel: 12, baseCost: 120, scale: 1.4 },
+    { key: 'economyNode', category: 'economy', count: 350, baseName: 'Bit Condenser', minLevel: 4, maxLevel: 20, baseCost: 110, scale: 1.32 },
+    { key: 'economy', count: 300, baseName: 'Extraction Protocol', minLevel: 6, maxLevel: 24, baseCost: 90, scale: 1.35 },
+    { key: 'control', count: 20, baseName: 'Node Field', minLevel: 4, maxLevel: 18, baseCost: 140, scale: 1.38 },
   ];
   const effects = {
     damage: (stats, level, data) => {
@@ -1643,9 +1643,10 @@ function generateUpgrades() {
     economy: (stats, level, data) => {
       stats.bitGain += data.perLevel * level;
     },
-    control: (stats, level) => {
-      stats.maxNodes += Math.floor(level / 2);
-      stats.nodeSpawnDelay = Math.max(0.3, stats.nodeSpawnDelay - level * 0.02);
+    control: (stats, level, data) => {
+      const scaledBonus = 1 + data.perLevel;
+      stats.maxNodes += Math.floor(level * scaledBonus);
+      stats.nodeSpawnDelay = Math.max(0.3, stats.nodeSpawnDelay - level * 0.02 * scaledBonus);
     },
   };
 
@@ -1658,7 +1659,7 @@ function generateUpgrades() {
       const tierIndex = Math.floor(i / 10);
       const withinTier = i % 10;
       const maxLevel = family.minLevel + (i % (family.maxLevel - family.minLevel + 1));
-      const perLevel = family.perLevel * (1 + (i % 3) * 0.25);
+      const perLevel = 0.09 * Math.pow(2.2, i);
       const costBase = family.baseCost * 2 ** tierIndex;
       const costScale = 1.5;
       const id = `${family.key.toUpperCase()}_${idCounter}`;
