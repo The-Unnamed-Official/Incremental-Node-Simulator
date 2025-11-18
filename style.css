@@ -13,7 +13,6 @@
   --crit: #ff3d88;
   --economy: #ffd166;
   --control: #cba3ff;
-  --anomaly: #ff477e;
   --border-radius: 0px;
   --pixel-border: 3px;
   --pixel-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
@@ -1316,10 +1315,6 @@ body.disable-scanlines #crt-overlay {
   --chip-glow: rgba(203, 163, 255, 0.55);
 }
 
-.filter[data-filter='anomaly'] {
-  --chip-glow: rgba(255, 71, 126, 0.6);
-}
-
 .filter-chip::after {
   content: '';
   position: absolute;
@@ -1516,9 +1511,6 @@ body.disable-scanlines #crt-overlay {
 
 .skill-node[data-category='control'] {
   border-color: rgba(203, 163, 255, 0.22);
-}
-.skill-node[data-category='anomaly'] {
-  border-color: rgba(255, 71, 126, 0.22);
 }
 
 .milestone-list,
