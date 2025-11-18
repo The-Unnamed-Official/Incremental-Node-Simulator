@@ -1978,8 +1978,9 @@ body.disable-scanlines #crt-overlay {
   background: repeating-linear-gradient(135deg, rgba(14, 18, 30, 0.96) 0 12px, rgba(18, 24, 36, 0.96) 12px 24px);
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.35);
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.55), var(--pixel-shadow);
-  width: min(960px, 92vw);
+  width: min(1360px, 112vw);
   max-height: min(80vh, 860px);
+  min-height: min(70vh, 680px);
   padding: 18px clamp(16px, 2vw, 24px);
   display: grid;
   gap: 12px;
