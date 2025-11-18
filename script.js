@@ -2162,10 +2162,17 @@ function buildCategorySequences() {
   return sequences;
 }
 
+function isCategoryVisible(category, activeFilter) {
+  if (activeFilter === 'control' && category === 'anomaly') {
+    return true;
+  }
+  return activeFilter === 'all' || category === activeFilter;
+}
+
 function getVisibleUpgradeSet(activeFilter, categorySequences) {
   const visible = new Set();
   categorySequences.forEach((list, category) => {
-    if (activeFilter !== 'all' && category !== activeFilter) {
+    if (!isCategoryVisible(category, activeFilter)) {
       return;
     }
     const firstPendingIndex = list.findIndex(({ upgrade }) => {
@@ -2193,7 +2200,7 @@ function renderUpgrades(filter) {
   const branchMap = new Map();
   const branchCounters = new Map();
   upgrades.forEach((upgrade) => {
-    if (activeFilter !== 'all' && upgrade.category !== activeFilter) {
+    if (!isCategoryVisible(upgrade.category, activeFilter)) {
       return;
     }
     if (!visibleUpgrades.has(upgrade.id)) {
