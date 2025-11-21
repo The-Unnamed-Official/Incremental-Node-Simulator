@@ -2351,6 +2351,28 @@ body.disable-scanlines #crt-overlay {
   }
 }
 
+body.skill-fail::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 64, 64, 0.24);
+  pointer-events: none;
+  z-index: 120;
+  animation: skill-fail-tint 0.5s ease;
+}
+
+@keyframes skill-fail-tint {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 #skill-check {
   position: fixed;
   inset: 0;
