@@ -4,9 +4,20 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.505';
+const GAME_VERSION = 'v0.555';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.555',
+    title: 'The Sound & Music Update',
+    description:
+      'A full audio overhaul doubles the soundtrack, layers in granular click, pickup, and death cues, and tightens the upgrade lanes.',
+    changes: [
+      'Expanded the background music rotation to six tracks and refreshed every core sound with new variations for clicks, pickups, level ups, and node deaths.',
+      'Rebuilt P-Magnet, N-Speed, and P-Speed tracks to lean on fewer, clearer upgrade nodes while rebalancing special node pacing and rewards.',
+      'Skill checks, node health, prestige drops, and UI labels picked up polish so the battlefield feels sharper and communicates requirements more clearly.',
+    ],
+  },
   {
     version: 'v0.505',
     title: 'Code split polish, custom soundtrack, and green surge',
@@ -128,7 +139,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 15 * Math.pow(5, Math.max(0, safeLevel - 1));
+      return 15 * Math.pow(100, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -140,7 +151,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 30 * Math.pow(5, Math.max(0, safeLevel - 1));
+      return 30 * Math.pow(100, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -154,11 +165,12 @@ const nodeTypes = [
         bits: getLevelBitReward('green', safeLevel),
         xp: 5 + safeLevel * 0.6,
         cryptcoins: 0.5 + safeLevel * 0.1,
+        prestige: 1,
       };
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 30 * Math.pow(5, Math.max(0, safeLevel - 1));
+      return 30 * Math.pow(100, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -170,7 +182,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 115 * Math.pow(5, Math.max(0, safeLevel - 1));
+      return 115 * Math.pow(100, Math.max(0, safeLevel - 1));
     },
   },
 ];

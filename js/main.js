@@ -945,8 +945,13 @@ function updateUpgradeTabAvailability() {
     btn.classList.toggle('purchasable', !unlocked && purchasable);
     const baseLabel = rule?.label || btn.dataset.label || btn.textContent;
     const requirement = !unlocked ? formatTabRequirement(rule) : '';
-    btn.textContent = requirement ? `${baseLabel} (${requirement})` : baseLabel;
+    btn.textContent = baseLabel;
     btn.setAttribute('aria-disabled', unlocked ? 'false' : 'true');
+    if (requirement) {
+      btn.title = `${baseLabel} — ${requirement}`;
+    } else {
+      btn.removeAttribute('title');
+    }
   });
 }
 
@@ -979,6 +984,10 @@ function setupUpgradeTabs() {
       if (rule && !isUpgradeSectionUnlocked(sectionId)) {
         const unlocked = attemptUpgradeSectionUnlock(sectionId, btn);
         if (!unlocked || !isUpgradeSectionUnlocked(sectionId)) {
+          const requirement = formatTabRequirement(rule);
+          if (requirement) {
+            createFloatText(btn, requirement, '#ff6ea8');
+          }
           updateUpgradeTabAvailability();
           return;
         }
@@ -1577,74 +1586,34 @@ function generateAreaUpgrades() {
 function generateSpawnUpgrades() {
   spawnUpgradeDefs = [
     {
-      id: 'tachyon-injector',
-      name: 'Tachyon Injector',
-      description: '-0.12s spawn delay per level',
-      maxLevel: 12,
-      costBase: 320,
-      costScale: 1.42,
+      id: 'replicant-forge',
+      name: 'Replicant Forge',
+      tierNames: ['Replicant Forge I', 'Replicant Forge II'],
+      description: '+2 max nodes & -0.35s spawn delay per level',
+      maxLevel: 2,
+      costBase: 3200,
+      costScale: 1.52,
       currency: 'bits',
-      delayReduction: 0.12,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.nodeSpawnDelay = Math.max(0.2, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
-      },
-    },
-    {
-      id: 'replication-forge',
-      name: 'Replication Forge',
-      description: '-0.08s spawn delay & +max nodes',
-      maxLevel: 9,
-      costBase: 1800,
-      costScale: 1.55,
-      currency: 'bits',
-      delayReduction: 0.08,
-      nodeBonusInterval: 2,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.nodeSpawnDelay = Math.max(0.2, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
-        statsObj.maxNodes += Math.floor(level / upgrade.nodeBonusInterval);
-      },
-    },
-    {
-      id: 'entropy-splicer',
-      name: 'Entropy Splicer',
-      description: '-0.15s spawn delay per level',
-      maxLevel: 6,
-      costBase: 20,
-      costScale: 1.7,
-      currency: 'prestige',
-      delayReduction: 0.15,
-      minDelay: 0.05,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
-      },
-    },
-    {
-      id: 'fractal-hatchery',
-      name: 'Fractal Hatchery',
-      description: '+2 max nodes & -0.25s spawn delay per level',
-      maxLevel: 10,
-      costBase: 8200,
-      costScale: 1.6,
-      currency: 'bits',
-      delayReduction: 0.25,
+      delayReduction: 0.35,
       nodeBonus: 2,
-      minDelay: 0.08,
+      minDelay: 0.24,
       effect: (statsObj, level, upgrade) => {
         statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
         statsObj.maxNodes += upgrade.nodeBonus * level;
       },
     },
     {
-      id: 'hypergrid-overclocker',
-      name: 'Hypergrid Overclocker',
-      description: '-0.45s spawn delay & +3 max nodes per level',
-      maxLevel: 6,
+      id: 'hypernode-overclock',
+      name: 'Hypernode Overclock',
+      tierNames: ['Hypernode Overclock I', 'Hypernode Overclock II'],
+      description: '+3 max nodes & -0.6s spawn delay per level',
+      maxLevel: 2,
       costBase: 20,
       costScale: 1.9,
       currency: 'prestige',
-      delayReduction: 0.45,
+      delayReduction: 0.6,
       nodeBonus: 3,
-      minDelay: 0.05,
+      minDelay: 0.06,
       effect: (statsObj, level, upgrade) => {
         statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
         statsObj.maxNodes += upgrade.nodeBonus * level;
@@ -1683,92 +1652,23 @@ function generateSpeedUpgrades() {
         statsObj.autoInterval = Math.max(upgrade.minInterval, statsObj.autoInterval - upgrade.intervalReduction * level);
       },
     },
-    {
-      id: 'tachyon-conductors',
-      name: 'Tachyon Conductors',
-      description: '-0.09s auto interval per level',
-      maxLevel: 5,
-      costBase: 20,
-      costScale: 1.52,
-      currency: 'prestige',
-      intervalReduction: 0.09,
-      minInterval: 0.08,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.autoInterval = Math.max(upgrade.minInterval, statsObj.autoInterval - upgrade.intervalReduction * level);
-      },
-    },
   ];
 }
 
 function generateCollectUpgrades() {
   collectUpgradeDefs = [
     {
-      id: 'magnetic-sheath',
-      name: 'Magnetic Sheath',
-      description: '+18px bit collection radius per level',
-      maxLevel: 10,
-      costBase: 180,
-      costScale: 1.36,
+      id: 'magnet-sheath',
+      name: 'Magnet Sheath',
+      tierNames: ['Magnet Sheath I', 'Magnet Sheath II', 'Magnet Sheath III'],
+      description: '+60px bit collection radius per level',
+      maxLevel: 3,
+      costBase: 720,
+      costScale: 1.68,
       currency: 'bits',
-      radiusPerLevel: 18,
+      radiusPerLevel: 60,
       effect: (statsObj, level, upgrade) => {
         statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
-      },
-    },
-    {
-      id: 'orbital-graviton',
-      name: 'Orbital Graviton',
-      description: '+30px bit collection radius per level',
-      maxLevel: 8,
-      costBase: 2400,
-      costScale: 1.48,
-      currency: 'bits',
-      radiusPerLevel: 30,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
-      },
-    },
-    {
-      id: 'phase-lens-array',
-      name: 'Phase Lens Array',
-      description: '+42px bit collection radius per level',
-      maxLevel: 6,
-      costBase: 20,
-      costScale: 1.62,
-      currency: 'prestige',
-      radiusPerLevel: 42,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
-      },
-    },
-    {
-      id: 'flux-harvester',
-      name: 'Flux Harvester',
-      description: '+16px collection radius & +8% bit gains per level',
-      maxLevel: 6,
-      costBase: 12600,
-      costScale: 1.44,
-      currency: 'bits',
-      radiusPerLevel: 16,
-      bitGainPerLevel: 0.08,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
-        statsObj.bitGain += upgrade.bitGainPerLevel * level;
-      },
-    },
-    {
-      id: 'quantum-rake',
-      name: 'Quantum Rake',
-      description: '+22px collection radius & +12% bit gains per level',
-      maxLevel: 4,
-      costBase: 20,
-      costScale: 1.56,
-      currency: 'prestige',
-      radiusPerLevel: 22,
-      bitGainPerLevel: 0.12,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.bitCollectRadius += upgrade.radiusPerLevel * level;
-        statsObj.bitGain += upgrade.bitGainPerLevel * level;
       },
     },
   ];
@@ -1924,6 +1824,7 @@ function renderCollectUpgrades() {
     const maxed = level >= upgrade.maxLevel;
     const cost = getCollectUpgradeCost(upgrade, level);
     const percent = Math.min(100, (level / upgrade.maxLevel) * 100);
+    const displayName = getUpgradeDisplayName(upgrade, level);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'area-upgrade';
@@ -1933,7 +1834,7 @@ function renderCollectUpgrades() {
       button.classList.add('maxed');
     }
     button.innerHTML = `
-      <div class="title">${upgrade.name}</div>
+      <div class="title">${displayName}</div>
       <div class="desc">${upgrade.description}</div>
       <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
       <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
@@ -1976,6 +1877,14 @@ function applyCollectUpgrades(statsObj) {
   });
 }
 
+function getUpgradeDisplayName(upgrade, level = 0) {
+  if (Array.isArray(upgrade?.tierNames) && upgrade.tierNames.length > 0) {
+    const index = Math.min(Math.max(0, level), upgrade.tierNames.length - 1);
+    return upgrade.tierNames[index];
+  }
+  return upgrade?.name || '';
+}
+
 function renderSpawnUpgrades() {
   if (!UI.spawnUpgradeGrid) return;
   UI.spawnUpgradeGrid.innerHTML = '';
@@ -1987,6 +1896,8 @@ function renderSpawnUpgrades() {
     const cost = getSpawnUpgradeCost(upgrade, level, version);
     const prestigeCost = getSpawnUpgradePrestigeCost(version);
     const percent = Math.min(100, (level / upgrade.maxLevel) * 100);
+    const displayName = getUpgradeDisplayName(upgrade, level);
+    const title = version > 1 ? `${displayName} ${romanNumeral(version)}` : displayName;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'area-upgrade';
@@ -1996,7 +1907,7 @@ function renderSpawnUpgrades() {
       button.classList.add('maxed');
     }
     button.innerHTML = `
-      <div class="title">${upgrade.name} ${romanNumeral(version)}</div>
+      <div class="title">${title}</div>
       <div class="desc">${upgrade.description}</div>
       <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
       <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
@@ -3546,9 +3457,28 @@ function setupCursor() {
     requestBitTokenSweep();
   };
   updateCursorPosition(cursorPosition.x, cursorPosition.y);
+  const syncTouchPosition = (event) => {
+    const touch = event.touches?.[0] || event.changedTouches?.[0];
+    if (!touch) return;
+    updateCursorPosition(touch.clientX, touch.clientY);
+  };
   document.addEventListener('pointermove', (event) => {
     updateCursorPosition(event.clientX, event.clientY);
   });
+  document.addEventListener('touchstart', syncTouchPosition, { passive: true });
+  document.addEventListener('touchmove', syncTouchPosition, { passive: true });
+  if (UI.nodeArea) {
+    const preventNodeAreaScroll = (event) => {
+      const touch = event.touches?.[0] || event.changedTouches?.[0];
+      if (!touch) return;
+      if (isPointerInsideNodeArea(touch.clientX, touch.clientY)) {
+        event.preventDefault();
+      }
+      syncTouchPosition(event);
+    };
+    UI.nodeArea.addEventListener('touchstart', preventNodeAreaScroll, { passive: false });
+    UI.nodeArea.addEventListener('touchmove', preventNodeAreaScroll, { passive: false });
+  }
   document.addEventListener('pointerdown', (event) => {
     const insideNodeArea = !!UI.nodeArea && (event.target === UI.nodeArea || UI.nodeArea.contains(event.target));
     if (insideNodeArea) {
@@ -3567,6 +3497,7 @@ function setupCursor() {
 
 function setupAudio() {
   loadSFX();
+  setupButtonClickAudio();
   bgmAudio = document.getElementById('bgm');
   if (!bgmAudio) {
     audioUnlocked = true;
@@ -3651,21 +3582,13 @@ const SKILL_CHECK_VARIANT_DETAILS = {
     title: 'Signal Pulse',
     description: 'Time the resolve pulse when the signal crosses the highlighted zone around {target}.',
   },
-  lock: {
-    title: 'Circuit Lock',
-    description: 'Rotate the tumbler until the lock window around {target} glows, then pop it open.',
-  },
-  orbit: {
-    title: 'Orbital Sync',
-    description: 'Catch the orbiting spark as it sweeps through the breach arc guarding {target}.',
-  },
   vertical: {
     title: 'Access Elevator',
     description: 'Ride the vertical stream so the carrier slips through the access window for {target}.',
   },
 };
 
-const SKILL_CHECK_VARIANTS = Object.keys(SKILL_CHECK_VARIANT_DETAILS);
+const SKILL_CHECK_VARIANTS = ['linear', 'vertical'];
 const SKILL_CHECK_CONFETTI_COLORS = ['#8fffe0', '#6ed6ff', '#ff82be', '#ffe566'];
 
 function getSkillCheckVariant() {
@@ -3697,6 +3620,11 @@ function setSkillCheckVariant(variant) {
       el.classList.toggle('active', el.dataset.skillVariant === variant);
     });
   }
+}
+
+function flashSkillCheckFailTint() {
+  document.body.classList.add('skill-fail');
+  setTimeout(() => document.body.classList.remove('skill-fail'), 500);
 }
 
 function updateSkillCheckTargets() {
@@ -3819,6 +3747,7 @@ function resolveSkillCheck(success) {
     }
     spawnSkillCheckConfetti();
   } else if (!success) {
+    flashSkillCheckFailTint();
     if (typeof skillCheckState.onFail === 'function') {
       skillCheckState.onFail();
     } else {
@@ -4297,8 +4226,8 @@ function spawnNode() {
 function weightedNodeType() {
   const roll = Math.random();
   if (roll >= 0.995) return nodeTypes.find((type) => type.id === 'gold') || nodeTypes[0];
-  if (roll >= 0.695) return nodeTypes.find((type) => type.id === 'blue') || nodeTypes[0];
-  if (roll >= 0.545) return nodeTypes.find((type) => type.id === 'green') || nodeTypes[0];
+  if (roll >= 0.74) return nodeTypes.find((type) => type.id === 'blue') || nodeTypes[0];
+  if (roll >= 0.68) return nodeTypes.find((type) => type.id === 'green') || nodeTypes[0];
   return nodeTypes.find((type) => type.id === 'red') || nodeTypes[0];
 }
 
@@ -4421,6 +4350,9 @@ function dropRewards(node) {
   }
   if (rewards.cryptcoins) {
     state.cryptcoins += rewards.cryptcoins;
+  }
+  if (rewards.prestige) {
+    state.prestige += rewards.prestige;
   }
   updateResources();
   queueSave(2000);
@@ -4813,7 +4745,7 @@ function showBossDamageNumber(damage) {
   number.textContent = `-${Math.round(damage)}`;
   activeBoss.el.appendChild(number);
   requestAnimationFrame(() => number.classList.add('visible'));
-  setTimeout(() => number.remove(), 320);
+  setTimeout(() => number.remove(), 2320);
 }
 
 function updateBoss(delta) {
@@ -4992,6 +4924,7 @@ function gainXP(amount) {
     state.xpForNext *= 1.2;
     state.maxHealth += 10;
     state.health = state.maxHealth;
+    playSFX('levelUp');
   }
   queueSave(2000);
 }
