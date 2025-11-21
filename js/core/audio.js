@@ -4,10 +4,7 @@ const SFX_DEFINITIONS = {
   pointerHitB: { src: 'files/pointer_hit2.mp3', baseVolume: 0.38 },
   nodeDie: { src: ['files/node_die.mp3', 'files/node_die2.mp3', 'files/node_die3.mp3'], baseVolume: 0.32 },
   bossDie: { src: 'files/boss_die.mp3', baseVolume: 0.3 },
-  bitsGain: {
-    src: ['files/bits_gain.mp3', 'files/bits_gain2.mp3', 'files/bits_gain3.mp3'],
-    baseVolume: 0.26,
-  },
+  bitsGain: { src: ['files/bits_gain.mp3', 'files/bits_gain2.mp3', 'files/bits_gain3.mp3'], baseVolume: 0.26, },
   mouseClickIn: { src: 'files/mouse_click_in.mp3', baseVolume: 0.34 },
   mouseClickOut: { src: 'files/mouse_click_out.mp3', baseVolume: 0.34 },
   levelUp: { src: 'files/level_up.mp3', baseVolume: 0.46 },
