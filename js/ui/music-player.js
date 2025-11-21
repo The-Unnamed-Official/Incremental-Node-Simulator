@@ -34,7 +34,7 @@
   const syncPlayIcon = (button) => {
     if (!button || typeof bgmAudio === 'undefined' || !bgmAudio) return;
     button.innerHTML = bgmAudio.paused
-      ? ''
+      ? '<i class="fa-solid fa-pause" style="color: #63E6BE;"></i>'
       : '<i class="fa-solid fa-play" style="color: #63E6BE;"></i>';
     button.classList.toggle('is-playing', !bgmAudio.paused);
   };

@@ -4,12 +4,12 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.550';
+const GAME_VERSION = 'v0.555';
 
 const UPDATE_LOGS = [
   {
-    version: 'v0.550',
-    title: 'Sound surge & streamlined matrices',
+    version: 'v0.555',
+    title: 'The Sound & Music Update',
     description:
       'A full audio overhaul doubles the soundtrack, layers in granular click, pickup, and death cues, and tightens the upgrade lanes.',
     changes: [

@@ -3205,14 +3205,6 @@ body.palette-emerald {
   gap: 6px;
 }
 
-.music-player .player-label {
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 0.7rem;
-  margin: 0;
-}
-
 .music-player .player-title {
   margin: 0;
   font-size: 1.05rem;
