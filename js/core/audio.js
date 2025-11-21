@@ -13,13 +13,77 @@ const SFX_DEFINITIONS = {
 const sfxLibrary = new Map();
 let sfxLoaded = false;
 let bgmAudio;
+function buildCoverGlyph(label, accent = '#63e6be', depth = '#111627') {
+  const safeLabel = label?.slice(0, 5) || 'BGM';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet">`
+    + `<defs>`
+    + `<linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">`
+    + `<stop offset="0%" stop-color="${accent}" stop-opacity="0.9"/>`
+    + `<stop offset="100%" stop-color="${depth}" stop-opacity="0.95"/>`
+    + `</linearGradient>`
+    + `</defs>`
+    + `<rect x="0" y="0" width="400" height="400" rx="32" ry="32" fill="url(#g)"/>`
+    + `<rect x="22" y="22" width="356" height="356" fill="none" stroke="${accent}" stroke-width="10"/>`
+    + `<text x="50%" y="55%" font-family="'Press Start 2P', 'Share Tech Mono', monospace" font-size="54" fill="#e8fff7" text-anchor="middle" letter-spacing="3">${safeLabel}</text>`
+    + `</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 const baseBgmTracks = [
-  'files/bg_music.mp3',
-  'files/bg_music2.mp3',
-  'files/bg_music3.mp3',
-  'files/bg_music4.mp3',
-  'files/bg_music5.mp3',
-  'files/bg_music6.mp3',
+  {
+    src: 'files/bg_music.mp3',
+    title: 'Neon Kernel Bloom',
+    artist: 'Pulse Driver',
+    accent: '#63e6be',
+    accent2: '#111627',
+    shortCode: 'NK',
+    cover: buildCoverGlyph('NK', '#63e6be', '#111627'),
+  },
+  {
+    src: 'files/bg_music2.mp3',
+    title: 'Carbon Cascade',
+    artist: 'Bitstream Ghost',
+    accent: '#7ef6ff',
+    accent2: '#0c1326',
+    shortCode: 'CC',
+    cover: buildCoverGlyph('CC', '#7ef6ff', '#0c1326'),
+  },
+  {
+    src: 'files/bg_music3.mp3',
+    title: 'Runtime Bloom',
+    artist: 'Arc Neon',
+    accent: '#ffb8e8',
+    accent2: '#1d1029',
+    shortCode: 'RB',
+    cover: buildCoverGlyph('RB', '#ffb8e8', '#1d1029'),
+  },
+  {
+    src: 'files/bg_music4.mp3',
+    title: 'Quantum Slip',
+    artist: 'Cobalt Pilot',
+    accent: '#8df6a2',
+    accent2: '#0e1d17',
+    shortCode: 'QS',
+    cover: buildCoverGlyph('QS', '#8df6a2', '#0e1d17'),
+  },
+  {
+    src: 'files/bg_music5.mp3',
+    title: 'Orbit Bloom',
+    artist: 'Byte Aviator',
+    accent: '#ffd166',
+    accent2: '#201107',
+    shortCode: 'OB',
+    cover: buildCoverGlyph('OB', '#ffd166', '#201107'),
+  },
+  {
+    src: 'files/bg_music6.mp3',
+    title: 'Vector Shift',
+    artist: 'Lumen Patch',
+    accent: '#8ad7ff',
+    accent2: '#0f172a',
+    shortCode: 'VS',
+    cover: buildCoverGlyph('VS', '#8ad7ff', '#0f172a'),
+  },
 ];
 let bgmTracks = [];
 let bgmTrackIndex = 0;
@@ -78,14 +142,32 @@ function playSFX(key) {
 function applyBGMSource() {
   if (!bgmAudio || !bgmTracks.length) return;
   bgmAudio.loop = false;
-  const track = bgmTracks[bgmTrackIndex % bgmTracks.length];
-  bgmAudio.src = track;
+  const track = getCurrentBGMTrack();
+  if (!track?.src) return;
+  bgmAudio.src = track.src;
   bgmAudio.load?.();
+  document.dispatchEvent(
+    new CustomEvent('bgm-track-change', {
+      detail: { track, index: bgmTrackIndex % bgmTracks.length, total: bgmTracks.length },
+    }),
+  );
 }
 
 function advanceBGMTrack(playOnAdvance = true) {
   if (!bgmAudio || !bgmTracks.length) return;
   bgmTrackIndex = (bgmTrackIndex + 1) % bgmTracks.length;
+  applyBGMSource();
+  if (playOnAdvance && audioUnlocked) {
+    const playPromise = bgmAudio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {});
+    }
+  }
+}
+
+function rewindBGMTrack(playOnAdvance = true) {
+  if (!bgmAudio || !bgmTracks.length) return;
+  bgmTrackIndex = (bgmTrackIndex - 1 + bgmTracks.length) % bgmTracks.length;
   applyBGMSource();
   if (playOnAdvance && audioUnlocked) {
     const playPromise = bgmAudio.play();
@@ -109,6 +191,15 @@ function initBGMPlaylist() {
   }
   bgmEndHandler = () => advanceBGMTrack(true);
   bgmAudio.addEventListener('ended', bgmEndHandler);
+}
+
+function getCurrentBGMTrack() {
+  if (!bgmTracks.length) return null;
+  const track = bgmTracks[bgmTrackIndex % bgmTracks.length];
+  if (typeof track === 'string') {
+    return { src: track };
+  }
+  return track;
 }
 
 function playPointerHitSFX() {
