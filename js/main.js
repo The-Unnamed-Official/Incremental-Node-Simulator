@@ -3546,9 +3546,28 @@ function setupCursor() {
     requestBitTokenSweep();
   };
   updateCursorPosition(cursorPosition.x, cursorPosition.y);
+  const syncTouchPosition = (event) => {
+    const touch = event.touches?.[0] || event.changedTouches?.[0];
+    if (!touch) return;
+    updateCursorPosition(touch.clientX, touch.clientY);
+  };
   document.addEventListener('pointermove', (event) => {
     updateCursorPosition(event.clientX, event.clientY);
   });
+  document.addEventListener('touchstart', syncTouchPosition, { passive: true });
+  document.addEventListener('touchmove', syncTouchPosition, { passive: true });
+  if (UI.nodeArea) {
+    const preventNodeAreaScroll = (event) => {
+      const touch = event.touches?.[0] || event.changedTouches?.[0];
+      if (!touch) return;
+      if (isPointerInsideNodeArea(touch.clientX, touch.clientY)) {
+        event.preventDefault();
+      }
+      syncTouchPosition(event);
+    };
+    UI.nodeArea.addEventListener('touchstart', preventNodeAreaScroll, { passive: false });
+    UI.nodeArea.addEventListener('touchmove', preventNodeAreaScroll, { passive: false });
+  }
   document.addEventListener('pointerdown', (event) => {
     const insideNodeArea = !!UI.nodeArea && (event.target === UI.nodeArea || UI.nodeArea.contains(event.target));
     if (insideNodeArea) {

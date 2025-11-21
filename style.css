@@ -595,6 +595,7 @@ body.disable-scanlines #crt-overlay {
   image-rendering: pixelated;
   z-index: 3;
   padding: 8px;
+  touch-action: none;
 }
 
 #particle-layer,
