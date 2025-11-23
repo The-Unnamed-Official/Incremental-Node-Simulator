@@ -4,11 +4,11 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.559';
+const GAME_VERSION = 'v0.560';
 
 const UPDATE_LOGS = [
   {
-    version: 'v0.559',
+    version: 'v0.560',
     title: 'Tab Icons & important save bug-fix!',
     description:
       'Icons styled up to look as precious as the game itself and saving should now have absolutely no problems, so you can finally get back to your precious grind!!',
