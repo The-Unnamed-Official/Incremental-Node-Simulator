@@ -3100,8 +3100,8 @@ body.palette-emerald {
 }
 
 .music-player.collapsed {
-  transform: translateX(calc(100% - 64px));
-  opacity: 0.82;
+  transform: translateX(calc(100% - -24px));
+  opacity: 0.12;
 }
 
 .music-player::before {
@@ -3123,8 +3123,8 @@ body.palette-emerald {
 
 .music-player .player-toggle {
   position: absolute;
-  top: -18px;
-  left: -18px;
+  top: 0px;
+  left: -55px;
   width: 48px;
   height: 48px;
   border: var(--pixel-border) solid rgba(99, 230, 190, 0.75);

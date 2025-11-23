@@ -637,24 +637,70 @@ function saveGame(options = {}) {
   const { notify = false, message } = options;
   const previous = state.lastSavedAt;
   try {
-    if (typeof localStorage === 'undefined') {
-      return;
-    }
-    const now = Date.now();
-    state.lastSavedAt = now;
     const payload = JSON.stringify(state, stateReplacer);
     localStorage.setItem(SAVE_KEY, payload);
+    state.lastSavedAt = Date.now();
     updateSaveTimestamp();
-    if (notify) {
-      showSaveStatus(message || 'Progress saved');
-    }
+    if (notify) showSaveStatus(message || 'Game saved', 'info');
+    return true;
   } catch (error) {
-    state.lastSavedAt = previous;
-    updateSaveTimestamp();
-    console.warn('Failed to save game', error);
-    if (notify) {
-      showSaveStatus('Save failed', 'error');
+    console.error('Failed to save game', error);
+    // Handle quota / storage full errors with graceful fallbacks
+    const isQuota = error && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error.code === 22);
+    if (isQuota) {
+      // 1) Try a compact snapshot (drop large optional logs / snapshots)
+      try {
+        const compact = {
+          bits: state.bits,
+          cryptcoins: state.cryptcoins,
+          prestige: state.prestige,
+          xp: state.xp,
+          level: state.level,
+          highestCompletedLevel: state.highestCompletedLevel,
+          upgrades: state.upgrades,
+          areaUpgrades: state.areaUpgrades,
+          spawnUpgrades: state.spawnUpgrades,
+          speedUpgrades: state.speedUpgrades,
+          collectUpgrades: state.collectUpgrades,
+          currentLevel: state.currentLevel,
+          settings: state.settings,
+          skins: {
+            active: state.skins.active,
+            owned: Array.from(state.skins.owned || []).slice(0, 32),
+          },
+          lastSavedAt: Date.now(),
+        };
+        localStorage.setItem(SAVE_KEY, JSON.stringify(compact));
+        state.lastSavedAt = Date.now();
+        updateSaveTimestamp();
+        showSaveStatus('Saved compact snapshot (storage near capacity)', 'info');
+        return true;
+      } catch (err2) {
+        console.warn('Compact save failed, attempting to clear old save and retry', err2);
+        // 2) Try removing existing save and write a very small emergency snapshot
+        try {
+          localStorage.removeItem(SAVE_KEY);
+          const emergency = {
+            bits: state.bits,
+            level: state.level,
+            upgrades: state.upgrades,
+            lastSavedAt: Date.now(),
+          };
+          localStorage.setItem(SAVE_KEY, JSON.stringify(emergency));
+          state.lastSavedAt = Date.now();
+          updateSaveTimestamp();
+          showSaveStatus('Saved reduced emergency snapshot after clearing storage', 'info');
+          return true;
+        } catch (err3) {
+          console.error('Emergency save also failed', err3);
+          showSaveStatus('Failed to save — local storage full', 'error');
+          return false;
+        }
+      }
     }
+    // Non-quota errors
+    showSaveStatus('Failed to save game', 'error');
+    return false;
   }
 }
 
@@ -2756,17 +2802,17 @@ function describeMilestone(milestone) {
 
 const NUMBER_SUFFIXES = [
   '',
-  'Thousand',
-  'Million',
-  'Billion',
-  'Trillion',
-  'Quadrillion',
-  'Quintillion',
-  'Sextillion',
-  'Septillion',
-  'Octillion',
-  'Nonillion',
-  'Decillion',
+  'K',
+  'Mil',
+  'Bil',
+  'Tri',
+  'Qua',
+  'Qui',
+  'Sex',
+  'Sep',
+  'Oct',
+  'Non',
+  'Dec',
 ];
 
 function formatNumberShort(value) {
