@@ -2756,17 +2756,17 @@ function describeMilestone(milestone) {
 
 const NUMBER_SUFFIXES = [
   '',
-  'Thousand',
-  'Million',
-  'Billion',
-  'Trillion',
-  'Quadrillion',
-  'Quintillion',
-  'Sextillion',
-  'Septillion',
-  'Octillion',
-  'Nonillion',
-  'Decillion',
+  'K',
+  'Mil',
+  'Bil',
+  'Tri',
+  'Qua',
+  'Qui',
+  'Sex',
+  'Sep',
+  'Oct',
+  'Non',
+  'Dec',
 ];
 
 function formatNumberShort(value) {

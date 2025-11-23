@@ -4,9 +4,18 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.555';
+const GAME_VERSION = 'v0.559';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.559',
+    title: 'Tab Icons!',
+    description:
+      'Icons styled up to look as precious as the game itself!',
+    changes: [
+      'Added favicons for the chrome tab to spice up the look of the game + it looks more proffesional :3',
+    ],
+  },
   {
     version: 'v0.555',
     title: 'The Sound & Music Update',
