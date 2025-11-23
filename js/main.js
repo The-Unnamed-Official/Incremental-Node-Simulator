@@ -635,7 +635,6 @@ function sanitizeStatsSnapshot(snapshot) {
 
 function saveGame(options = {}) {
   const { notify = false, message } = options;
-  const previous = state.lastSavedAt;
   try {
     const payload = JSON.stringify(state, stateReplacer);
     localStorage.setItem(SAVE_KEY, payload);
@@ -645,62 +644,109 @@ function saveGame(options = {}) {
     return true;
   } catch (error) {
     console.error('Failed to save game', error);
-    // Handle quota / storage full errors with graceful fallbacks
-    const isQuota = error && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error.code === 22);
-    if (isQuota) {
-      // 1) Try a compact snapshot (drop large optional logs / snapshots)
+    const isQuota =
+      error &&
+      (error.name === 'QuotaExceededError' ||
+        error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+        error.code === 22);
+    if (!isQuota) {
+      showSaveStatus('Failed to save game', 'error');
+      return false;
+    }
+
+    // Build a compact snapshot that drops large/optional data
+    const compact = {
+      bits: state.bits,
+      cryptcoins: state.cryptcoins,
+      prestige: state.prestige,
+      xp: state.xp,
+      level: state.level,
+      highestCompletedLevel: state.highestCompletedLevel,
+      lp: state.lp,
+      upgrades: state.upgrades,
+      areaUpgrades: state.areaUpgrades,
+      spawnUpgrades: state.spawnUpgrades,
+      speedUpgrades: state.speedUpgrades,
+      collectUpgrades: state.collectUpgrades,
+      currentLevel: {
+        index: state.currentLevel.index,
+        timer: state.currentLevel.timer,
+        active: state.currentLevel.active,
+        bossActive: state.currentLevel.bossActive,
+      },
+      settings: state.settings,
+      skins: {
+        active: state.skins?.active,
+        // truncate owned list to limit size
+        owned: Array.from(state.skins?.owned || []).slice(0, 32),
+      },
+      lastSavedAt: Date.now(),
+    };
+
+    // Try a compact write to localStorage
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(compact));
+      state.lastSavedAt = Date.now();
+      updateSaveTimestamp();
+      showSaveStatus('Saved compact snapshot (local storage near capacity)', 'info');
+      return true;
+    } catch (compactErr) {
+      console.warn('Compact save failed, attempting pruning and fallbacks', compactErr);
+
+      // Attempt to prune obviously large keys from localStorage (non-critical)
       try {
-        const compact = {
-          bits: state.bits,
-          cryptcoins: state.cryptcoins,
-          prestige: state.prestige,
-          xp: state.xp,
-          level: state.level,
-          highestCompletedLevel: state.highestCompletedLevel,
-          upgrades: state.upgrades,
-          areaUpgrades: state.areaUpgrades,
-          spawnUpgrades: state.spawnUpgrades,
-          speedUpgrades: state.speedUpgrades,
-          collectUpgrades: state.collectUpgrades,
-          currentLevel: state.currentLevel,
-          settings: state.settings,
-          skins: {
-            active: state.skins.active,
-            owned: Array.from(state.skins.owned || []).slice(0, 32),
-          },
-          lastSavedAt: Date.now(),
-        };
+        const keysToPrune = [];
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const key = localStorage.key(i);
+          if (!key || key === SAVE_KEY) continue;
+          try {
+            const val = localStorage.getItem(key) || '';
+            if (val.length > 20000) keysToPrune.push(key);
+          } catch (e) {
+            // ignore read errors
+          }
+        }
+        keysToPrune.forEach((k) => localStorage.removeItem(k));
+        // Retry compact save after pruning
         localStorage.setItem(SAVE_KEY, JSON.stringify(compact));
         state.lastSavedAt = Date.now();
         updateSaveTimestamp();
-        showSaveStatus('Saved compact snapshot (storage near capacity)', 'info');
+        showSaveStatus('Saved compact snapshot after pruning storage', 'info');
         return true;
-      } catch (err2) {
-        console.warn('Compact save failed, attempting to clear old save and retry', err2);
-        // 2) Try removing existing save and write a very small emergency snapshot
+      } catch (pruneErr) {
+        console.warn('Prune + localStorage retry failed, trying sessionStorage', pruneErr);
+
+        // Try sessionStorage as a transient fallback
         try {
-          localStorage.removeItem(SAVE_KEY);
-          const emergency = {
-            bits: state.bits,
-            level: state.level,
-            upgrades: state.upgrades,
-            lastSavedAt: Date.now(),
-          };
-          localStorage.setItem(SAVE_KEY, JSON.stringify(emergency));
+          sessionStorage.setItem(SAVE_KEY, JSON.stringify(compact));
           state.lastSavedAt = Date.now();
           updateSaveTimestamp();
-          showSaveStatus('Saved reduced emergency snapshot after clearing storage', 'info');
+          showSaveStatus('Saved to session storage (persistent save failed)', 'info');
           return true;
-        } catch (err3) {
-          console.error('Emergency save also failed', err3);
-          showSaveStatus('Failed to save — local storage full', 'error');
-          return false;
+        } catch (sessionErr) {
+          console.warn('sessionStorage fallback failed, offering download', sessionErr);
+
+          // Final fallback: trigger download of compact snapshot so the user can restore later
+          try {
+            const blob = new Blob([JSON.stringify(compact)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ins-save-${GAME_VERSION}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            showSaveStatus('Storage full — a local backup was downloaded.', 'info');
+            return true;
+          } catch (downloadErr) {
+            console.error('All save fallbacks failed', downloadErr);
+            showSaveStatus('Failed to save — storage full and fallbacks failed', 'error');
+            return false;
+          }
         }
       }
     }
-    // Non-quota errors
-    showSaveStatus('Failed to save game', 'error');
-    return false;
   }
 }
 

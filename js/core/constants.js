@@ -15,6 +15,7 @@ const UPDATE_LOGS = [
     changes: [
       'Added favicons for the chrome tab to spice up the look of the game + it looks more proffesional :3',
       'A save game bug where saves were failing with QuotaExceededError because the full serialized state could exceed localStorage capacity (large logs/sets/snapshots kept being serialized)',
+      'Fixed a save error (QuotaExceededError) by adding robust fallbacks: compact snapshots, pruning of large localStorage entries, sessionStorage fallback, and a downloadable emergency backup if persistent storage is exhausted.',
     ],
   },
   {
