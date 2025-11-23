@@ -160,6 +160,31 @@ function cacheElements() {
   UI.updateLogTabs = document.getElementById('update-log-tabs');
   UI.updateLogBody = document.getElementById('update-log-body');
   UI.updateLogClose = document.getElementById('update-log-close');
+  UI.title = document.querySelector('.title');
+  if (UI.title) {
+    let icon = document.getElementById('game-icon');
+    if (!icon) {
+      icon = document.createElement('img');
+      icon.id = 'game-icon';
+      icon.className = 'game-icon';
+      icon.src = 'files/icons/game_icon.png';
+      icon.alt = 'Game Icon';
+      UI.title.appendChild(icon);
+
+      icon.addEventListener('click', (ev) => {
+        icon.classList.remove('hurt');
+        void icon.offsetWidth;
+        icon.classList.add('hurt');
+        if (typeof playPointerHitSFX === 'function') {
+          playPointerHitSFX();
+        } else if (typeof playSFX === 'function') {
+          const key = Math.random() < 0.5 ? 'pointerHitA' : 'pointerHitB';
+          playSFX(key);
+        }
+      });
+      icon.addEventListener('animationend', () => icon.classList.remove('hurt'));
+    }
+  }
 }
 
 function closeOtherDropdowns(activeWrapper) {
