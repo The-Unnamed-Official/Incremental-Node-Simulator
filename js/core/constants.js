@@ -4,11 +4,11 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.560';
+const GAME_VERSION = 'v0.561';
 
 const UPDATE_LOGS = [
   {
-    version: 'v0.560',
+    version: 'v0.561',
     title: 'New name, tab Icons & important save bug-fix!',
     description:
       'The game now has a completely new name and icons styled up to look as precious as the game itself and saving should now have absolutely no problems, so you can finally get back to your precious grind!!',
