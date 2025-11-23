@@ -4,17 +4,18 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.559';
+const GAME_VERSION = 'v0.560';
 
 const UPDATE_LOGS = [
   {
-    version: 'v0.559',
+    version: 'v0.560',
     title: 'Tab Icons & important save bug-fix!',
     description:
       'Icons styled up to look as precious as the game itself and saving should now have absolutely no problems, so you can finally get back to your precious grind!!',
     changes: [
       'Added favicons for the chrome tab to spice up the look of the game + it looks more proffesional :3',
       'A save game bug where saves were failing with QuotaExceededError because the full serialized state could exceed localStorage capacity (large logs/sets/snapshots kept being serialized)',
+      'Fixed a save error (QuotaExceededError) by adding robust fallbacks: compact snapshots, pruning of large localStorage entries, sessionStorage fallback, and a downloadable emergency backup if persistent storage is exhausted.',
     ],
   },
   {
