@@ -12,7 +12,7 @@
 
   const applyTrackVisuals = (track, coverEl, shell) => {
     if (!track || !coverEl || !shell) return;
-    const accent = track.accent || '#63e6be';
+    const accent = track.accent || 'var(--accent)';
     const accent2 = track.accent2 || '#0b1020';
     coverEl.style.setProperty('--cover-accent', accent);
     coverEl.style.setProperty('--cover-accent-secondary', accent2);
@@ -34,8 +34,8 @@
   const syncPlayIcon = (button) => {
     if (!button || typeof bgmAudio === 'undefined' || !bgmAudio) return;
     button.innerHTML = bgmAudio.paused
-      ? '<i class="fa-solid fa-play" style="color: #63E6BE;"></i>'
-      : '<i class="fa-solid fa-pause" style="color: #63E6BE;"></i>';
+      ? '<i class="fa-solid fa-play" style="color: var(--accent);"></i>'
+      : '<i class="fa-solid fa-pause" style="color: var(--accent);"></i>';
     button.classList.toggle('is-playing', !bgmAudio.paused);
   };
 
@@ -142,8 +142,8 @@
       if (!toggle) return;
       const collapsed = shell.classList.contains('collapsed');
       toggle.innerHTML = collapsed
-        ? '<i class="fa-solid fa-arrow-right-from-bracket fa-flip-horizontal" style="color: #63E6BE;"></i>'
-        : '<i class="fa-solid fa-arrow-right-to-bracket" style="color: #63E6BE;"></i>';
+        ? '<i class="fa-solid fa-arrow-right-from-bracket fa-flip-horizontal" style="color: var(--accent);"></i>'
+        : '<i class="fa-solid fa-arrow-right-to-bracket" style="color: var(--accent);"></i>';
     };
 
     const updateTrackDetails = () => {
