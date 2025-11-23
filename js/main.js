@@ -828,31 +828,6 @@ function updateSaveTimestamp() {
 }
 
 function startNewGame() {
-  hydrateState(getDefaultState());
-  activeNodes.forEach((node) => node.el.remove());
-  activeNodes.clear();
-  if (activeBoss?.el) {
-    activeBoss.el.remove();
-  }
-  activeBoss = null;
-  nodeSpawnTimer = 0;
-  autoClickTimer = 0;
-  state.currentLevel.timer = getLevelDuration(state.currentLevel.index);
-  state.currentLevel.active = true;
-  state.currentLevel.bossActive = false;
-  state.health = state.maxHealth;
-  hideLevelDialog();
-  applySavedUpgradeFilter();
-  renderSkins();
-  renderMilestones();
-  renderAchievements();
-  renderAreaUpgrades();
-  syncLabVisibility();
-  applySettingsToControls();
-  applyDisplaySettings();
-  updateBGMVolume();
-  updateStats();
-  updateResources();
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(SAVE_KEY);
@@ -860,7 +835,37 @@ function startNewGame() {
   } catch (error) {
     console.warn('Failed to clear save data', error);
   }
-  saveGame({ notify: true, message: 'Progress reset' });
+  saveGame({ notify: true, message: 'Progress reset... Please wait' });
+
+  setTimeout(() => {
+    hydrateState(getDefaultState());
+    activeNodes.forEach((node) => node.el.remove());
+    activeNodes.clear();
+    if (activeBoss?.el) {
+      activeBoss.el.remove();
+    }
+    activeBoss = null;
+    nodeSpawnTimer = 0;
+    autoClickTimer = 0;
+    state.currentLevel.timer = getLevelDuration(state.currentLevel.index);
+    state.currentLevel.active = true;
+    state.currentLevel.bossActive = false;
+    state.health = state.maxHealth;
+    hideLevelDialog();
+    applySavedUpgradeFilter();
+    renderSkins();
+    renderMilestones();
+    renderAchievements();
+    renderAreaUpgrades();
+    syncLabVisibility();
+    applySettingsToControls();
+    applyDisplaySettings();
+    updateBGMVolume();
+    updateStats();
+    updateResources();
+    localStorage.clear();
+    location.reload();
+  }, 2000);
 }
 
 function syncLabVisibility() {
@@ -1444,7 +1449,7 @@ function applyDisplaySettings() {
   document.body.classList.toggle('disable-crt', !state.settings.crt);
   document.body.classList.toggle('disable-scanlines', !state.settings.scanlines);
   document.body.classList.toggle('reduced-motion', state.settings.reducedAnimation);
-  document.body.classList.remove('palette-violet', 'palette-emerald');
+  document.body.classList.remove('palette-violet', 'palette-diamond', 'palette-gold', 'palette-emerald', 'palette-pinky', 'palette-saphire');
   if (state.settings.palette && state.settings.palette !== 'default') {
     document.body.classList.add(`palette-${state.settings.palette}`);
   }
@@ -3117,6 +3122,14 @@ function generateAchievements() {
       label: 'Palette Switcher',
       description: 'Swap your palette three times.',
       goal: 3,
+      difficulty: 'trivial',
+      stat: () => state.paletteChangeCount || 0,
+    }),
+    createAchievement({
+      id: 'palette-swaps',
+      label: 'Palette Veteran',
+      description: 'Swap your palette ten times.',
+      goal: 10,
       difficulty: 'trivial',
       stat: () => state.paletteChangeCount || 0,
     }),

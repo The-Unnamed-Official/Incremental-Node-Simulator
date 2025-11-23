@@ -234,9 +234,17 @@
               <span>Screen shake</span>
               <input type="range" id="screen-shake" min="0" max="100" value="50" />
             </label>
+            <label class="setting">
+              <span>SFX volume</span>
+              <input type="range" id="sfx-volume" min="0" max="100" value="70" />
+            </label>
             <label class="setting setting-toggle">
               <span>CRT effect</span>
               <input type="checkbox" id="crt-toggle" class="switch-input" checked />
+            </label>
+            <label class="setting setting-toggle">
+              <span>Reduce animation</span>
+              <input type="checkbox" id="reduce-animation" class="switch-input" />
             </label>
             <label class="setting">
               <span>Palette</span>
@@ -244,25 +252,13 @@
                 <select id="palette-select" class="native-select">
                   <option value="default">default</option>
                   <option value="violet">violet</option>
+                  <option value="gold">gold</option>
+                  <option value="diamond">diamond</option>
                   <option value="emerald">emerald</option>
+                  <option value="pinky">pinky</option>
+                  <option value="saphire">saphire</option>
                 </select>
               </div>
-            </label>
-            <label class="setting">
-              <span>BGM volume</span>
-              <input type="range" id="bgm-volume" min="0" max="100" value="50" />
-            </label>
-            <label class="setting">
-              <span>SFX volume</span>
-              <input type="range" id="sfx-volume" min="0" max="100" value="70" />
-            </label>
-            <label class="setting setting-toggle">
-              <span>Scanlines</span>
-              <input type="checkbox" id="scanline-toggle" class="switch-input" checked />
-            </label>
-            <label class="setting setting-toggle">
-              <span>Reduce animation</span>
-              <input type="checkbox" id="reduce-animation" class="switch-input" />
             </label>
           </div>
           <div class="skin-panel">
@@ -414,7 +410,6 @@
       <div class="player-cover-shell">
         <div class="cover-outer-glow" aria-hidden="true"></div>
         <div class="player-cover" id="music-cover" role="img" aria-label="Album art">
-          <span class="cover-sigil" id="music-cover-sigil">BGM</span>
         </div>
       </div>
       <div class="player-meta">
@@ -445,12 +440,16 @@
       </div>
       <div class="player-controls">
         <button class="player-btn" id="music-player-prev" type="button" aria-label="Previous track">
-          <i class="fa-solid fa-backward" style="color: #63E6BE;"></i>
+          <i class="fa-solid fa-backward" style="color: var(--accent);"></i>
         </button>
         <button class="player-btn play-btn" id="music-player-play" type="button" aria-label="Play or pause"><i class="fa-solid fa-play" style="color: #63E6BE;"></i></button>
         <button class="player-btn" id="music-player-next" type="button" aria-label="Next track">
-          <i class="fa-solid fa-forward" style="color: #63E6BE;"></i>
+          <i class="fa-solid fa-forward" style="color: var(--accent);"></i>
         </button>
+        <label class="setting">
+          <span>BGM volume</span>
+          <input type="range" id="bgm-volume" min="0" max="100" value="50" />
+        </label>
       </div>
     </div>
   </div>

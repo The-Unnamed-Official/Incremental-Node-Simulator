@@ -4,9 +4,19 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.580';
+const GAME_VERSION = 'v0.600';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.600',
+    title: 'Color Update!!',
+    description:
+      'The colors have taken over!!',
+    changes: [
+      'A COMPLETE overhaul on EVERY SINGLE color palette you see with custom colors and easily changable themes now!!',
+      'This took me exactly 8 hours, 28 minutes and 30 seconds...',
+    ],
+  },
   {
     version: 'v0.580',
     title: 'Draggable Music Dock & Clickable Credits!',
