@@ -19,7 +19,7 @@
     coverEl.style.setProperty('--cover-image', track.cover ? `url('${track.cover}')` : 'none');
     const sigil = document.getElementById('music-cover-sigil');
     if (sigil) {
-      sigil.textContent = track.shortCode || 'BGM';
+      sigil.textContent = track.shortCode || '';
     }
     shell.style.setProperty('--player-accent', accent);
   };
@@ -34,8 +34,8 @@
   const syncPlayIcon = (button) => {
     if (!button || typeof bgmAudio === 'undefined' || !bgmAudio) return;
     button.innerHTML = bgmAudio.paused
-      ? '<i class="fa-solid fa-pause" style="color: #63E6BE;"></i>'
-      : '<i class="fa-solid fa-play" style="color: #63E6BE;"></i>';
+      ? '<i class="fa-solid fa-play" style="color: #63E6BE;"></i>'
+      : '<i class="fa-solid fa-pause" style="color: #63E6BE;"></i>';
     button.classList.toggle('is-playing', !bgmAudio.paused);
   };
 
@@ -56,6 +56,77 @@
 
     let scrubbing = false;
     let audioListenersAttached = false;
+    
+    const MIN_VERTICAL_MARGIN = 24;
+    let isDraggingPlayer = false;
+    let dragPointerId = null;
+    let dragOffsetY = 0;
+
+    const clampPlayerTop = (desiredTop) => {
+      const viewportHeight =
+        window.innerHeight || document.documentElement.clientHeight || 0;
+      const rect = shell.getBoundingClientRect();
+      const maxTop = Math.max(
+        MIN_VERTICAL_MARGIN,
+        viewportHeight - rect.height - MIN_VERTICAL_MARGIN,
+      );
+      return Math.min(Math.max(desiredTop, MIN_VERTICAL_MARGIN), maxTop);
+    };
+
+    const setPlayerTop = (top) => {
+      const clamped = clampPlayerTop(top);
+      shell.style.top = `${clamped}px`;
+      shell.style.bottom = 'auto';
+    };
+
+    const initPlayerVerticalPosition = () => {
+      const rect = shell.getBoundingClientRect();
+      const viewportHeight =
+        window.innerHeight || document.documentElement.clientHeight || 0;
+      const startTop = viewportHeight - rect.height - MIN_VERTICAL_MARGIN;
+      setPlayerTop(startTop);
+    };
+
+    const startPlayerDrag = (event) => {
+      if (isDraggingPlayer) return;
+      isDraggingPlayer = true;
+      dragPointerId = event.pointerId;
+
+      const rect = shell.getBoundingClientRect();
+      dragOffsetY = event.clientY - rect.top;
+
+      if (shell.setPointerCapture) {
+        try {
+          shell.setPointerCapture(dragPointerId);
+        } catch (_) {}
+      }
+
+      shell.classList.add('dragging');
+      document.body.classList.add('cursor-music-dragging');
+    };
+
+    const movePlayerDrag = (event) => {
+      if (!isDraggingPlayer) return;
+      if (dragPointerId != null && event.pointerId !== dragPointerId) return;
+      setPlayerTop(event.clientY - dragOffsetY);
+    };
+
+    const stopPlayerDrag = (event) => {
+      if (!isDraggingPlayer) return;
+      if (event && dragPointerId != null && event.pointerId !== dragPointerId) return;
+
+      isDraggingPlayer = false;
+
+      if (dragPointerId != null && shell.releasePointerCapture) {
+        try {
+          shell.releasePointerCapture(dragPointerId);
+        } catch (_) {}
+      }
+      dragPointerId = null;
+
+      shell.classList.remove('dragging');
+      document.body.classList.remove('cursor-music-dragging');
+    };
 
     const attachAudioListeners = () => {
       if (audioListenersAttached || typeof bgmAudio === 'undefined' || !bgmAudio) return;
@@ -78,13 +149,13 @@
     const updateTrackDetails = () => {
       const track = getTrackMeta();
       if (!track) return;
-      titleEl.textContent = track.title || 'Unknown uplink';
-      artistEl.textContent = track.artist || 'mystery node';
+      titleEl.textContent = track.title || '';
+      artistEl.textContent = track.artist || '';
       applyTrackVisuals(track, coverEl, shell);
       if (typeof bgmAudio !== 'undefined' && bgmAudio) {
         durationEl.textContent = Number.isFinite(bgmAudio.duration)
           ? formatTime(bgmAudio.duration)
-          : '00:00';
+          : '';
       }
       attachAudioListeners();
     };
@@ -98,7 +169,7 @@
         progress.value = pct;
       }
       currentTimeEl.textContent = formatTime(scrubbing ? (progress.value / 100) * duration : current);
-      durationEl.textContent = duration > 0 ? formatTime(duration) : '00:00';
+      durationEl.textContent = duration > 0 ? formatTime(duration) : '';
     };
 
     const ensurePlayback = () => {
@@ -180,6 +251,58 @@
         scrubbing = false;
       });
     }
+
+    initPlayerVerticalPosition();
+
+    window.addEventListener('resize', () => {
+      const rect = shell.getBoundingClientRect();
+      setPlayerTop(rect.top);
+    });
+
+    shell.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+
+      const t = event.target;
+      if (
+        t.closest('#music-player-toggle') ||
+        t.closest('.player-meta') ||
+        t.closest('.player-progress') ||
+        t.closest('.player-controls')
+      ) {
+        return;
+      }
+
+      if (!t.closest('.music-player')) return;
+
+      event.preventDefault();
+      startPlayerDrag(event);
+    });
+
+    shell.addEventListener('pointermove', (event) => {
+      movePlayerDrag(event);
+    });
+
+    shell.addEventListener('pointerup', (event) => {
+      stopPlayerDrag(event);
+    });
+
+    shell.addEventListener('pointercancel', (event) => {
+      stopPlayerDrag(event);
+    });
+
+    window.addEventListener('blur', (event) => {
+      stopPlayerDrag(event);
+    });
+
+    shell.addEventListener('pointerenter', () => {
+      document.body.classList.add('cursor-music-drag');
+    });
+
+    shell.addEventListener('pointerleave', () => {
+      if (!isDraggingPlayer) {
+        document.body.classList.remove('cursor-music-drag');
+      }
+    });
 
     document.addEventListener('bgm-track-change', updateTrackDetails);
     attachAudioListeners();

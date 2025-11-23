@@ -13,21 +13,37 @@ const SFX_DEFINITIONS = {
 const sfxLibrary = new Map();
 let sfxLoaded = false;
 let bgmAudio;
-function buildCoverGlyph(label, accent = '#63e6be', depth = '#111627') {
-  const safeLabel = label?.slice(0, 5) || 'BGM';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet">`
-    + `<defs>`
-    + `<linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">`
-    + `<stop offset="0%" stop-color="${accent}" stop-opacity="0.9"/>`
-    + `<stop offset="100%" stop-color="${depth}" stop-opacity="0.95"/>`
-    + `</linearGradient>`
-    + `</defs>`
-    + `<rect x="0" y="0" width="400" height="400" rx="32" ry="32" fill="url(#g)"/>`
-    + `<rect x="22" y="22" width="356" height="356" fill="none" stroke="${accent}" stroke-width="10"/>`
-    + `<text x="50%" y="55%" font-family="'Press Start 2P', 'Share Tech Mono', monospace" font-size="54" fill="#e8fff7" text-anchor="middle" letter-spacing="3">${safeLabel}</text>`
-    + `</svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
+
+const SPOTIFY_ARTIST_URL = 'https://open.spotify.com/artist/3SnvJY2XpNIRX3YgsU7Xld';
+
+document.addEventListener('bgm-track-change', (event) => {
+  const track = event.detail.track;
+
+  const titleElem = document.querySelector('[data-bgm-title]');
+  const artistElem = document.querySelector('[data-bgm-artist]');
+  const coverElem = document.querySelector('[data-bgm-cover]');
+
+  if (titleElem) {
+    titleElem.textContent = track.title ?? '';
+  }
+
+  if (artistElem) {
+    artistElem.innerHTML = `
+      <a 
+        href="${SPOTIFY_ARTIST_URL}" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        class="bgm-artist-link"
+      >
+        ${track.artist}
+      </a>
+    `;
+  }
+
+  if (coverElem) {
+    coverElem.src = track.cover ?? '';
+  }
+});
 
 const baseBgmTracks = [
   {
@@ -36,8 +52,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#63e6be',
     accent2: '#111627',
-    shortCode: 'GR',
-    cover: buildCoverGlyph('GR', '#55666aff', '#111627'),
+    cover: 'files/covers/bg_music.jpg',
   },
   {
     src: 'files/bg_music2.mp3',
@@ -45,8 +60,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#7ef6ff',
     accent2: '#0c1326',
-    shortCode: 'BE',
-    cover: buildCoverGlyph('BE', '#7ef6ff', '#0c1326'),
+    cover: 'files/covers/bg_music2.jpg',
   },
   {
     src: 'files/bg_music3.mp3',
@@ -54,8 +68,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#ffb8e8',
     accent2: '#1d1029',
-    shortCode: 'MC',
-    cover: buildCoverGlyph('MC', '#ffb8e8', '#1d1029'),
+    cover: 'files/covers/bg_music3.jpg',
   },
   {
     src: 'files/bg_music4.mp3',
@@ -63,8 +76,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#8df6a2',
     accent2: '#0e1d17',
-    shortCode: 'KIU',
-    cover: buildCoverGlyph('KIU', '#8df6a2', '#0e1d17'),
+    cover: 'files/covers/bg_music4.jpg',
   },
   {
     src: 'files/bg_music5.mp3',
@@ -72,8 +84,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#2189d3ff',
     accent2: '#3e2130ff',
-    shortCode: 'ND',
-    cover: buildCoverGlyph('ND', '#1323b9ff', '#d6295aff'),
+    cover: 'files/covers/bg_music5.jpg',
   },
   {
     src: 'files/bg_music6.mp3',
@@ -81,8 +92,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#8ad7ff',
     accent2: '#0f172a',
-    shortCode: 'EE',
-    cover: buildCoverGlyph('EE', '#8ad7ff', '#0f172a'),
+    cover: 'files/covers/bg_music6.jpg',
   },
 ];
 let bgmTracks = [];
