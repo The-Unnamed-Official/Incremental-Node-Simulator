@@ -4,17 +4,40 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.561';
+const GAME_VERSION = 'v0.580';
 
 const UPDATE_LOGS = [
   {
-    version: 'v0.561',
-    title: 'New name, tab Icons & important save bug-fix!',
+    version: 'v0.580',
+    title: 'Draggable Music Dock & Clickable Credits!',
     description:
-      'The game now has a completely new name and icons styled up to look as precious as the game itself and saving should now have absolutely no problems, so you can finally get back to your precious grind!!',
+      'The music player has been fully upgraded: it’s now draggable up and down the screen with smooth cursor feedback, the layout has been polished, and both the artist and developer credits are now clickable so you can jump straight to the music and the game files.',
     changes: [
-      'Changed the name to NodeShift!!! Hope you like the change!',
-      'Added favicons for the chrome tab to spice up the look of the game + it looks more proffesional :3',
+      'Made the music player vertically draggable, limited between 24px from the top and 24px from the bottom of the screen.',
+      'Added smooth custom cursor states to clearly indicate when you can drag the music player and when it is being moved.',
+      'Refined the music player layout and visuals for a cleaner, more polished look.',
+      'Fixed drag jitter and odd jumps after refresh so the player feels stable and responsive even when moving quickly.',
+      'Made the artist name clickable and linked it directly to the artist’s Spotify profile in a new tab.',
+      'Added a Developer pill under the title that links straight to the game files for easy access.',
+    ],
+  },
+  {
+    version: 'v0.565',
+    title: 'New Name, New Icons & A Polished Music Player!',
+    description:
+      'Welcome to NodeShift! The game now sports its brand-new identity along with crisp new tab icons and a fully upgraded music player UI. Saving issues should now be completely resolved—so enjoy returning to your grind with zero worries!',
+    changes: [
+      'Renamed the game to **NodeShift** — a cleaner, catchier identity for the project!',
+      'Added custom favicons, giving the browser tab a fresh and professional look.',
+      'Improved and refined the music player UI for a smoother and more stylish experience.',
+    ],
+  },
+  {
+    version: 'v0.561',
+    title: 'Important save bug-fix!',
+    description:
+      'Saving should now have absolutely no problems, so you can finally get back to your precious grind!!',
+    changes: [
       'A save game bug where saves were failing with QuotaExceededError because the full serialized state could exceed localStorage capacity (large logs/sets/snapshots kept being serialized)',
       'Fixed a save error (QuotaExceededError) by adding robust fallbacks: compact snapshots, pruning of large localStorage entries, sessionStorage fallback, and a downloadable emergency backup if persistent storage is exhausted.',
     ],

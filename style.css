@@ -5,7 +5,8 @@
   --panel-strong: rgba(16, 20, 34, 0.98);
   --accent: #7fffd6;
   --accent-soft: rgba(127, 255, 214, 0.2);
-  --accent-strong: #7cffc4;
+  --accent-strong: #63ffd8;
+  --accent-capital: #7cffc4;
   --text: #f1f8ff;
   --muted: rgba(241, 248, 255, 0.72);
   --warning: #ff9b6b;
@@ -199,7 +200,7 @@ body.disable-scanlines #crt-overlay {
   position: sticky;
   margin-top: 10px;
   top: 0px;
-  z-index: 25;
+  z-index: 1025;
   transition: padding 0.32s ease, gap 0.32s ease;
 }
 
@@ -226,7 +227,12 @@ body.disable-scanlines #crt-overlay {
   text-transform: uppercase;
   letter-spacing: 3px;
   font-size: clamp(1rem, 2.6vw, 1.4rem);
-  color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.capital {
+  font-size: 30px;
+  color: var(--accent-capital);
 }
 
 .title-heading {
@@ -234,6 +240,38 @@ body.disable-scanlines #crt-overlay {
   align-items: baseline;
   gap: 12px;
   transition: transform 0.32s ease;
+}
+
+.developer-title {
+  position: absolute;
+  align-items: center;
+  top: 80px;
+  gap: 8px;   
+  padding: 6px 12px;
+  background: repeating-linear-gradient(135deg, rgba(10,16,26,0.9), rgba(16,24,36,0.95));
+  border: var(--pixel-border) solid rgba(127,255,214,0.35);
+  color: var(--accent);
+  text-transform: uppercase;
+  display: block;
+  width: 190px;
+  text-align: left;
+  letter-spacing: 1px;
+  font-size: 0.65rem;
+  box-shadow: var(--pixel-shadow);
+  image-rendering: pixelated;
+  justify-self: start;
+  transition: transform 0.32s ease;
+}
+
+.developer-title-link {
+  text-decoration-line: none;
+  color: var(--control);
+  transition: color 0.32s ease, text-decoration-line 0.32s ease;
+}
+
+.developer-title-link:hover {
+  color: var(--damage);
+  text-decoration-line: underline;
 }
 
 .game-icon {
@@ -306,7 +344,7 @@ body.disable-scanlines #crt-overlay {
   opacity: 0;
 }
 
-.top-bar.is-sticky .title-heading {
+.top-bar.is-sticky .title-heading .developer-title {
   transform: translateY(-6px);
 }
 
@@ -2052,13 +2090,14 @@ body.disable-scanlines #crt-overlay {
 .milestone-dock {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
 }
 
 .progress-card {
   position: relative;
   display: grid;
   gap: 12px;
+  height: 300px;
   padding: 18px 20px;
   border: var(--pixel-border) solid rgba(127, 255, 214, 0.28);
   background: repeating-linear-gradient(135deg, rgba(9, 14, 30, 0.88) 0 10px, rgba(14, 20, 36, 0.88) 10px 20px);
@@ -3059,6 +3098,41 @@ body.skill-fail::after {
   transform: scale(1.2);
 }
 
+#custom-cursor .cursor-square,
+#custom-cursor .cursor-dot {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    background-color 0.25s ease;
+}
+
+body.cursor-music-drag #custom-cursor {
+  --cursor-zoom: 1.2;
+}
+
+body.cursor-music-drag #custom-cursor .cursor-square {
+  border-color: rgba(127, 255, 214, 0.95);
+  box-shadow: 0 0 18px rgba(127, 255, 214, 0.75);
+}
+
+body.cursor-music-drag #custom-cursor .cursor-dot {
+  transform: scale(1.25);
+}
+
+body.cursor-music-dragging #custom-cursor .cursor-square {
+  transform: scale(0.9, 1.3);
+}
+
+body.cursor-music-dragging #custom-cursor .cursor-dot {
+  transform: scale(1.4);
+}
+
+.music-player.dragging {
+  box-shadow: 0 30px 46px rgba(0, 0, 0, 0.863);
+  transform: translateY(-3px);
+}
+
 .cursor-pulse {
   position: fixed;
   width: var(--cursor-size, 32px);
@@ -3068,7 +3142,7 @@ body.skill-fail::after {
   transform: translate(-50%, -50%) scale(0.8);
   animation: cursor-pulse var(--cursor-pulse-duration) steps(4, end) forwards;
   pointer-events: none;
-  z-index: 99;
+  z-index: 999;
   image-rendering: pixelated;
 }
 
@@ -3122,21 +3196,21 @@ body.palette-emerald {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 360px;
-  background: linear-gradient(135deg, rgba(12, 16, 28, 0.95), rgba(8, 10, 20, 0.98));
-  border: var(--pixel-border) solid rgba(99, 230, 190, 0.45);
-  box-shadow: 0 18px 38px rgba(7, 10, 22, 0.7), inset 0 0 0 2px rgba(255, 255, 255, 0.03);
-  border-radius: 18px;
+  width: 460px;
+  background: repeating-linear-gradient(135deg, rgba(10, 16, 26, 0.7), rgba(16, 24, 36, 0.67));
+  border: var(--pixel-border) solid rgba(127,255,214,0.35);
+  border-top: 7px groove rgba(127,255,214,0.35);
+  border-bottom: 7px groove rgba(127,255,214,0.35);
   padding: 18px;
-  z-index: 120;
+  z-index: 10;
   image-rendering: pixelated;
   backdrop-filter: blur(6px);
-  transition: transform 0.35s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+  transition: transform 0.35s ease, box-shadow 0.3s ease, opacity 0.3s ease, border-top 0.3s ease, border-bottom 0.3s ease;
 }
 
 .music-player.collapsed {
   transform: translateX(calc(100% - -24px));
-  opacity: 0.12;
+  opacity: 0.25;
 }
 
 .music-player::before {
@@ -3158,13 +3232,12 @@ body.palette-emerald {
 
 .music-player .player-toggle {
   position: absolute;
-  top: 0px;
+  top: -7px;
   left: -55px;
   width: 48px;
   height: 48px;
-  border: var(--pixel-border) solid rgba(99, 230, 190, 0.75);
-  background: rgba(6, 12, 20, 0.9);
-  border-radius: 12px;
+  background: repeating-linear-gradient(135deg, rgba(10,16,26,0.9), rgba(16,24,36,0.95));
+  border: var(--pixel-border) solid rgba(127,255,214,0.35);
   color: var(--player-accent);
   display: grid;
   place-items: center;
@@ -3195,14 +3268,12 @@ body.palette-emerald {
   background: radial-gradient(circle at 30% 30%, rgba(99, 230, 190, 0.35), transparent 60%);
   filter: blur(10px);
   opacity: 0.7;
-  border-radius: 18px;
 }
 
 .music-player .player-cover {
   position: relative;
   width: 100%;
   height: 100%;
-  border-radius: 16px;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(135deg, var(--cover-accent-secondary, #0b1020), rgba(6, 8, 20, 0.96)),
@@ -3238,6 +3309,9 @@ body.palette-emerald {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding: 6px 12px;
+  background: repeating-linear-gradient(135deg, rgba(10,16,26,0.9), rgba(16,24,36,0.95));
+  border: var(--pixel-border) solid rgba(127,255,214,0.35);
 }
 
 .music-player .player-title {
@@ -3248,10 +3322,18 @@ body.palette-emerald {
 }
 
 .music-player .player-artist {
-  margin: 0;
+  margin-top: 20px;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.8);
+  text-decoration-line: none;
+  color: var(--control);
   letter-spacing: 0.5px;
+  transition: color 0.32s ease, text-decoration-line 0.32s ease;
+}
+
+.music-player .player-artist:hover,
+.music-player .player-artist:focus-visible {
+  color: var(--damage);
+  text-decoration-line: underline;
 }
 
 .music-player .player-progress {
@@ -3275,7 +3357,6 @@ body.palette-emerald {
   appearance: none;
   width: 100%;
   height: 14px;
-  border-radius: 10px;
   background: linear-gradient(90deg, var(--player-accent), rgba(255, 255, 255, 0.15));
   box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(99, 230, 190, 0.4);
   outline: none;
@@ -3287,7 +3368,6 @@ body.palette-emerald {
   appearance: none;
   width: 18px;
   height: 18px;
-  border-radius: 6px;
   background: #0c0f1c;
   border: 2px solid var(--player-accent);
   box-shadow: 0 0 0 2px rgba(12, 15, 28, 0.8);
@@ -3296,7 +3376,6 @@ body.palette-emerald {
 .music-player input[type='range']#music-progress::-moz-range-thumb {
   width: 18px;
   height: 18px;
-  border-radius: 6px;
   background: #0c0f1c;
   border: 2px solid var(--player-accent);
   box-shadow: 0 0 0 2px rgba(12, 15, 28, 0.8);
@@ -3314,7 +3393,6 @@ body.palette-emerald {
 .music-player .player-btn {
   width: 56px;
   height: 56px;
-  border-radius: 12px;
   border: var(--pixel-border) solid rgba(99, 230, 190, 0.6);
   background: linear-gradient(180deg, rgba(8, 10, 20, 0.95), rgba(12, 18, 30, 0.95));
   color: var(--player-accent);
@@ -3326,7 +3404,7 @@ body.palette-emerald {
 }
 
 .music-player .player-btn.is-playing {
-  border-color: var(--player-accent);
+  border-color: var(--pixel-border);
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.45), 0 0 16px rgba(99, 230, 190, 0.45);
 }
 
@@ -3342,7 +3420,6 @@ body.palette-emerald {
 .music-player .player-btn.play-btn {
   width: 72px;
   height: 72px;
-  border-radius: 16px;
 }
 
 .music-player .player-btn .fa-forward,

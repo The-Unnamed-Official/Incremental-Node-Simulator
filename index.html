@@ -27,8 +27,9 @@
       <div class="top-bar-left">
         <div class="title">
             <div class="title-heading">
-              <h1>NodeShift</h1>
-              <button id="version-display" class="version-tag" type="button">v0.561</button>
+              <h1><a class="capital">N</a>ode<a class="capital">S</a>hift</h1>
+              <p class="developer-title">By <a class="developer-title-link" href="https://github.com/The-Unnamed-Official/Incremental-Node-Simulator/tree/published" target="_blank">The Unnamed</a></p>
+              <button id="version-display" class="version-tag" type="button"></button>
             </div>
           </div>
         <button
@@ -183,7 +184,7 @@
             </div>
             <div class="field">
               <label>Time remaining</label>
-              <span id="crypto-timer">00:00</span>
+              <span id="crypto-timer"></span>
             </div>
             <button id="withdraw-crypto" class="pill">withdraw</button>
             <div class="crypto-upgrade-panel">
@@ -417,13 +418,20 @@
         </div>
       </div>
       <div class="player-meta">
-        <p class="player-title" id="music-title">Neon Kernel Bloom</p>
-        <p class="player-artist" id="music-artist">Pulse Driver</p>
+        <p class="player-title" id="music-title"></p>
+        <a
+          class="player-artist"
+          id="music-artist"
+          class="player-artist-link"
+          href="https://open.spotify.com/artist/3SnvJY2XpNIRX3YgsU7Xld"
+          target="_blank"
+          rel="noopener noreferrer">
+        </a>
       </div>
       <div class="player-progress">
         <div class="progress-times">
-          <span id="music-current">00:00</span>
-          <span id="music-duration">00:00</span>
+          <span id="music-current"></span>
+          <span id="music-duration"></span>
         </div>
         <input
           type="range"
@@ -439,7 +447,7 @@
         <button class="player-btn" id="music-player-prev" type="button" aria-label="Previous track">
           <i class="fa-solid fa-backward" style="color: #63E6BE;"></i>
         </button>
-        <button class="player-btn play-btn" id="music-player-play" type="button" aria-label="Play or pause"></button>
+        <button class="player-btn play-btn" id="music-player-play" type="button" aria-label="Play or pause"><i class="fa-solid fa-play" style="color: #63E6BE;"></i></button>
         <button class="player-btn" id="music-player-next" type="button" aria-label="Next track">
           <i class="fa-solid fa-forward" style="color: #63E6BE;"></i>
         </button>
