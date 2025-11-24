@@ -73,6 +73,28 @@
           <span class="resource-value" id="lp-display">0</span>
         </div>
       </div>
+      <div class="quick-stats" aria-live="polite">
+        <div class="quick-stat" data-stat="damage">
+          <span class="label">Damage</span>
+          <span class="value" id="stat-damage">0</span>
+        </div>
+        <div class="quick-stat" data-stat="crit">
+          <span class="label">Crit</span>
+          <span class="value" id="stat-crit">0%</span>
+        </div>
+        <div class="quick-stat" data-stat="auto">
+          <span class="label">Auto</span>
+          <span class="value" id="stat-auto">0s</span>
+        </div>
+        <div class="quick-stat" data-stat="spawn">
+          <span class="label">Spawn</span>
+          <span class="value" id="stat-spawn">0s</span>
+        </div>
+        <div class="quick-stat" data-stat="hp">
+          <span class="label">Boss HP</span>
+          <span class="value" id="stat-boss">0</span>
+        </div>
+      </div>
     </header>
 
     <main class="main-layout">
@@ -86,7 +108,15 @@
             </div>
           </label>
         </div>
+        <div class="boss-phase" aria-live="polite">
+          <div class="boss-phase-label">Boss Integrity</div>
+          <div class="boss-phase-track">
+            <div id="boss-phase-fill" class="boss-phase-fill"></div>
+            <div id="boss-phase-phase" class="boss-phase-phase">Phase 1</div>
+          </div>
+        </div>
         <div class="node-area" id="node-area">
+          <div id="node-arena-backdrop" class="node-arena-backdrop" aria-hidden="true"></div>
           <div id="particle-layer" aria-hidden="true"></div>
           <div id="bit-layer" aria-live="polite"></div>
         </div>
@@ -262,6 +292,7 @@
                   <option value="obsidian">obsidian</option>
                 </select>
               </div>
+              <div id="palette-preview-row" class="palette-preview-row" aria-hidden="true"></div>
             </label>
           </div>
           <div class="skin-panel">
@@ -322,6 +353,15 @@
   </div>
   <div id="skill-check" class="skill-check hidden" role="dialog" aria-modal="true" aria-live="assertive">
     <div class="skill-check-panel">
+      <div class="skill-check-banner">
+        <div class="banner-title">Skill Check Incoming</div>
+        <div class="banner-meta">
+          <span id="skill-check-upgrade" class="meta-item"></span>
+          <span id="skill-check-tier" class="meta-item"></span>
+          <span id="skill-check-reward" class="meta-item"></span>
+          <span id="skill-check-penalty" class="meta-item"></span>
+        </div>
+      </div>
       <h2 id="skill-check-title">Skill Check!</h2>
       <p id="skill-check-description">Stabilise the upgrade stream before it collapses.</p>
       <div class="skill-check-variant-grid">
@@ -366,6 +406,7 @@
       <button id="skill-check-action" class="pill">Resolve</button>
     </div>
   </div>
+  <div id="skill-detail-popup" class="skill-detail-popup hidden" role="dialog" aria-live="polite"></div>
   <div id="level-dialog" class="level-dialog hidden" role="dialog" aria-modal="true" aria-live="assertive">
     <div class="level-dialog-panel">
       <h2>Boss neutralised</h2>

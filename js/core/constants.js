@@ -147,6 +147,8 @@ const BIT_REWARD_TABLE = {
   blue: { min: 15, max: 30 },
   green: { min: 30, max: 60 },
   gold: { min: 50, max: 100 },
+  void: { min: 70, max: 120 },
+  prismatic: { min: 60, max: 140 },
 };
 
 const CRYPTO_SPEED_UPGRADES = [
@@ -229,6 +231,50 @@ const nodeTypes = [
       const safeLevel = Math.max(1, Math.floor(level));
       return 115 * Math.pow(100, Math.max(0, safeLevel - 1));
     },
+  },
+  {
+    id: 'void',
+    name: 'Void Node',
+    color: 'void',
+    speedMultiplier: 0.65,
+    hp(level) {
+      const safeLevel = Math.max(1, Math.floor(level));
+      return 220 * Math.pow(110, Math.max(0, safeLevel - 1));
+    },
+    reward(level) {
+      const safeLevel = Math.max(1, Math.floor(level));
+      return {
+        bits: getLevelBitReward('void', safeLevel),
+        prestige: 0.5 + safeLevel * 0.05,
+      };
+    },
+    behavior: {
+      drainPerSecond: 1.5,
+      healOnDrain: 0.25,
+    },
+  },
+  {
+    id: 'prismatic',
+    name: 'Prismatic Node',
+    color: 'prismatic',
+    speedMultiplier: 1.4,
+    reward(level, node) {
+      const safeLevel = Math.max(1, Math.floor(level));
+      const color = node?.currentHue || 'amber';
+      const colorRewards = {
+        azure: { bits: getLevelBitReward('blue', safeLevel), xp: 10 + safeLevel * 0.8 },
+        emerald: { bits: getLevelBitReward('green', safeLevel), cryptcoins: 1 + safeLevel * 0.15 },
+        crimson: { bits: getLevelBitReward('red', safeLevel), prestige: 0.35 + safeLevel * 0.08 },
+        auric: { bits: getLevelBitReward('gold', safeLevel), cryptcoins: 2 + safeLevel * 0.2 },
+        void: { bits: getLevelBitReward('void', safeLevel), xp: 18 + safeLevel },
+      };
+      return colorRewards[color] || colorRewards.azure;
+    },
+    hp(level) {
+      const safeLevel = Math.max(1, Math.floor(level));
+      return 95 * Math.pow(100, Math.max(0, safeLevel - 1));
+    },
+    hues: ['azure', 'emerald', 'crimson', 'auric', 'void'],
   },
 ];
 

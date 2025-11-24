@@ -491,6 +491,32 @@ body.disable-scanlines #crt-overlay {
   transition: transform 0.32s ease;
 }
 
+.quick-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: var(--pixel-border) dashed var(--accent-slighter);
+  background: repeating-linear-gradient(135deg, var(--accent-drop) 0 8px, var(--bg) 8px 16px);
+  box-shadow: var(--pixel-shadow);
+}
+
+.quick-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border: var(--pixel-border) solid var(--accent-slighter);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+
+.quick-stat .value {
+  color: var(--accent);
+}
+
 .top-bar.is-sticky {
   gap: 12px;
 }
@@ -697,6 +723,47 @@ body.disable-scanlines #crt-overlay {
   border-color: var(--accent-slight);
 }
 
+.boss-phase {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: var(--pixel-border) solid var(--accent-slighter);
+  background: repeating-linear-gradient(135deg, var(--accent-drop) 0 10px, var(--bg) 10px 20px);
+  box-shadow: var(--pixel-shadow);
+}
+
+.boss-phase-label {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+
+.boss-phase-track {
+  position: relative;
+  height: 18px;
+  border: var(--pixel-border) solid var(--accent-slighter);
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.boss-phase-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, rgba(255, 110, 168, 0.8), rgba(255, 209, 102, 0.85));
+  transition: transform var(--transition-fast) ease, filter 0.3s ease;
+}
+
+.boss-phase-phase {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+}
+
 #tab-settings .custom-dropdown__button {
   background: repeating-linear-gradient(135deg, var(--accent-soft) 0 8px, var(--accent-softer) 8px 16px),
     repeating-linear-gradient(90deg, var(--bg) 0 12px, var(--bg-alt) 12px 24px);
@@ -829,6 +896,38 @@ body.disable-scanlines #crt-overlay {
   z-index: 3;
   padding: 8px;
   touch-action: none;
+}
+
+.node-arena-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(127, 255, 214, 0.08), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(255, 209, 102, 0.08), transparent 35%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 8px, rgba(0, 0, 0, 0) 8px 16px);
+  opacity: 0.45;
+  filter: saturate(1.3);
+  transition: opacity 0.4s ease, background 0.4s ease;
+  pointer-events: none;
+}
+
+.node-area.rare-flash .node-arena-backdrop {
+  opacity: 0.8;
+  animation: arena-shift 1.6s ease;
+  background: radial-gradient(circle at 30% 30%, var(--rare-highlight, rgba(255, 209, 102, 0.25)), transparent 50%),
+    radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.12), transparent 40%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 6px, rgba(0, 0, 0, 0) 6px 12px);
+}
+
+@keyframes arena-shift {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 #particle-layer,
@@ -972,6 +1071,45 @@ body.disable-scanlines #crt-overlay {
   --node-border-color: rgba(255, 209, 102, 0.9);
   --node-surface-bg: repeating-linear-gradient(135deg, rgba(255, 209, 102, 0.26) 0 10px, rgba(48, 34, 12, 0.9) 10px 20px);
   --node-glow: 0 0 12px rgba(255, 209, 102, 0.28);
+}
+
+.node.void {
+  --node-color: #b38bff;
+  --node-color-rgb: 179, 139, 255;
+  --node-border-color: rgba(179, 139, 255, 0.9);
+  --node-surface-bg: repeating-linear-gradient(135deg, rgba(91, 64, 140, 0.35) 0 12px, rgba(12, 8, 24, 0.92) 12px 24px);
+  --node-glow: 0 0 16px rgba(179, 139, 255, 0.34);
+}
+
+.node.prismatic {
+  --node-color: var(--node-prism-color, #8df6ff);
+  --node-color-rgb: var(--node-prism-rgb, 141, 246, 255);
+  --node-border-color: rgba(var(--node-prism-rgb, 141, 246, 255), 0.95);
+  --node-surface-bg: conic-gradient(
+    from 45deg,
+    rgba(var(--node-prism-rgb, 141, 246, 255), 0.18),
+    rgba(var(--node-prism-rgb, 141, 246, 255), 0.35),
+    rgba(12, 10, 24, 0.92)
+  );
+  --node-glow: 0 0 18px rgba(var(--node-prism-rgb, 141, 246, 255), 0.45);
+  animation: prism-shift 2.2s linear infinite;
+}
+
+.node.prismatic .core {
+  background: radial-gradient(circle, #ffffff 0 40%, rgba(var(--node-prism-rgb, 141, 246, 255), 0.85) 60%, #0d0b18 100%);
+  box-shadow: 0 0 16px rgba(var(--node-prism-rgb, 141, 246, 255), 0.55);
+}
+
+@keyframes prism-shift {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    filter: hue-rotate(45deg) brightness(1.1);
+  }
+  100% {
+    filter: hue-rotate(90deg);
+  }
 }
 
 .node.shaking .node-visual {
@@ -1675,8 +1813,8 @@ body.disable-scanlines #crt-overlay {
   position: relative;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(240px, 1fr);
-  gap: 32px;
+  grid-auto-columns: minmax(260px, 1fr);
+  gap: 24px;
   padding: 14px 10px 18px 14px;
   max-height: clamp(280px, 55vh, 520px);
   overflow-x: auto;
@@ -1716,21 +1854,25 @@ body.disable-scanlines #crt-overlay {
 
 .branch-track {
   display: grid;
-  grid-template-columns: repeat(3, minmax(140px, 1fr));
-  gap: 24px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
   position: relative;
+  padding: 10px 0;
 }
 
-.branch-track::before {
-  content: '';
+.branch-track .connector-layer {
   position: absolute;
-  top: 18px;
-  bottom: 18px;
-  left: 50%;
-  width: 2px;
-  background: repeating-linear-gradient(180deg, var(--accent-slight) 0 8px, var(--accent-slighter) 8px 16px);
-  transform: translateX(-50%);
+  inset: 0;
   pointer-events: none;
+  z-index: 0;
+}
+
+.skill-connector {
+  position: absolute;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-slighter), rgba(255, 255, 255, 0.6));
+  transform-origin: left center;
+  opacity: 0.7;
 }
 
 .skill-node {
@@ -1745,6 +1887,7 @@ body.disable-scanlines #crt-overlay {
   transition: transform var(--transition-fast) ease, border-color var(--transition-fast) ease, filter var(--transition-fast) ease;
   outline: none;
   image-rendering: pixelated;
+  z-index: 1;
 }
 
 .skill-node::before {
@@ -1806,6 +1949,11 @@ body.disable-scanlines #crt-overlay {
   border-style: dashed;
 }
 
+.skill-node.available {
+  border-color: var(--accent);
+  box-shadow: var(--pixel-shadow), 0 0 12px rgba(127, 255, 214, 0.25);
+}
+
 .skill-node.purchased {
   border-color: var(--accent-slight);
   background: repeating-linear-gradient(135deg, var(--accent-slighter) 0 10px, var(--accent-slighty) 10px 20px);
@@ -1825,6 +1973,42 @@ body.disable-scanlines #crt-overlay {
 
 .skill-node[data-category='control'] {
   border-color: rgba(203, 163, 255, 0.22);
+}
+
+.skill-detail-popup {
+  position: fixed;
+  min-width: 260px;
+  max-width: 320px;
+  background: repeating-linear-gradient(135deg, var(--accent-drop) 0 10px, var(--bg) 10px 20px);
+  border: var(--pixel-border) solid var(--accent-slighter);
+  box-shadow: var(--pixel-shadow), 0 12px 24px rgba(0, 0, 0, 0.35);
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  z-index: 1200;
+  image-rendering: pixelated;
+}
+
+.skill-detail-popup.hidden {
+  display: none;
+}
+
+.skill-detail-popup .title {
+  color: var(--accent);
+}
+
+.skill-detail-popup .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.skill-detail-popup .meta span {
+  padding: 3px 6px;
+  border: var(--pixel-border) solid var(--accent-slighter);
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .milestone-list,
@@ -1847,6 +2031,21 @@ body.disable-scanlines #crt-overlay {
   border: var(--pixel-border) solid var(--accent-slighter);
   box-shadow: var(--pixel-shadow);
   image-rendering: pixelated;
+}
+
+.palette-preview-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.palette-chip {
+  width: 30px;
+  height: 18px;
+  border: var(--pixel-border) solid var(--accent-slighter);
+  box-shadow: var(--pixel-shadow);
+  background: linear-gradient(135deg, var(--chip-a, #7fffd6), var(--chip-b, #0c101c));
 }
 
 .crypto-upgrade-panel {
@@ -2635,6 +2834,35 @@ body.skill-fail::after {
   image-rendering: pixelated;
 }
 
+.skill-check-banner {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: var(--pixel-border) solid var(--accent-slighter);
+  background: repeating-linear-gradient(135deg, var(--accent-soft) 0 8px, var(--accent-softer) 8px 16px);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: left;
+}
+
+.skill-check-banner .banner-title {
+  color: var(--accent-capital);
+}
+
+.skill-check-banner .banner-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.skill-check-banner .meta-item {
+  padding: 4px 8px;
+  border: var(--pixel-border) solid var(--accent-slighter);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text);
+}
+
 .skill-check-variant-grid {
   display: grid;
   gap: 14px;
@@ -2738,6 +2966,58 @@ body.skill-fail::after {
   box-shadow: 0 0 12px var(--accent-slight);
   transform: translateY(-50%);
   pointer-events: none;
+}
+
+.skill-check-dial {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto;
+  border: var(--pixel-border) solid var(--accent-slighter);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(127, 255, 214, 0.1), rgba(0, 0, 0, 0.2));
+  overflow: hidden;
+  box-shadow: inset 0 0 0 2px rgba(127, 255, 214, 0.15);
+}
+
+.skill-check-dial-ring {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  border: 2px dashed var(--accent-slighter);
+  box-shadow: 0 0 12px rgba(127, 255, 214, 0.12);
+}
+
+.skill-check-dial-target {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  mask-image: radial-gradient(circle, transparent 58%, #000 60%);
+  background: conic-gradient(from 0deg, transparent, rgba(127, 255, 214, 0.25), transparent);
+}
+
+.skill-check-dial-pointer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 70px;
+  background: linear-gradient(180deg, var(--accent-capital), var(--accent-strong));
+  transform-origin: center 90%;
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(127, 255, 214, 0.4);
+}
+
+.skill-check-dial-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  background: radial-gradient(circle, var(--accent-strong), var(--accent-drop));
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 12px rgba(127, 255, 214, 0.4);
 }
 
 .skill-check-timer {

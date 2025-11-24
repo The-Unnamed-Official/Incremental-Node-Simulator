@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupProgressDock();
   applySavedUpgradeFilter();
   setupSettings();
+  renderPalettePreviews();
   renderSkins();
   renderMilestones();
   renderAchievements();
@@ -79,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCursor();
   setupAudio();
   setupSkillCheck();
+  setupSkillDetailDismissal();
   syncLabVisibility();
   updateStats();
   updateResources();
@@ -149,6 +151,10 @@ function cacheElements() {
   UI.skillCheckAction = document.getElementById('skill-check-action');
   UI.skillCheckTitle = document.getElementById('skill-check-title');
   UI.skillCheckDescription = document.getElementById('skill-check-description');
+  UI.skillCheckUpgrade = document.getElementById('skill-check-upgrade');
+  UI.skillCheckTier = document.getElementById('skill-check-tier');
+  UI.skillCheckReward = document.getElementById('skill-check-reward');
+  UI.skillCheckPenalty = document.getElementById('skill-check-penalty');
   UI.levelDialog = document.getElementById('level-dialog');
   UI.levelDialogSummary = document.getElementById('level-dialog-summary');
   UI.levelContinue = document.getElementById('level-continue');
@@ -160,6 +166,16 @@ function cacheElements() {
   UI.updateLogTabs = document.getElementById('update-log-tabs');
   UI.updateLogBody = document.getElementById('update-log-body');
   UI.updateLogClose = document.getElementById('update-log-close');
+  UI.quickStatDamage = document.getElementById('stat-damage');
+  UI.quickStatCrit = document.getElementById('stat-crit');
+  UI.quickStatAuto = document.getElementById('stat-auto');
+  UI.quickStatSpawn = document.getElementById('stat-spawn');
+  UI.quickStatBoss = document.getElementById('stat-boss');
+  UI.bossPhaseFill = document.getElementById('boss-phase-fill');
+  UI.bossPhasePhase = document.getElementById('boss-phase-phase');
+  UI.palettePreviewRow = document.getElementById('palette-preview-row');
+  UI.skillDetailPopup = document.getElementById('skill-detail-popup');
+  UI.nodeArenaBackdrop = document.getElementById('node-arena-backdrop');
   UI.title = document.querySelector('.title');
   if (UI.title) {
     let icon = document.getElementById('game-icon');
@@ -1421,6 +1437,7 @@ function setupSettings() {
       }
       state.settings.palette = nextPalette;
       applyDisplaySettings();
+      renderPalettePreviews();
       queueSave();
     });
     UI.paletteDropdown = setupCustomDropdown(paletteSelect);
@@ -1443,6 +1460,44 @@ function setupSettings() {
   applySettingsToControls();
   applyDisplaySettings();
   updateBGMVolume();
+}
+
+const PALETTE_SWATCHES = {
+  default: ['#7fffd6', '#0c101c'],
+  violet: ['#b99bff', '#1a0d1c'],
+  gold: ['#ffd666', '#1c180c'],
+  diamond: ['#66f5ff', '#0c181c'],
+  emerald: ['#80ff66', '#0c1c0f'],
+  pinky: ['#ff66f2', '#1c0c1b'],
+  ruby: ['#ff6666', '#1c0c0c'],
+  nebula: ['#9fc4ff', '#0d0f1c'],
+  sunset: ['#ffb07f', '#1c110c'],
+  obsidian: ['#815f92', '#281a2e'],
+};
+
+function renderPalettePreviews() {
+  if (!UI.palettePreviewRow) return;
+  UI.palettePreviewRow.innerHTML = '';
+  const current = state.settings?.palette || 'default';
+  Object.entries(PALETTE_SWATCHES).forEach(([id, [a, b]]) => {
+    const chip = document.createElement('span');
+    chip.className = 'palette-chip';
+    chip.style.setProperty('--chip-a', a);
+    chip.style.setProperty('--chip-b', b);
+    if (id === current) {
+      chip.style.boxShadow = `${getComputedStyle(document.documentElement).getPropertyValue('--pixel-shadow')}, 0 0 10px ${a}`;
+      chip.style.borderColor = a;
+    }
+    chip.title = id;
+    chip.addEventListener('click', () => {
+      const paletteSelect = document.getElementById('palette-select');
+      if (paletteSelect) {
+        paletteSelect.value = id;
+        paletteSelect.dispatchEvent(new Event('change'));
+      }
+    });
+    UI.palettePreviewRow.appendChild(chip);
+  });
 }
 
 function applyDisplaySettings() {
@@ -2245,6 +2300,139 @@ function getUpgradeDisplayName(upgrade, level) {
   return upgrade.name;
 }
 
+function getUpgradeDepth(upgrade, memo = new Map()) {
+  if (!upgrade) return 0;
+  if (memo.has(upgrade.id)) return memo.get(upgrade.id);
+  if (!upgrade.previousId) {
+    memo.set(upgrade.id, 0);
+    return 0;
+  }
+  const previous = upgradeLookup.get(upgrade.previousId);
+  const depth = 1 + getUpgradeDepth(previous, memo);
+  memo.set(upgrade.id, depth);
+  return depth;
+}
+
+function buildSkillBranchLayout(activeFilter) {
+  const categorySequences = buildCategorySequences();
+  const visibleUpgrades = getVisibleUpgradeSet(activeFilter, categorySequences);
+  const branchMap = new Map();
+  const depthMemo = new Map();
+  upgrades.forEach((upgrade) => {
+    if (!isCategoryVisible(upgrade.category, activeFilter)) return;
+    if (!visibleUpgrades.has(upgrade.id)) return;
+    const level = state.upgrades[upgrade.id] || 0;
+    const depth = getUpgradeDepth(upgrade, depthMemo);
+    const branch = branchMap.get(upgrade.category) || [];
+    branch.push({ upgrade, level, depth });
+    branchMap.set(upgrade.category, branch);
+  });
+  branchMap.forEach((list, category) => {
+    const sorted = [...list].sort((a, b) => (a.upgrade.sequenceIndex || 0) - (b.upgrade.sequenceIndex || 0));
+    const depthRows = new Map();
+    const positioned = sorted.map((entry) => {
+      const row = depthRows.get(entry.depth) || 0;
+      depthRows.set(entry.depth, row + 1);
+      return { ...entry, row };
+    });
+    branchMap.set(category, positioned);
+  });
+  return branchMap;
+}
+
+function drawSkillConnections(layer, elementMap) {
+  if (!layer) return;
+  layer.innerHTML = '';
+  const rect = layer.getBoundingClientRect();
+  elementMap.forEach((nodeEl, id) => {
+    const upgrade = upgradeLookup.get(id);
+    if (!upgrade?.previousId) return;
+    const parentEl = elementMap.get(upgrade.previousId);
+    if (!parentEl) return;
+    const childRect = nodeEl.getBoundingClientRect();
+    const parentRect = parentEl.getBoundingClientRect();
+    const startX = parentRect.left + parentRect.width / 2 - rect.left;
+    const startY = parentRect.top + parentRect.height / 2 - rect.top;
+    const endX = childRect.left + childRect.width / 2 - rect.left;
+    const endY = childRect.top + childRect.height / 2 - rect.top;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const length = Math.hypot(dx, dy);
+    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const line = document.createElement('span');
+    line.className = 'skill-connector';
+    line.style.width = `${length}px`;
+    line.style.transform = `translate(${startX}px, ${startY}px) rotate(${angle}deg)`;
+    layer.appendChild(line);
+  });
+}
+
+function getSkillCheckPreview(upgrade, cost, previousLevel = 0) {
+  const difficulty = upgrade.category === 'damage' ? 'easy' : 'normal';
+  const rewardBits = Math.ceil(cost * (difficulty === 'hard' ? 0.95 : difficulty === 'normal' ? 0.7 : 0.45));
+  const rewardXP = Math.ceil(15 * (difficulty === 'hard' ? 2.2 : difficulty === 'normal' ? 1.4 : 1));
+  const penalty = Math.min(state[upgrade.currency] || 0, cost);
+  return {
+    difficulty,
+    rewardBits,
+    rewardXP,
+    penalty,
+    rewardLabel: `Reward: +${rewardBits.toLocaleString()} bits, +${rewardXP.toLocaleString()} XP`,
+    penaltyLabel: `Penalty: -${penalty.toLocaleString()} ${upgrade.currency}`,
+    previousLevel,
+  };
+}
+
+function showSkillDetail(target, upgrade) {
+  if (!UI.skillDetailPopup || !target || !upgrade) return;
+  const level = state.upgrades[upgrade.id] || 0;
+  const nextLevel = Math.min(upgrade.maxLevel, level + 1);
+  const cost = getUpgradeCost(upgrade, level);
+  const preview = getSkillCheckPreview(upgrade, cost, level);
+  const detail = UI.skillDetailPopup;
+  detail.innerHTML = `
+    <div class="title">${upgrade.name}</div>
+    <div class="meta">
+      <span>Next: ${nextLevel}/${upgrade.maxLevel}</span>
+      <span>Cost: ${cost.toLocaleString()} ${upgrade.currency}</span>
+      <span>Skill check: 18% chance (${preview.difficulty})</span>
+      <span>${preview.rewardLabel}</span>
+      <span>${preview.penaltyLabel}</span>
+    </div>
+    <div class="desc">${upgrade.description}</div>
+  `;
+  detail.classList.remove('hidden');
+  const rect = target.getBoundingClientRect();
+  const popupRect = detail.getBoundingClientRect();
+  const margin = 10;
+  let left = rect.left;
+  let top = rect.bottom + margin;
+  if (left + popupRect.width > window.innerWidth) {
+    left = window.innerWidth - popupRect.width - margin;
+  }
+  if (top + popupRect.height > window.innerHeight) {
+    top = rect.top - popupRect.height - margin;
+  }
+  detail.style.left = `${Math.max(8, left)}px`;
+  detail.style.top = `${Math.max(8, top)}px`;
+}
+
+function hideSkillDetail() {
+  if (UI.skillDetailPopup) {
+    UI.skillDetailPopup.classList.add('hidden');
+  }
+}
+
+function setupSkillDetailDismissal() {
+  document.addEventListener('pointerdown', (event) => {
+    if (!UI.skillDetailPopup || UI.skillDetailPopup.classList.contains('hidden')) return;
+    if (event.target.closest('.skill-node')) return;
+    if (!UI.skillDetailPopup.contains(event.target)) {
+      hideSkillDetail();
+    }
+  });
+}
+
 function renderUpgrades(filter) {
   if (!UI.skillTree) return;
   const buttonFilter = document.querySelector('.filter.active')?.dataset.filter;
@@ -2252,70 +2440,67 @@ function renderUpgrades(filter) {
   state.selectedUpgradeFilter = activeFilter;
   syncFilterButtons(activeFilter);
   UI.skillTree.innerHTML = '';
+  hideSkillDetail();
   const fragment = document.createDocumentFragment();
-  const categorySequences = buildCategorySequences();
-  const visibleUpgrades = getVisibleUpgradeSet(activeFilter, categorySequences);
-  const branchMap = new Map();
-  const branchCounters = new Map();
-  upgrades.forEach((upgrade) => {
-    if (!isCategoryVisible(upgrade.category, activeFilter)) {
-      return;
-    }
-    if (!visibleUpgrades.has(upgrade.id)) {
-      return;
-    }
-    const level = state.upgrades[upgrade.id] || 0;
-    const counter = branchCounters.get(upgrade.category) || 0;
-    const tier = Math.floor(counter / 6);
-    const branch = branchMap.get(upgrade.category) || [];
-    if (!branch[tier]) {
-      branch[tier] = [];
-    }
-    branch[tier].push({ upgrade, level });
-    branchMap.set(upgrade.category, branch);
-    branchCounters.set(upgrade.category, counter + 1);
-  });
+  const branchMap = buildSkillBranchLayout(activeFilter);
 
-  branchMap.forEach((tiers, category) => {
+  branchMap.forEach((nodes, category) => {
     const branchEl = document.createElement('section');
     branchEl.className = 'skill-branch';
     branchEl.dataset.category = category;
     branchEl.setAttribute('role', 'listitem');
     const title = document.createElement('div');
     title.className = 'branch-title';
-    const totalNodes = tiers.reduce((acc, tierNodes) => acc + tierNodes.length, 0);
+    const totalNodes = nodes.length;
     title.innerHTML = `<span>${category.toUpperCase()}</span><span>${totalNodes} nodes</span>`;
     const track = document.createElement('div');
     track.className = 'branch-track';
-    tiers.forEach((tierNodes, tierIndex) => {
-      tierNodes.forEach(({ upgrade, level }) => {
-        const nodeEl = document.createElement('button');
-        nodeEl.type = 'button';
-        nodeEl.className = 'skill-node';
-        if (tierIndex === 0) {
-          nodeEl.classList.add('origin');
-        }
-        nodeEl.dataset.id = upgrade.id;
-        nodeEl.dataset.category = upgrade.category;
-        const displayName = getUpgradeDisplayName(upgrade, level);
-        nodeEl.innerHTML = `
+    const connectorLayer = document.createElement('div');
+    connectorLayer.className = 'connector-layer';
+    const depthMax = nodes.reduce((max, node) => Math.max(max, node.depth), 0);
+    track.style.gridTemplateColumns = `repeat(${Math.max(1, depthMax + 1)}, minmax(180px, 1fr))`;
+    const elementMap = new Map();
+    nodes.forEach(({ upgrade, level, depth, row }) => {
+      const nodeEl = document.createElement('button');
+      nodeEl.type = 'button';
+      nodeEl.className = 'skill-node';
+      if (depth === 0) {
+        nodeEl.classList.add('origin');
+      }
+      nodeEl.dataset.id = upgrade.id;
+      nodeEl.dataset.category = upgrade.category;
+      nodeEl.style.gridColumn = depth + 1;
+      nodeEl.style.gridRow = row + 1;
+      const displayName = getUpgradeDisplayName(upgrade, level);
+      const lockedByReq = !meetsRequirements(upgrade);
+      const previousMet = !upgrade.previousId || (state.upgrades[upgrade.previousId] || 0) > 0;
+      nodeEl.innerHTML = `
           <div class="title">${displayName}</div>
           <div class="desc">${upgrade.description}</div>
           <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
           <div class="cost">Cost: <span>${formatCost(upgrade, level)}</span> ${upgrade.currency}</div>
         `;
-        if (level >= upgrade.maxLevel) {
-          nodeEl.classList.add('purchased');
-        }
-        if (!meetsRequirements(upgrade)) {
-          nodeEl.classList.add('locked');
-        }
-        nodeEl.addEventListener('click', () => attemptPurchase(upgrade));
-        nodeEl.addEventListener('mousemove', (event) => showUpgradeTooltip(event, upgrade));
-        nodeEl.addEventListener('mouseleave', hideTooltip);
-        track.appendChild(nodeEl);
+      if (level >= upgrade.maxLevel) {
+        nodeEl.classList.add('purchased');
+      } else if (!lockedByReq && previousMet) {
+        nodeEl.classList.add('available');
+      }
+      if (lockedByReq || !previousMet) {
+        nodeEl.classList.add('locked');
+      }
+      nodeEl.addEventListener('click', (event) => {
+        showSkillDetail(nodeEl, upgrade);
+        attemptPurchase(upgrade);
+        event.stopPropagation();
       });
+      nodeEl.addEventListener('mousemove', (event) => showUpgradeTooltip(event, upgrade));
+      nodeEl.addEventListener('mouseleave', hideTooltip);
+      nodeEl.addEventListener('mouseenter', () => showSkillDetail(nodeEl, upgrade));
+      track.appendChild(nodeEl);
+      elementMap.set(upgrade.id, nodeEl);
     });
+    track.appendChild(connectorLayer);
+    requestAnimationFrame(() => drawSkillConnections(connectorLayer, elementMap));
     branchEl.appendChild(title);
     branchEl.appendChild(track);
     fragment.appendChild(branchEl);
@@ -2403,12 +2588,13 @@ function maybeStartSkillCheck(upgrade, cost, previousLevel) {
   if (Math.random() > baseChance) {
     return;
   }
-  const difficulty = upgrade.category === 'damage' ? 'easy' : 'normal';
-  const rewardBits = Math.ceil(cost * (difficulty === 'hard' ? 0.95 : difficulty === 'normal' ? 0.7 : 0.45));
-  const rewardXP = Math.ceil(15 * (difficulty === 'hard' ? 2.2 : difficulty === 'normal' ? 1.4 : 1));
+  const preview = getSkillCheckPreview(upgrade, cost, previousLevel);
+  const difficulty = preview.difficulty;
+  const { rewardBits, rewardXP, penalty } = preview;
   startSkillCheck({
     upgrade,
     difficulty,
+    summary: preview,
     reward: () => {
       state.bits += rewardBits;
       gainXP(rewardXP);
@@ -2416,7 +2602,6 @@ function maybeStartSkillCheck(upgrade, cost, previousLevel) {
       updateResources();
     },
     onFail: () => {
-      const penalty = Math.min(state[upgrade.currency], cost);
       state[upgrade.currency] -= penalty;
       state.upgrades[upgrade.id] = previousLevel;
       updateStats();
@@ -3744,9 +3929,17 @@ const SKILL_CHECK_VARIANT_DETAILS = {
     title: 'Access Elevator',
     description: 'Ride the vertical stream so the carrier slips through the access window for {target}.',
   },
+  lock: {
+    title: 'Circular Dial',
+    description: 'Rotate the dial so the glowing slice snaps over {target}.',
+  },
+  orbit: {
+    title: 'Orbital Sync',
+    description: 'Catch the orbiting spark inside the breach band around {target}.',
+  },
 };
 
-const SKILL_CHECK_VARIANTS = ['linear', 'vertical'];
+const SKILL_CHECK_VARIANTS = ['linear', 'vertical', 'lock', 'orbit'];
 const SKILL_CHECK_CONFETTI_COLORS = ['#8fffe0', '#6ed6ff', '#ff82be', '#ffe566'];
 
 function getSkillCheckVariant() {
@@ -3863,7 +4056,7 @@ function attemptSkillCheckResolution() {
   resolveSkillCheck(withinWindow);
 }
 
-function startSkillCheck({ upgrade, difficulty, reward, onFail }) {
+function startSkillCheck({ upgrade, difficulty, reward, onFail, summary }) {
   if (!UI.skillCheck || !UI.skillCheckAction || !UI.skillCheckTarget || !UI.skillCheckSlider) return;
   const config = getSkillCheckConfig(difficulty);
   const sliderPosition = Math.min(0.95, Math.max(0.05, Math.random()));
@@ -3883,11 +4076,25 @@ function startSkillCheck({ upgrade, difficulty, reward, onFail }) {
   skillCheckState.targetStart = targetStart;
   skillCheckState.targetEnd = targetStart + config.windowSize;
   skillCheckState.difficulty = difficulty;
+  skillCheckState.meta = summary || null;
   setSkillCheckVariant(variant);
   const variantCopy = SKILL_CHECK_VARIANT_DETAILS[variant] || SKILL_CHECK_VARIANT_DETAILS.linear;
   UI.skillCheckTitle.textContent = `${variantCopy.title} — ${difficulty.toUpperCase()}`;
   const targetLabel = upgrade?.name || 'the target';
   UI.skillCheckDescription.textContent = variantCopy.description.replace('{target}', targetLabel);
+  if (UI.skillCheckUpgrade) {
+    UI.skillCheckUpgrade.textContent = targetLabel;
+  }
+  if (UI.skillCheckTier) {
+    const nextLevel = (upgrade ? (state.upgrades[upgrade.id] || 0) + 1 : 0) || 0;
+    UI.skillCheckTier.textContent = nextLevel ? `Next tier: ${nextLevel}` : '';
+  }
+  if (UI.skillCheckReward) {
+    UI.skillCheckReward.textContent = summary?.rewardLabel || '';
+  }
+  if (UI.skillCheckPenalty) {
+    UI.skillCheckPenalty.textContent = summary?.penaltyLabel || '';
+  }
   UI.skillCheck.classList.remove('hidden');
   refreshSkillCheckVisuals();
   UI.skillCheckAction.focus();
@@ -3929,6 +4136,7 @@ function resolveSkillCheck(success) {
   if (UI.skillCheckAction) {
     UI.skillCheckAction.blur();
   }
+  skillCheckState.meta = null;
 }
 
 function updateSkillCheck(delta) {
@@ -4030,6 +4238,7 @@ function updateNodes(delta) {
   if (!areaRect) return;
   const { width, height } = areaRect;
   activeNodes.forEach((node) => {
+    tickNodeBehavior(node, delta);
     node.position.x += node.velocity.x * delta;
     node.position.y += node.velocity.y * delta;
     node.rotation += node.rotationSpeed * delta;
@@ -4331,6 +4540,7 @@ function spawnNode() {
   }
 
   const type = weightedNodeType();
+  triggerArenaFlash(type);
   const travelTimeBase = 10 + Math.random() * 6;
   const travelTime = travelTimeBase / Math.max(1, type.speedMultiplier || 1);
   const velocity = {
@@ -4350,6 +4560,13 @@ function spawnNode() {
     rotationSpeed: (Math.random() - 0.5) * 28,
     bounds: margin,
   };
+  if (type.id === 'prismatic') {
+    node.behaviorState = { hueTimer: 0 };
+    applyPrismaticHue(node, pickPrismaticHue(type));
+  }
+  if (type.id === 'void') {
+    node.behaviorState = { drain: 0 };
+  }
   const el = document.createElement('div');
   el.className = `node ${type.color} skin-${state.skins.active}`;
   const visual = document.createElement('div');
@@ -4370,6 +4587,9 @@ function spawnNode() {
   node.fillEl = fill;
   node.healthRingEl = healthRing;
   node.hpEl = hpLabel;
+  if (type.id === 'prismatic') {
+    applyPrismaticHue(node, node.currentHue || pickPrismaticHue(type));
+  }
   applyNodeTransform(node);
   UI.nodeArea.appendChild(el);
   requestAnimationFrame(() => {
@@ -4381,12 +4601,81 @@ function spawnNode() {
   updateNodeElement(node);
 }
 
+function pickPrismaticHue(type) {
+  if (!type?.hues?.length) return 'azure';
+  const index = Math.floor(Math.random() * type.hues.length);
+  return type.hues[index] || 'azure';
+}
+
+const PRISMATIC_COLORS = {
+  azure: { hex: '#7ef6ff', rgb: '126, 246, 255' },
+  emerald: { hex: '#6df3a1', rgb: '109, 243, 161' },
+  crimson: { hex: '#ff6ea8', rgb: '255, 110, 168' },
+  auric: { hex: '#ffd166', rgb: '255, 209, 102' },
+  void: { hex: '#b38bff', rgb: '179, 139, 255' },
+};
+
+function applyPrismaticHue(node, hue) {
+  if (!node?.el) return;
+  const palette = PRISMATIC_COLORS[hue] || PRISMATIC_COLORS.azure;
+  node.currentHue = hue;
+  node.el.dataset.hue = hue;
+  node.el.style.setProperty('--node-prism-color', palette.hex);
+  node.el.style.setProperty('--node-prism-rgb', palette.rgb);
+}
+
+function tickNodeBehavior(node, delta) {
+  if (!node?.type) return;
+  if (node.type.id === 'void') {
+    const drain = Math.max(0, node.type.behavior?.drainPerSecond || 0);
+    if (drain > 0) {
+      const damage = drain * delta;
+      state.health = Math.max(0, state.health - damage);
+      const healFactor = Math.max(0, node.type.behavior?.healOnDrain || 0);
+      if (healFactor > 0 && node.hp < node.maxHP) {
+        node.hp = Math.min(node.maxHP, node.hp + damage * healFactor);
+        updateNodeElement(node);
+      }
+    }
+  }
+  if (node.type.id === 'prismatic') {
+    node.behaviorState = node.behaviorState || { hueTimer: 0 };
+    node.behaviorState.hueTimer += delta;
+    if (!node.currentHue) {
+      applyPrismaticHue(node, pickPrismaticHue(node.type));
+    }
+    if (node.behaviorState.hueTimer >= 3.2) {
+      node.behaviorState.hueTimer = 0;
+      applyPrismaticHue(node, pickPrismaticHue(node.type));
+    }
+  }
+}
+
 function weightedNodeType() {
   const roll = Math.random();
-  if (roll >= 0.995) return nodeTypes.find((type) => type.id === 'gold') || nodeTypes[0];
+  if (roll >= 0.997) return nodeTypes.find((type) => type.id === 'gold') || nodeTypes[0];
+  if (roll >= 0.992) return nodeTypes.find((type) => type.id === 'prismatic') || nodeTypes[0];
+  if (roll >= 0.965) return nodeTypes.find((type) => type.id === 'void') || nodeTypes[0];
   if (roll >= 0.74) return nodeTypes.find((type) => type.id === 'blue') || nodeTypes[0];
-  if (roll >= 0.68) return nodeTypes.find((type) => type.id === 'green') || nodeTypes[0];
+  if (roll >= 0.64) return nodeTypes.find((type) => type.id === 'green') || nodeTypes[0];
   return nodeTypes.find((type) => type.id === 'red') || nodeTypes[0];
+}
+
+let arenaFlashTimeout;
+function triggerArenaFlash(type) {
+  if (!type || !UI.nodeArea || !UI.nodeArenaBackdrop) return;
+  const rare = type.id === 'gold' || type.id === 'void' || type.id === 'prismatic';
+  if (!rare) return;
+  const highlight =
+    (type.id === 'gold' && '#ffd166') ||
+    (type.id === 'void' && '#b38bff') ||
+    (type.id === 'prismatic' && PRISMATIC_COLORS.azure.hex) ||
+    '#7fffd6';
+  UI.nodeArea.style.setProperty('--rare-highlight', highlight);
+  UI.nodeArenaBackdrop?.style.setProperty('--rare-highlight', highlight);
+  UI.nodeArea.classList.add('rare-flash');
+  clearTimeout(arenaFlashTimeout);
+  arenaFlashTimeout = setTimeout(() => UI.nodeArea.classList.remove('rare-flash'), 1200);
 }
 
 function calculateCursorDamage(options = {}) {
@@ -4463,6 +4752,8 @@ function getBossDamageFromNodeType(typeId) {
   if (typeId === 'blue') return Math.round(randomInRange(30, 40));
   if (typeId === 'green') return Math.round(randomInRange(80, 150));
   if (typeId === 'gold') return Math.round(randomInRange(200, 400));
+  if (typeId === 'void') return Math.round(randomInRange(260, 420));
+  if (typeId === 'prismatic') return Math.round(randomInRange(120, 320));
   return 0;
 }
 
@@ -4478,6 +4769,16 @@ function destroyNode(node) {
   if (node.type?.id === 'gold') {
     createGoldenBitBurst(node);
   }
+  if (node.type?.id === 'void') {
+    const restored = Math.min(state.maxHealth - state.health, Math.ceil(node.maxHP * 0.04));
+    if (restored > 0) {
+      state.health += restored;
+      createFloatText(node.el, `+${restored} HP`, '#b38bff');
+    }
+  }
+  if (node.type?.id === 'prismatic' && node.currentHue) {
+    createFloatText(node.el, node.currentHue.toUpperCase(), '#cde7ff');
+  }
   spawnBitTokens(node, rewardsGranted?.bits || 0);
   if (node.shakeTimeout) clearTimeout(node.shakeTimeout);
   if (node.hitTimeout) clearTimeout(node.hitTimeout);
@@ -4488,7 +4789,7 @@ function destroyNode(node) {
 
 function dropRewards(node) {
   const type = node?.type || nodeTypes[0];
-  const rewards = type.reward(state.currentLevel.index);
+  const rewards = type.reward(state.currentLevel.index, node);
   const baseBits = rewards.bits ?? 0;
   const nodeElement = node?.el;
   let harvestedBits = 0;
@@ -4970,6 +5271,7 @@ function updateBossBar() {
     value.textContent = `${Math.round(ratio * 100)}%`;
   }
   updateBossDamageCounter();
+  updateBossPhaseBar();
 }
 
 function playBossDefeatAnimation(bossEl) {
@@ -5068,6 +5370,27 @@ function updateStats() {
   state.health = Math.min(state.health, state.maxHealth);
   applyCursorSize();
   persistStatsSnapshot();
+  updateQuickStats();
+  updateBossPhaseBar();
+}
+
+function updateQuickStats() {
+  if (!UI.quickStatDamage) return;
+  UI.quickStatDamage.textContent = `${Math.round(stats.damage).toLocaleString()}`;
+  UI.quickStatCrit.textContent = `${(stats.critChance * 100).toFixed(1)}% x${stats.critMultiplier.toFixed(2)}`;
+  UI.quickStatAuto.textContent = `${stats.autoInterval.toFixed(2)}s`;
+  UI.quickStatSpawn.textContent = `${stats.nodeSpawnDelay.toFixed(2)}s / ${stats.maxNodes}`;
+  const bossHp = Math.round(getBossBaseHP(state.currentLevel.index) * stats.bossHPFactor);
+  UI.quickStatBoss.textContent = bossHp.toLocaleString();
+}
+
+function updateBossPhaseBar() {
+  if (!UI.bossPhaseFill || !UI.bossPhasePhase) return;
+  const max = Math.max(1, state.currentLevel.bossMaxHP || getBossBaseHP(state.currentLevel.index));
+  const ratio = state.currentLevel.bossActive ? Math.max(0, state.currentLevel.bossHP) / max : 0;
+  UI.bossPhaseFill.style.transform = `scaleX(${ratio})`;
+  const phase = ratio > 0.66 ? 1 : ratio > 0.33 ? 2 : ratio > 0 ? 3 : '-';
+  UI.bossPhasePhase.textContent = state.currentLevel.bossActive ? `Phase ${phase}` : 'Idle';
 }
 
 function updateResources() {
@@ -5089,6 +5412,8 @@ function updateResources() {
   renderSpeedUpgrades();
   updateTabAvailability();
   updateUpgradeTabAvailability();
+  updateQuickStats();
+  updateBossPhaseBar();
 }
 
 function gainXP(amount) {
@@ -5148,7 +5473,9 @@ function totalNodesDestroyed() {
     state.nodesDestroyed.red +
     state.nodesDestroyed.blue +
     state.nodesDestroyed.green +
-    state.nodesDestroyed.gold
+    state.nodesDestroyed.gold +
+    (state.nodesDestroyed.void || 0) +
+    (state.nodesDestroyed.prismatic || 0)
   );
 }
 
