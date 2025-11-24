@@ -171,20 +171,20 @@ body.palette-sunset {
 }
 
 body.palette-obsidian {
-  --accent: #7de4c2;
-  --accent-capital: #66b6ff;
-  --accent-strong: #a6ffec;
-  --accent-slight: #3e7c6b;
-  --accent-slighty: #2a5c52;
-  --accent-slighter: #18352f;
-  --accent-slightest: #0b1c19;
-  --accent-drop: #071411;
-  --accent-soft: #7de4c233;
-  --accent-softer: #2b594b33;
-  --panel: #0c1514f5;
-  --panel-strong: #101c1bfa;
-  --bg: #070d0c;
-  --bg-alt: #0d1a18;
+  --accent: #5a3969;
+  --accent-capital: #684679;
+  --accent-strong: #815f92;
+  --accent-slight: #472c53;
+  --accent-slighty: #372242;
+  --accent-slighter: #2f1d38;
+  --accent-slightest: #24112c;
+  --accent-drop: #150b1a;
+  --accent-soft: #472c5333;
+  --accent-softer: #3a214633;
+  --panel: #281a2ef5;
+  --panel-strong: #1f1524fa;
+  --bg: #0d080f;
+  --bg-alt: #18101b;
 }
 
 * {
