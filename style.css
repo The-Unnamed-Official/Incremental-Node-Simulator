@@ -3858,8 +3858,8 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   inset: 0;
   background: radial-gradient(circle at 20% 20%, rgba(120, 255, 214, 0.08), transparent 30%),
     radial-gradient(circle at 80% 40%, rgba(255, 214, 102, 0.08), transparent 28%),
-    rgba(7, 10, 18, 0.75);
-  backdrop-filter: blur(1px);
+    rgba(7, 10, 18, 0.6);
+  backdrop-filter: none;
   pointer-events: none;
 }
 
@@ -3868,7 +3868,8 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   border: 2px solid var(--accent);
   box-shadow: 0 0 0 12px var(--accent-drop), 0 10px 40px var(--bg);
   pointer-events: none;
-  transition: all var(--transition-fast) ease;
+  transition: left var(--transition-fast) ease, top var(--transition-fast) ease,
+    width var(--transition-fast) ease, height var(--transition-fast) ease;
 }
 
 .tutorial-panel {
@@ -3883,6 +3884,7 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   padding: 16px 18px 18px;
   pointer-events: auto;
   z-index: 1;
+  transition: transform var(--transition-fast) ease, opacity var(--transition-fast) ease;
 }
 
 .tutorial-header {
@@ -3930,6 +3932,19 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 12px;
+}
+
+.tutorial-overlay.tutorial-panel-right {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.tutorial-overlay.tutorial-backdrop-clear .tutorial-backdrop {
+  background: none;
+}
+
+.tutorial-panel.is-right {
+  transform: translateX(18px);
 }
 
 body.tutorial-locked .side-panel,
