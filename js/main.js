@@ -1685,7 +1685,7 @@ const tutorialSteps = [
   {
     id: 'music',
     title: 'Stream-safe music',
-    body: 'The music player uses original NodeShift tracks—safe to stream or record with zero copyright worries. Swap tracks, lower BGM, or mute anytime.',
+    body: 'The music player uses original music produced by the creator The Unnamed! They are safe to stream or record with zero copyright worries. Swap tracks, lower BGM, or mute anytime.',
     target: () => document.getElementById('music-player'),
     goal: 'Pick a track you like; they are all DMCA-safe.',
   },
