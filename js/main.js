@@ -45,8 +45,8 @@ const tutorialState = {
   completed: false,
   stepIndex: 0,
   awaitingNodeKills: false,
-  requiredNodeKills: { red: 1, blue: 1, green: 1, gold: 1 },
-  nodeKillProgress: { red: 0, blue: 0, green: 0, gold: 0 },
+  requiredNodeKills: { red: 1, blue: 1 },
+  nodeKillProgress: { red: 0, blue: 0 },
   nodeShowcaseActive: false,
   nodeCapOverride: null,
   awaitingUpgrade: false,
@@ -62,6 +62,7 @@ let cursorInNodeArea = false;
 let bitTokenSweepScheduled = false;
 let topBarObserver = null;
 let topBarStickyObserver = null;
+let tutorialHighlightFrame = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
@@ -176,6 +177,8 @@ function cacheElements() {
   UI.skillCheckReward = document.getElementById('skill-check-reward');
   UI.skillCheckPenalty = document.getElementById('skill-check-penalty');
   UI.tutorialOverlay = document.getElementById('tutorial-overlay');
+  UI.tutorialPanel = document.querySelector('.tutorial-panel');
+  UI.tutorialBackdrop = document.querySelector('.tutorial-backdrop');
   UI.tutorialHighlight = document.getElementById('tutorial-highlight');
   UI.tutorialTitle = document.getElementById('tutorial-step-title');
   UI.tutorialBody = document.getElementById('tutorial-step-body');
@@ -1654,7 +1657,7 @@ const tutorialSteps = [
   {
     id: 'nodes',
     title: 'Meet the nodes',
-    body: 'Red nodes are common, blue nodes are tanky, green nodes move fast and drop prestige, and rare gold nodes are jackpots. Clear one of each to see how they behave.',
+    body: 'Red nodes are common and blue nodes are tanky. Green and gold variants show up later—just clear a red node and a blue node here to get the feel.',
     target: () => UI.nodeArea,
     onEnter: startNodeShowcase,
   },
@@ -1794,6 +1797,7 @@ function startTutorial({ replay = false } = {}) {
   if (UI.tutorialOverlay) {
     UI.tutorialOverlay.classList.remove('hidden');
   }
+  startTutorialHighlightTracking();
   showTutorialStep(replay ? 0 : tutorialState.stepIndex);
 }
 
@@ -1808,6 +1812,8 @@ function finishTutorial(markComplete = false) {
   if (UI.tutorialOverlay) {
     UI.tutorialOverlay.classList.add('hidden');
   }
+  stopTutorialHighlightTracking();
+  syncTutorialLayout(null);
   document.body.classList.remove('tutorial-active');
   if (markComplete) {
     persistTutorialCompletion();
@@ -1867,6 +1873,7 @@ function enterTutorialStep(step) {
 function refreshTutorialStepUI(step = getCurrentTutorialStep()) {
   updateTutorialGoal(step);
   updateTutorialButtons(step);
+  syncTutorialLayout(step);
   refreshTutorialHighlight();
 }
 
@@ -1875,6 +1882,36 @@ function updateTutorialButtons(step = getCurrentTutorialStep()) {
   const finalStep = tutorialState.stepIndex >= tutorialSteps.length - 1;
   UI.tutorialNext.textContent = finalStep ? 'Finish' : 'Next';
   UI.tutorialNext.disabled = step ? !isTutorialStepComplete(step) : false;
+}
+
+function syncTutorialLayout(step = getCurrentTutorialStep()) {
+  if (!UI.tutorialOverlay) return;
+  const focusNodes = Boolean(step && step.id === 'nodes');
+  UI.tutorialOverlay.classList.toggle('tutorial-panel-right', focusNodes);
+  UI.tutorialOverlay.classList.toggle('tutorial-backdrop-clear', focusNodes);
+  if (UI.tutorialPanel) {
+    UI.tutorialPanel.classList.toggle('is-right', focusNodes);
+  }
+}
+
+function startTutorialHighlightTracking() {
+  if (tutorialHighlightFrame != null) return;
+  const tick = () => {
+    if (!tutorialState.active) {
+      tutorialHighlightFrame = null;
+      return;
+    }
+    refreshTutorialHighlight();
+    tutorialHighlightFrame = requestAnimationFrame(tick);
+  };
+  tutorialHighlightFrame = requestAnimationFrame(tick);
+}
+
+function stopTutorialHighlightTracking() {
+  if (tutorialHighlightFrame != null) {
+    cancelAnimationFrame(tutorialHighlightFrame);
+    tutorialHighlightFrame = null;
+  }
 }
 
 function refreshTutorialHighlight() {
@@ -1917,7 +1954,7 @@ function updateTutorialGoal(step = getCurrentTutorialStep()) {
     return;
   }
   if (step.id === 'nodes') {
-    text = `Destroy one of each: ${formatNodeGoalProgress()}`;
+    text = `Destroy the required nodes: ${formatNodeGoalProgress()}`;
     complete = isTutorialNodeGoalComplete();
   } else if (step.id === 'upgrade') {
     text = `Buy an upgrade and clear the skill check (${tutorialState.upgradePurchased ? 'purchased' : 'not purchased'}, ${tutorialState.skillCheckComplete ? 'skill check tried' : 'skill check pending'})`;
@@ -1953,7 +1990,10 @@ function isTutorialStepComplete(step = getCurrentTutorialStep()) {
 function startNodeShowcase() {
   tutorialState.awaitingNodeKills = true;
   tutorialState.nodeShowcaseActive = true;
-  tutorialState.nodeKillProgress = { red: 0, blue: 0, green: 0, gold: 0 };
+  tutorialState.nodeKillProgress = Object.keys(tutorialState.requiredNodeKills).reduce((acc, key) => {
+    acc[key] = 0;
+    return acc;
+  }, {});
   tutorialState.pendingNodeTypes = Object.keys(tutorialState.requiredNodeKills);
   tutorialState.nodeCapOverride = 1;
   activeNodes.forEach((node) => node.el?.remove());
