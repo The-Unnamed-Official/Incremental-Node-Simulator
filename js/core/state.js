@@ -77,10 +77,12 @@ function createInitialState() {
       sfx: 0.7,
       palette: 'default',
       reducedAnimation: false,
+      showTips: true,
     },
     selectedUpgradeFilter: 'damage',
     lastSeenVersion: null,
     lastSavedAt: null,
+    tutorialCompleted: false,
   };
 }
 
