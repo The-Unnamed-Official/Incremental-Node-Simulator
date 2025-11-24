@@ -4,7 +4,7 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.600';
+const GAME_VERSION = 'v0.620';
 
 const UPDATE_LOGS = [
   {
