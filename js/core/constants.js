@@ -8,6 +8,146 @@ const GAME_VERSION = 'v0.600';
 
 const UPDATE_LOGS = [
   {
+    version: 'v0.620',
+    title: 'Node Expansion & System Reworks!',
+    description:
+      'This update focuses on polishing gameplay flow, adding more node variety, improving UI clarity, enhancing skill checks, and laying the foundation for future progression systems.',
+    changes: [
+      {
+        text: 'DOUBLED the amount of songs by adding 6 whole new remix tracks made by me!',
+        sub: [
+          'Heaven Says',
+          'Intruder',
+          'Break You Down',
+          'Overthrone',
+          'Encounter',
+          'Manipulated',
+        ],
+      },
+
+      'Added a tutorial which can also be replayed!',
+
+      {
+        text: 'Added new rare node behaviors and improvements.',
+        sub: [
+          'Expanded visual effects for rare nodes',
+          'More detailed particle bursts on kill',
+          'Enhanced reward feedback for rare node types',
+        ],
+      },
+
+      {
+        text: 'Improved node info representation, preparing for advanced future node types.',
+        sub: [
+          'Void nodes (concept integration support)',
+          'Prismatic nodes (color-cycling logic groundwork)',
+        ],
+      },
+
+      {
+        text: 'Adjusted critical blooms and improved node-kill responsiveness.',
+        sub: [
+          'Sharper bloom effect timing',
+          'Smoother node HP-to-death transition',
+          'Faster post-kill bit dispersion response',
+        ],
+      },
+
+      {
+        text: 'Upgraded UI responsiveness with smoother interactions.',
+        sub: [
+          'Improved hover animations',
+          'Tighter click feedback',
+          'Better pressed/active transitions',
+        ],
+      },
+
+      {
+        text: 'Added subtle arena feedback changes.',
+        sub: [
+          'Arena tinting during rare node spawns',
+          'Stronger wave-intensity cues',
+          'Better node-spawn visual clarity',
+        ],
+      },
+
+      {
+        text: 'Enhanced skill check flow.',
+        sub: [
+          'Clearer presentation of the check area',
+          'More readable success/failure feedback',
+          'Better timing window clarity',
+        ],
+      },
+
+      {
+        text: 'Added groundwork for a visual skill-tree system.',
+        sub: [
+          'Support for grid-based node positioning',
+          'Backend for branching/unlock logic',
+          'State hooks for multi-level skill paths',
+        ],
+      },
+
+      {
+        text: 'Improved boss HP handling.',
+        sub: [
+          'Prepared multi-phase HP segmentation',
+          'Improved scaled HP rendering',
+          'More accurate boss feedback flow',
+        ],
+      },
+
+      {
+        text: 'Refined palette handling and visual cohesion.',
+        sub: [
+          'Added micro-support for palette previews',
+          'Improved theme consistency across UI components',
+        ],
+      },
+
+      {
+        text: 'Improved music-player responsiveness.',
+        sub: [
+          'Prepared palette-reactive border glow',
+          'Prepared event-based pulse effects (boss spawn/kill)',
+        ],
+      },
+
+      {
+        text: 'Tweaked resource update logic.',
+        sub: [
+          'Cleaner stat feedback',
+          'More readable bit/XP progression pacing',
+          'Better synchronization across UI panels',
+        ],
+      },
+
+      'Improved autosave reliability and added hooks for future “last saved” indicators.',
+
+      'Optimized DOM updates across multiple panels to prepare for new upcoming systems.',
+
+      {
+        text: 'Refactored UI containers to support future additions.',
+        sub: [
+          'Node info panel foundations',
+          'Quick-stats overlay preparation',
+          'More flexible skill tree layout container',
+        ],
+      },
+
+      'Updated internal node scaling structure for better long-term progression stability.',
+
+      'Improved animation timing for destruction particles, gold-node explosions, and rare-node effects.',
+
+      'Refined SFX triggers for hits, kills, and pointer interactions to feel tighter and more responsive.',
+
+      'Minor layout adjustments across upgrade screens for future skill-tree visualization.',
+
+      'General polish, bug fixes, stability improvements, and smoother transitions across palettes.',
+    ],
+  },
+  {
     version: 'v0.600',
     title: 'Color Update!!',
     description:

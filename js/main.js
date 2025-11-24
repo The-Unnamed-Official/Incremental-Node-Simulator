@@ -1325,7 +1325,31 @@ function renderUpdateLogContent(log, animate = true) {
   list.className = 'update-log-list';
   log.changes.forEach((change) => {
     const item = document.createElement('li');
-    item.textContent = change;
+
+    if (typeof change === 'string') {
+      item.textContent = change;
+    }
+    else if (change && typeof change === 'object') {
+      if (change.text) {
+        const mainText = document.createElement('span');
+        mainText.textContent = change.text;
+        item.appendChild(mainText);
+      }
+
+      if (Array.isArray(change.sub) && change.sub.length > 0) {
+        const subList = document.createElement('ul');
+        subList.className = 'update-log-sublist';
+
+        change.sub.forEach((sub) => {
+          const subItem = document.createElement('li');
+          subItem.textContent = sub;
+          subList.appendChild(subItem);
+        });
+
+        item.appendChild(subList);
+      }
+    }
+
     list.appendChild(item);
   });
   entry.appendChild(list);

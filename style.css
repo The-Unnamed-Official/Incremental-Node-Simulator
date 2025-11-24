@@ -495,7 +495,7 @@ body.disable-scanlines #crt-overlay {
   position: fixed;
   left: 24px;
   bottom: 24px;
-  width: 340px;
+  width: 300px;
   max-width: calc(100vw - 32px);
   background: repeating-linear-gradient(135deg, var(--accent-drop), var(--bg));
   border: var(--pixel-border) solid var(--accent-slight);
@@ -524,7 +524,7 @@ body.disable-scanlines #crt-overlay {
 }
 
 .quick-stats-panel.collapsed {
-  transform: translateX(calc(-100% + 54px));
+  transform: translateX(calc(-100% + -25px));
   opacity: 0.3;
 }
 
@@ -3277,7 +3277,7 @@ body.skill-fail::after {
   --tab-stack: 60px;
   --panel-padding: clamp(16px, 2vw, 24px);
   width: min(1360px, 112vw);
-  max-height: min(80vh, 860px);
+  max-height: min(90vh, 960px);
   padding-top: var(--tab-stack);
   position: relative;
 }
@@ -3287,7 +3287,7 @@ body.skill-fail::after {
   border: var(--pixel-border) solid var(--accent-slight);
   box-shadow: 0 0 0 3px var(--accent-drop), var(--pixel-shadow);
   width: 100%;
-  max-height: calc(min(80vh, 860px) - var(--tab-stack));
+  max-height: calc(min(90vh, 960px) - var(--tab-stack));
   padding: 18px var(--panel-padding);
   display: grid;
   gap: 12px;
@@ -3371,7 +3371,7 @@ body.skill-fail::after {
   border: var(--pixel-border) solid var(--accent-slighty);
   padding: 16px;
   overflow: auto;
-  min-height: min(10vh, 180px);
+  min-height: min(50vh, 680px);
   height: 360px;
   display: flex;
   justify-content: center;
@@ -3438,6 +3438,20 @@ body.skill-fail::after {
 
 .update-log-list li {
   color: var(--text);
+}
+
+.update-log-sublist {
+  margin-top: 6px;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  list-style-type: square;
+  opacity: 0.9;
+  font-size: 0.9em;
+}
+
+.update-log-sublist li {
+  color: var(--muted);
 }
 
 #custom-cursor {
