@@ -2066,25 +2066,25 @@ function generateSkins() {
     {
       id: 'midnight',
       name: 'Midnight Bloom',
-      cost: 1500,
+      cost: 15000,
       description: 'Orbital halo with drifting starlight around a midnight core.',
     },
     {
       id: 'ember',
       name: 'Ember Pulse',
-      cost: 4000,
+      cost: 40000,
       description: 'Forged casing split with molten fractures and radiant sparks.',
     },
     {
       id: 'glitch',
       name: 'Glitch Prism',
-      cost: 12000,
+      cost: 120000,
       description: 'Reality-warping shader, shifts per click.',
     },
     {
       id: 'aurora',
       name: 'Aurora Silk',
-      cost: 25000,
+      cost: 250000,
       description: 'Multilayer lattice of refracted light and harmonic pulses.',
     },
   ];

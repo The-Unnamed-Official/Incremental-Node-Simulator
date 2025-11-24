@@ -3571,21 +3571,6 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   opacity: 0.9;
 }
 
-.tooltip {
-  position: fixed;
-  background: rgba(4, 8, 20, 0.9);
-  border: 1px solid var(--accent-slight);
-  border-radius: 12px;
-  padding: 12px 16px;
-  color: var(--text);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  pointer-events: none;
-  box-shadow: 0 12px 24px rgba(4, 8, 20, 0.5);
-  max-width: 220px;
-  z-index: 80;
-}
-
 @keyframes cursor-pulse {
   to {
     opacity: 0;
