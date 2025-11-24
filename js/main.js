@@ -5059,7 +5059,6 @@ function spawnNode() {
       break;
   }
 
-  const type = weightedNodeType();
   triggerArenaFlash(type);
   const travelTimeBase = 10 + Math.random() * 6;
   const travelTime = travelTimeBase / Math.max(1, type.speedMultiplier || 1);
