@@ -2139,7 +2139,7 @@ body.disable-scanlines #crt-overlay {
 .skin-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
 }
 
 .save-controls {
@@ -2673,7 +2673,8 @@ body.disable-scanlines #crt-overlay {
 .area-upgrade-grid {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  width: 100%;
 }
 
 .area-upgrade {
