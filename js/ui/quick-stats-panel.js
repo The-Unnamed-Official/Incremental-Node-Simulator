@@ -39,7 +39,7 @@
       const collapsed = panel.classList.contains('collapsed');
       toggle.innerHTML = collapsed
         ? '<i class="fa-solid fa-arrow-right-to-bracket" style="color: var(--accent);"></i>'
-        : '<i class="fa-solid fa-arrow-left-long" style="color: var(--accent);"></i>';
+        : '<i class="fa-solid fa-arrow-right-from-bracket fa-flip-horizontal" style="color: var(--accent);"></i>';
     };
 
     const startDrag = (event) => {
