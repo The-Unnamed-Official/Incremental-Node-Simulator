@@ -1882,8 +1882,7 @@ body.disable-scanlines #crt-overlay {
 .skill-tree {
   position: relative;
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(260px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 24px;
   padding: 14px 10px 18px 14px;
   max-height: clamp(280px, 55vh, 520px);
