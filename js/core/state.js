@@ -27,6 +27,8 @@ function createInitialState() {
       blue: 0,
       green: 0,
       gold: 0,
+      void: 0,
+      prismatic: 0,
     },
     bossKills: 0,
     currentLevel: {
@@ -75,10 +77,12 @@ function createInitialState() {
       sfx: 0.7,
       palette: 'default',
       reducedAnimation: false,
+      showTips: true,
     },
     selectedUpgradeFilter: 'damage',
     lastSeenVersion: null,
     lastSavedAt: null,
+    tutorialCompleted: false,
   };
 }
 

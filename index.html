@@ -86,7 +86,15 @@
             </div>
           </label>
         </div>
+        <div class="boss-phase" aria-live="polite">
+          <div class="boss-phase-label">Boss Integrity</div>
+          <div class="boss-phase-track">
+            <div id="boss-phase-fill" class="boss-phase-fill"></div>
+            <div id="boss-phase-phase" class="boss-phase-phase">Phase 1</div>
+          </div>
+        </div>
         <div class="node-area" id="node-area">
+          <div id="node-arena-backdrop" class="node-arena-backdrop" aria-hidden="true"></div>
           <div id="particle-layer" aria-hidden="true"></div>
           <div id="bit-layer" aria-live="polite"></div>
         </div>
@@ -246,6 +254,16 @@
               <span>Reduce animation</span>
               <input type="checkbox" id="reduce-animation" class="switch-input" />
             </label>
+            <label class="setting setting-toggle">
+              <span>Show tips occasionally</span>
+              <input type="checkbox" id="tips-toggle" class="switch-input" checked />
+            </label>
+            <div class="setting setting-inline">
+              <div class="setting-label">Tutorial controls</div>
+              <div class="setting-actions">
+                <button id="replay-tutorial" class="pill">Replay tutorial</button>
+              </div>
+            </div>
             <label class="setting">
               <span>Palette</span>
               <div class="select-shell">
@@ -256,9 +274,13 @@
                   <option value="diamond">diamond</option>
                   <option value="emerald">emerald</option>
                   <option value="pinky">pinky</option>
-                  <option value="saphire">saphire</option>
+                  <option value="ruby">ruby</option>
+                  <option value="nebula">nebula</option>
+                  <option value="sunset">sunset</option>
+                  <option value="obsidian">obsidian</option>
                 </select>
               </div>
+              <div id="palette-preview-row" class="palette-preview-row" aria-hidden="true"></div>
             </label>
           </div>
           <div class="skin-panel">
@@ -319,6 +341,15 @@
   </div>
   <div id="skill-check" class="skill-check hidden" role="dialog" aria-modal="true" aria-live="assertive">
     <div class="skill-check-panel">
+      <div class="skill-check-banner">
+        <div class="banner-title">Skill Check Incoming</div>
+        <div class="banner-meta">
+          <span id="skill-check-upgrade" class="meta-item"></span>
+          <span id="skill-check-tier" class="meta-item"></span>
+          <span id="skill-check-reward" class="meta-item"></span>
+          <span id="skill-check-penalty" class="meta-item"></span>
+        </div>
+      </div>
       <h2 id="skill-check-title">Skill Check!</h2>
       <p id="skill-check-description">Stabilise the upgrade stream before it collapses.</p>
       <div class="skill-check-variant-grid">
@@ -363,6 +394,7 @@
       <button id="skill-check-action" class="pill">Resolve</button>
     </div>
   </div>
+  <div id="skill-detail-popup" class="skill-detail-popup hidden" role="dialog" aria-live="polite"></div>
   <div id="level-dialog" class="level-dialog hidden" role="dialog" aria-modal="true" aria-live="assertive">
     <div class="level-dialog-panel">
       <h2>Boss neutralised</h2>
@@ -382,6 +414,35 @@
       <div class="new-game-actions">
         <button id="cancel-new-game" class="pill">Return</button>
         <button id="confirm-new-game" class="pill danger">Confirm reset</button>
+      </div>
+    </div>
+  </div>
+  <div id="quick-stats-panel" class="quick-stats-panel" aria-live="polite">
+    <button id="quick-stats-toggle" class="quick-stats-toggle" type="button" aria-label="Toggle quick stats panel">
+      <i class="fa-solid fa-arrow-left-long" style="color: #63E6BE;"></i>
+    </button>
+    <div class="quick-stats-shell">
+      <div class="quick-stats" aria-live="polite">
+        <div class="quick-stat" data-stat="damage">
+          <span class="label">Damage</span>
+          <span class="value" id="stat-damage">0</span>
+        </div>
+        <div class="quick-stat" data-stat="crit">
+          <span class="label">Crit</span>
+          <span class="value" id="stat-crit">0%</span>
+        </div>
+        <div class="quick-stat" data-stat="auto">
+          <span class="label">Auto</span>
+          <span class="value" id="stat-auto">0s</span>
+        </div>
+        <div class="quick-stat" data-stat="spawn">
+          <span class="label">Spawn</span>
+          <span class="value" id="stat-spawn">0s</span>
+        </div>
+        <div class="quick-stat" data-stat="hp">
+          <span class="label">Boss HP</span>
+          <span class="value" id="stat-boss">0</span>
+        </div>
       </div>
     </div>
   </div>
@@ -453,10 +514,29 @@
       </div>
     </div>
   </div>
+  <div id="tutorial-overlay" class="tutorial-overlay hidden" aria-live="polite">
+    <div class="tutorial-backdrop"></div>
+    <div id="tutorial-highlight" class="tutorial-highlight" aria-hidden="true"></div>
+    <div class="tutorial-panel" role="dialog" aria-modal="false">
+      <div class="tutorial-header">
+        <div>
+          <div id="tutorial-step-title" class="tutorial-title">Welcome to NodeShift</div>
+          <div id="tutorial-step-progress" class="tutorial-progress"></div>
+        </div>
+        <button id="tutorial-skip" class="pill subtle" type="button">Skip tutorial</button>
+      </div>
+      <p id="tutorial-step-body" class="tutorial-body"></p>
+      <div id="tutorial-step-goal" class="tutorial-goal" aria-live="polite"></div>
+      <div class="tutorial-actions">
+        <button id="tutorial-next" class="pill" type="button">Next</button>
+      </div>
+    </div>
+  </div>
   <audio id="bgm" src="files/bg_music.mp3" preload="auto"></audio>
   <script src="js/core/constants.js" defer></script>
   <script src="js/core/state.js" defer></script>
   <script src="js/core/audio.js" defer></script>
+  <script src="js/ui/quick-stats-panel.js" defer></script>
   <script src="js/ui/music-player.js" defer></script>
   <script src="js/main.js" defer></script>
 </body>

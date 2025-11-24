@@ -38,11 +38,31 @@ const skillCheckState = {
   variant: 'linear',
 };
 
+const TUTORIAL_STORAGE_KEY = 'ins-tutorial-complete';
+const TUTORIAL_PREF_KEY = 'ins-tutorial-prefs';
+const tutorialState = {
+  active: false,
+  completed: false,
+  stepIndex: 0,
+  awaitingNodeKills: false,
+  requiredNodeKills: { red: 1, blue: 1 },
+  nodeKillProgress: { red: 0, blue: 0 },
+  nodeShowcaseActive: false,
+  nodeCapOverride: null,
+  awaitingUpgrade: false,
+  upgradePurchased: false,
+  awaitingSkillCheck: false,
+  skillCheckComplete: false,
+  pendingNodeTypes: [],
+  preferences: { showTips: true },
+};
+
 const cursorPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 let cursorInNodeArea = false;
 let bitTokenSweepScheduled = false;
 let topBarObserver = null;
 let topBarStickyObserver = null;
+let tutorialHighlightFrame = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
@@ -64,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupProgressDock();
   applySavedUpgradeFilter();
   setupSettings();
+  renderPalettePreviews();
   renderSkins();
   renderMilestones();
   renderAchievements();
@@ -79,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCursor();
   setupAudio();
   setupSkillCheck();
+  setupSkillDetailDismissal();
   syncLabVisibility();
   updateStats();
   updateResources();
@@ -86,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupPersistence();
   startGameLoop();
   maybeShowUpdateLog();
+  setupTutorial();
 });
 
 function cacheElements() {
@@ -149,6 +172,20 @@ function cacheElements() {
   UI.skillCheckAction = document.getElementById('skill-check-action');
   UI.skillCheckTitle = document.getElementById('skill-check-title');
   UI.skillCheckDescription = document.getElementById('skill-check-description');
+  UI.skillCheckUpgrade = document.getElementById('skill-check-upgrade');
+  UI.skillCheckTier = document.getElementById('skill-check-tier');
+  UI.skillCheckReward = document.getElementById('skill-check-reward');
+  UI.skillCheckPenalty = document.getElementById('skill-check-penalty');
+  UI.tutorialOverlay = document.getElementById('tutorial-overlay');
+  UI.tutorialPanel = document.querySelector('.tutorial-panel');
+  UI.tutorialBackdrop = document.querySelector('.tutorial-backdrop');
+  UI.tutorialHighlight = document.getElementById('tutorial-highlight');
+  UI.tutorialTitle = document.getElementById('tutorial-step-title');
+  UI.tutorialBody = document.getElementById('tutorial-step-body');
+  UI.tutorialGoal = document.getElementById('tutorial-step-goal');
+  UI.tutorialNext = document.getElementById('tutorial-next');
+  UI.tutorialSkip = document.getElementById('tutorial-skip');
+  UI.tutorialProgress = document.getElementById('tutorial-step-progress');
   UI.levelDialog = document.getElementById('level-dialog');
   UI.levelDialogSummary = document.getElementById('level-dialog-summary');
   UI.levelContinue = document.getElementById('level-continue');
@@ -160,7 +197,19 @@ function cacheElements() {
   UI.updateLogTabs = document.getElementById('update-log-tabs');
   UI.updateLogBody = document.getElementById('update-log-body');
   UI.updateLogClose = document.getElementById('update-log-close');
+  UI.quickStatDamage = document.getElementById('stat-damage');
+  UI.quickStatCrit = document.getElementById('stat-crit');
+  UI.quickStatAuto = document.getElementById('stat-auto');
+  UI.quickStatSpawn = document.getElementById('stat-spawn');
+  UI.quickStatBoss = document.getElementById('stat-boss');
+  UI.bossPhaseFill = document.getElementById('boss-phase-fill');
+  UI.bossPhasePhase = document.getElementById('boss-phase-phase');
+  UI.palettePreviewRow = document.getElementById('palette-preview-row');
+  UI.skillDetailPopup = document.getElementById('skill-detail-popup');
+  UI.nodeArenaBackdrop = document.getElementById('node-arena-backdrop');
   UI.title = document.querySelector('.title');
+  UI.tipsToggle = document.getElementById('tips-toggle');
+  UI.replayTutorial = document.getElementById('replay-tutorial');
   if (UI.title) {
     let icon = document.getElementById('game-icon');
     if (!icon) {
@@ -569,6 +618,7 @@ function hydrateState(source = {}) {
     sfx: Number.isFinite(Number(mergedSettings.sfx)) ? Number(mergedSettings.sfx) : defaults.settings.sfx,
     palette: typeof mergedSettings.palette === 'string' ? mergedSettings.palette : defaults.settings.palette,
     reducedAnimation: coerceBoolean(mergedSettings.reducedAnimation, defaults.settings.reducedAnimation),
+    showTips: coerceBoolean(mergedSettings.showTips, defaults.settings.showTips),
   };
   state.selectedUpgradeFilter = typeof source.selectedUpgradeFilter === 'string'
     ? source.selectedUpgradeFilter
@@ -576,6 +626,7 @@ function hydrateState(source = {}) {
   state.lastSeenVersion = typeof source.lastSeenVersion === 'string' ? source.lastSeenVersion : defaults.lastSeenVersion;
   const lastSavedCandidate = Number(source.lastSavedAt);
   state.lastSavedAt = Number.isFinite(lastSavedCandidate) && lastSavedCandidate > 0 ? lastSavedCandidate : defaults.lastSavedAt;
+  state.tutorialCompleted = coerceBoolean(source.tutorialCompleted, defaults.tutorialCompleted);
   state.health = Math.min(state.maxHealth, Math.max(0, state.health));
   updateSaveTimestamp();
 }
@@ -828,6 +879,7 @@ function updateSaveTimestamp() {
 }
 
 function startNewGame() {
+  const tutorialSnapshot = snapshotTutorialPersistence();
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(SAVE_KEY);
@@ -864,6 +916,7 @@ function startNewGame() {
     updateStats();
     updateResources();
     localStorage.clear();
+    restoreTutorialPersistence(tutorialSnapshot);
     location.reload();
   }, 2000);
 }
@@ -1309,7 +1362,31 @@ function renderUpdateLogContent(log, animate = true) {
   list.className = 'update-log-list';
   log.changes.forEach((change) => {
     const item = document.createElement('li');
-    item.textContent = change;
+
+    if (typeof change === 'string') {
+      item.textContent = change;
+    }
+    else if (change && typeof change === 'object') {
+      if (change.text) {
+        const mainText = document.createElement('span');
+        mainText.textContent = change.text;
+        item.appendChild(mainText);
+      }
+
+      if (Array.isArray(change.sub) && change.sub.length > 0) {
+        const subList = document.createElement('ul');
+        subList.className = 'update-log-sublist';
+
+        change.sub.forEach((sub) => {
+          const subItem = document.createElement('li');
+          subItem.textContent = sub;
+          subList.appendChild(subItem);
+        });
+
+        item.appendChild(subList);
+      }
+    }
+
     list.appendChild(item);
   });
   entry.appendChild(list);
@@ -1412,6 +1489,19 @@ function setupSettings() {
       queueSave();
     });
   }
+  if (UI.tipsToggle) {
+    UI.tipsToggle.addEventListener('change', (e) => {
+      state.settings.showTips = e.target.checked;
+      tutorialState.preferences.showTips = state.settings.showTips;
+      persistTutorialPreferences();
+      queueSave();
+    });
+  }
+  if (UI.replayTutorial) {
+    UI.replayTutorial.addEventListener('click', () => {
+      startTutorial({ replay: true });
+    });
+  }
   const paletteSelect = document.getElementById('palette-select');
   if (paletteSelect) {
     paletteSelect.addEventListener('change', (e) => {
@@ -1421,6 +1511,7 @@ function setupSettings() {
       }
       state.settings.palette = nextPalette;
       applyDisplaySettings();
+      renderPalettePreviews();
       queueSave();
     });
     UI.paletteDropdown = setupCustomDropdown(paletteSelect);
@@ -1445,11 +1536,59 @@ function setupSettings() {
   updateBGMVolume();
 }
 
+const PALETTE_SWATCHES = {
+  default: ['#7fffd6', '#0c101c'],
+  violet: ['#b99bff', '#1a0d1c'],
+  gold: ['#ffd666', '#1c180c'],
+  diamond: ['#66f5ff', '#0c181c'],
+  emerald: ['#80ff66', '#0c1c0f'],
+  pinky: ['#ff66f2', '#1c0c1b'],
+  ruby: ['#ff6666', '#1c0c0c'],
+  nebula: ['#9fc4ff', '#0d0f1c'],
+  sunset: ['#ffb07f', '#1c110c'],
+  obsidian: ['#815f92', '#281a2e'],
+};
+
+function renderPalettePreviews() {
+  if (!UI.palettePreviewRow) return;
+  UI.palettePreviewRow.innerHTML = '';
+  const current = state.settings?.palette || 'default';
+  Object.entries(PALETTE_SWATCHES).forEach(([id, [a, b]]) => {
+    const chip = document.createElement('span');
+    chip.className = 'palette-chip';
+    chip.style.setProperty('--chip-a', a);
+    chip.style.setProperty('--chip-b', b);
+    if (id === current) {
+      chip.style.boxShadow = `${getComputedStyle(document.documentElement).getPropertyValue('--pixel-shadow')}, 0 0 10px ${a}`;
+      chip.style.borderColor = a;
+    }
+    chip.title = id;
+    chip.addEventListener('click', () => {
+      const paletteSelect = document.getElementById('palette-select');
+      if (paletteSelect) {
+        paletteSelect.value = id;
+        paletteSelect.dispatchEvent(new Event('change'));
+      }
+    });
+    UI.palettePreviewRow.appendChild(chip);
+  });
+}
+
 function applyDisplaySettings() {
   document.body.classList.toggle('disable-crt', !state.settings.crt);
   document.body.classList.toggle('disable-scanlines', !state.settings.scanlines);
   document.body.classList.toggle('reduced-motion', state.settings.reducedAnimation);
-  document.body.classList.remove('palette-violet', 'palette-diamond', 'palette-gold', 'palette-emerald', 'palette-pinky', 'palette-saphire');
+  document.body.classList.remove(
+    'palette-violet',
+    'palette-diamond',
+    'palette-gold',
+    'palette-emerald',
+    'palette-pinky',
+    'palette-ruby',
+    'palette-nebula',
+    'palette-sunset',
+    'palette-obsidian',
+  );
   if (state.settings.palette && state.settings.palette !== 'default') {
     document.body.classList.add(`palette-${state.settings.palette}`);
   }
@@ -1472,6 +1611,10 @@ function applySettingsToControls() {
   if (reduceAnimationToggle) {
     reduceAnimationToggle.checked = state.settings.reducedAnimation;
   }
+  const tipsToggle = document.getElementById('tips-toggle');
+  if (tipsToggle) {
+    tipsToggle.checked = state.settings.showTips;
+  }
   const paletteSelect = document.getElementById('palette-select');
   if (paletteSelect) {
     paletteSelect.value = state.settings.palette;
@@ -1489,31 +1632,499 @@ function applySettingsToControls() {
   }
 }
 
+const tutorialSteps = [
+  {
+    id: 'resources',
+    title: 'Track your resources',
+    body: 'The top bar tracks Bits, Cryptcoins (CC), Prestige, XP, Level, and LP. Watch these values climb as you shred nodes.',
+    target: () => document.querySelector('.resource-bar'),
+    goal: 'Keep an eye on these numbers—every system flows through them.',
+  },
+  {
+    id: 'arena',
+    title: 'The node arena',
+    body: 'Hover over this field to fire automatically. Nodes drift in here—destroy them to collect bits, XP, prestige, and loot.',
+    target: () => UI.nodeArea,
+    goal: 'Your cursor is your weapon. Keep it over the arena to attack.',
+  },
+  {
+    id: 'side-panel',
+    title: 'Systems dock',
+    body: 'Use these tabs to buy upgrades, tweak settings, browse skins, and manage crypto or lab systems. The right panel is your command center.',
+    target: () => document.querySelector('.side-panel'),
+    goal: 'Tabs unlock more tools as you progress.',
+  },
+  {
+    id: 'nodes',
+    title: 'Meet the nodes',
+    body: 'Red nodes are common and blue nodes are tanky. Green and gold variants show up later—just clear a red node and a blue node here to get the feel.',
+    target: () => UI.nodeArea,
+    onEnter: startNodeShowcase,
+  },
+  {
+    id: 'upgrade',
+    title: 'Buy your first upgrade',
+    body: 'Open the Upgrades tab and purchase any upgrade. Upgrades raise damage, crits, economy, and more. This one will trigger a guided skill check—click inside the highlighted band before the timer ends.',
+    target: () => document.querySelector('[data-tab="upgrades"]'),
+    onEnter: prepareUpgradeTutorial,
+  },
+  {
+    id: 'achievements',
+    title: 'Achievements & milestones',
+    body: 'Achievements grant quick rewards (like “Destroy your first node”), and milestones unlock bigger boosts, skins, or new systems over time. Claim them often.',
+    target: () => document.querySelector('.progress-dock'),
+    goal: 'Check in for easy claims to keep momentum.',
+  },
+  {
+    id: 'levels',
+    title: 'Push levels & bosses',
+    body: 'Levels set node health and rewards. Beating bosses increases node level difficulty and payouts. You can replay old levels or push forward for bigger gains.',
+    target: () => document.querySelector('.level-readout'),
+    goal: 'Kill nodes → earn bits → buy upgrades → beat bosses → unlock more content.',
+  },
+  {
+    id: 'music',
+    title: 'Stream-safe music',
+    body: 'The music player uses original music produced by the creator The Unnamed! They are safe to stream or record with zero copyright worries. Swap tracks, lower BGM, or mute anytime.',
+    target: () => document.getElementById('music-player'),
+    goal: 'Pick a track you like; they are all DMCA-safe.',
+  },
+  {
+    id: 'settings',
+    title: 'Replay or tweak tips',
+    body: 'Settings let you replay this tutorial or toggle occasional tips. Use the “Replay tutorial” button if you want a refresher.',
+    target: () => document.querySelector('[data-tab="settings"]') || document.querySelector('.top-bar-settings'),
+    goal: 'Use settings to revisit guidance without slowing normal runs.',
+  },
+  {
+    id: 'finish',
+    title: 'You are ready',
+    body: 'Keep the loop going—destroy nodes, gather resources, buy upgrades, and conquer bosses. Have fun experimenting with builds and skins!',
+    target: () => UI.nodeArea,
+    goal: 'Good luck, Operator.',
+  },
+];
+
+function setupTutorial() {
+  loadTutorialPreferences();
+  const storedCompletion = getTutorialCompletionFlag();
+  tutorialState.completed = state.tutorialCompleted || storedCompletion;
+  if (tutorialState.completed && !state.tutorialCompleted) {
+    state.tutorialCompleted = true;
+    queueSave();
+  }
+  if (UI.tutorialNext) {
+    UI.tutorialNext.addEventListener('click', advanceTutorialStep);
+  }
+  if (UI.tutorialSkip) {
+    UI.tutorialSkip.addEventListener('click', () => finishTutorial(true));
+  }
+  window.addEventListener('resize', refreshTutorialHighlight);
+  document.addEventListener('scroll', refreshTutorialHighlight, true);
+  persistTutorialPreferences();
+  applySettingsToControls();
+  if (!tutorialState.completed) {
+    startTutorial();
+  }
+}
+
+function loadTutorialPreferences() {
+  const defaults = { showTips: true };
+  let stored = {};
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(TUTORIAL_PREF_KEY);
+      if (raw) {
+        stored = JSON.parse(raw);
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load tutorial preferences', error);
+  }
+  tutorialState.preferences = { ...defaults, ...(stored || {}) };
+  if (typeof tutorialState.preferences.showTips === 'boolean') {
+    state.settings.showTips = tutorialState.preferences.showTips;
+  }
+}
+
+function persistTutorialPreferences() {
+  const payload = { showTips: Boolean(state.settings.showTips) };
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(TUTORIAL_PREF_KEY, JSON.stringify(payload));
+    }
+  } catch (error) {
+    console.warn('Failed to save tutorial preferences', error);
+  }
+}
+
+function getTutorialCompletionFlag() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(TUTORIAL_STORAGE_KEY);
+      return raw === 'true';
+    }
+  } catch (error) {
+    console.warn('Failed to read tutorial flag', error);
+  }
+  return false;
+}
+
+function persistTutorialCompletion() {
+  tutorialState.completed = true;
+  state.tutorialCompleted = true;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true');
+    }
+  } catch (error) {
+    console.warn('Failed to record tutorial completion', error);
+  }
+  queueSave();
+}
+
+function startTutorial({ replay = false } = {}) {
+  tutorialState.active = true;
+  tutorialState.stepIndex = 0;
+  tutorialState.completed = false;
+  tutorialState.upgradePurchased = false;
+  tutorialState.skillCheckComplete = false;
+  tutorialState.awaitingUpgrade = false;
+  tutorialState.awaitingSkillCheck = false;
+  tutorialState.nodeShowcaseActive = false;
+  tutorialState.nodeCapOverride = null;
+  document.body.classList.add('tutorial-active');
+  if (UI.tutorialOverlay) {
+    UI.tutorialOverlay.classList.remove('hidden');
+  }
+  startTutorialHighlightTracking();
+  showTutorialStep(replay ? 0 : tutorialState.stepIndex);
+}
+
+function finishTutorial(markComplete = false) {
+  tutorialState.active = false;
+  tutorialState.nodeShowcaseActive = false;
+  tutorialState.awaitingNodeKills = false;
+  tutorialState.awaitingUpgrade = false;
+  tutorialState.awaitingSkillCheck = false;
+  tutorialState.nodeCapOverride = null;
+  document.body.classList.remove('tutorial-locked');
+  if (UI.tutorialOverlay) {
+    UI.tutorialOverlay.classList.add('hidden');
+  }
+  stopTutorialHighlightTracking();
+  syncTutorialLayout(null);
+  document.body.classList.remove('tutorial-active');
+  if (markComplete) {
+    persistTutorialCompletion();
+  }
+}
+
+function advanceTutorialStep() {
+  const step = getCurrentTutorialStep();
+  if (step && !isTutorialStepComplete(step)) {
+    return;
+  }
+  const nextIndex = tutorialState.stepIndex + 1;
+  if (nextIndex >= tutorialSteps.length) {
+    finishTutorial(true);
+  } else {
+    showTutorialStep(nextIndex);
+  }
+}
+
+function getCurrentTutorialStep() {
+  return tutorialSteps[tutorialState.stepIndex] || null;
+}
+
+function getCurrentTutorialTarget(step = getCurrentTutorialStep()) {
+  if (!step) return null;
+  if (typeof step.target === 'function') return step.target();
+  return step.target || null;
+}
+
+function showTutorialStep(index) {
+  const step = tutorialSteps[index];
+  if (!step) {
+    finishTutorial(true);
+    return;
+  }
+  tutorialState.stepIndex = index;
+  if (UI.tutorialTitle) {
+    UI.tutorialTitle.textContent = step.title;
+  }
+  if (UI.tutorialBody) {
+    UI.tutorialBody.textContent = step.body;
+  }
+  if (UI.tutorialProgress) {
+    UI.tutorialProgress.textContent = `Step ${index + 1} / ${tutorialSteps.length}`;
+  }
+  enterTutorialStep(step);
+  refreshTutorialStepUI(step);
+}
+
+function enterTutorialStep(step) {
+  if (!step) return;
+  if (step.onEnter) {
+    step.onEnter();
+  }
+}
+
+function refreshTutorialStepUI(step = getCurrentTutorialStep()) {
+  updateTutorialGoal(step);
+  updateTutorialButtons(step);
+  syncTutorialLayout(step);
+  refreshTutorialHighlight();
+}
+
+function updateTutorialButtons(step = getCurrentTutorialStep()) {
+  if (!UI.tutorialNext) return;
+  const finalStep = tutorialState.stepIndex >= tutorialSteps.length - 1;
+  UI.tutorialNext.textContent = finalStep ? 'Finish' : 'Next';
+  UI.tutorialNext.disabled = step ? !isTutorialStepComplete(step) : false;
+}
+
+function syncTutorialLayout(step = getCurrentTutorialStep()) {
+  if (!UI.tutorialOverlay) return;
+  const focusNodes = Boolean(step && step.id === 'nodes');
+  UI.tutorialOverlay.classList.toggle('tutorial-panel-right', focusNodes);
+  UI.tutorialOverlay.classList.toggle('tutorial-backdrop-clear', focusNodes);
+  if (UI.tutorialPanel) {
+    UI.tutorialPanel.classList.toggle('is-right', focusNodes);
+  }
+}
+
+function startTutorialHighlightTracking() {
+  if (tutorialHighlightFrame != null) return;
+  const tick = () => {
+    if (!tutorialState.active) {
+      tutorialHighlightFrame = null;
+      return;
+    }
+    refreshTutorialHighlight();
+    tutorialHighlightFrame = requestAnimationFrame(tick);
+  };
+  tutorialHighlightFrame = requestAnimationFrame(tick);
+}
+
+function stopTutorialHighlightTracking() {
+  if (tutorialHighlightFrame != null) {
+    cancelAnimationFrame(tutorialHighlightFrame);
+    tutorialHighlightFrame = null;
+  }
+}
+
+function refreshTutorialHighlight() {
+  if (!tutorialState.active || !UI.tutorialHighlight) return;
+  const target = getCurrentTutorialTarget();
+  if (!target) {
+    UI.tutorialHighlight.style.width = '0px';
+    UI.tutorialHighlight.style.height = '0px';
+    return;
+  }
+  const rect = target.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    UI.tutorialHighlight.style.width = '0px';
+    UI.tutorialHighlight.style.height = '0px';
+    return;
+  }
+  const padding = 10;
+  UI.tutorialHighlight.style.left = `${rect.left - padding}px`;
+  UI.tutorialHighlight.style.top = `${rect.top - padding}px`;
+  UI.tutorialHighlight.style.width = `${rect.width + padding * 2}px`;
+  UI.tutorialHighlight.style.height = `${rect.height + padding * 2}px`;
+}
+
+function formatNodeGoalProgress() {
+  const parts = Object.keys(tutorialState.requiredNodeKills).map((key) => {
+    const goal = tutorialState.requiredNodeKills[key] || 0;
+    const current = tutorialState.nodeKillProgress[key] || 0;
+    return `${key.toUpperCase()}: ${Math.min(current, goal)} / ${goal}`;
+  });
+  return parts.join(' • ');
+}
+
+function updateTutorialGoal(step = getCurrentTutorialStep()) {
+  if (!UI.tutorialGoal) return;
+  let text = '';
+  let complete = false;
+  if (!step) {
+    UI.tutorialGoal.textContent = text;
+    UI.tutorialGoal.classList.toggle('complete', complete);
+    return;
+  }
+  if (step.id === 'nodes') {
+    text = `Destroy the required nodes: ${formatNodeGoalProgress()}`;
+    complete = isTutorialNodeGoalComplete();
+  } else if (step.id === 'upgrade') {
+    text = `Buy an upgrade and clear the skill check (${tutorialState.upgradePurchased ? 'purchased' : 'not purchased'}, ${tutorialState.skillCheckComplete ? 'skill check tried' : 'skill check pending'})`;
+    complete = tutorialState.upgradePurchased && tutorialState.skillCheckComplete;
+  } else if (typeof step.goal === 'function') {
+    text = step.goal();
+  } else if (typeof step.goal === 'string') {
+    text = step.goal;
+  }
+  UI.tutorialGoal.textContent = text;
+  UI.tutorialGoal.classList.toggle('complete', complete);
+}
+
+function isTutorialNodeGoalComplete() {
+  return Object.keys(tutorialState.requiredNodeKills).every((key) => {
+    const need = tutorialState.requiredNodeKills[key] || 0;
+    const have = tutorialState.nodeKillProgress[key] || 0;
+    return have >= need;
+  });
+}
+
+function isTutorialStepComplete(step = getCurrentTutorialStep()) {
+  if (!step) return true;
+  if (step.id === 'nodes') {
+    return isTutorialNodeGoalComplete();
+  }
+  if (step.id === 'upgrade') {
+    return tutorialState.upgradePurchased && tutorialState.skillCheckComplete;
+  }
+  return true;
+}
+
+function startNodeShowcase() {
+  tutorialState.awaitingNodeKills = true;
+  tutorialState.nodeShowcaseActive = true;
+  tutorialState.nodeKillProgress = Object.keys(tutorialState.requiredNodeKills).reduce((acc, key) => {
+    acc[key] = 0;
+    return acc;
+  }, {});
+  tutorialState.pendingNodeTypes = Object.keys(tutorialState.requiredNodeKills);
+  tutorialState.nodeCapOverride = 1;
+  activeNodes.forEach((node) => node.el?.remove());
+  activeNodes.clear();
+  nodeSpawnTimer = 0;
+  document.body.classList.add('tutorial-locked');
+}
+
+function prepareUpgradeTutorial() {
+  tutorialState.awaitingUpgrade = true;
+  tutorialState.upgradePurchased = false;
+  tutorialState.skillCheckComplete = false;
+  tutorialState.awaitingSkillCheck = false;
+  tutorialState.nodeCapOverride = null;
+  if (state.bits < 200) {
+    state.bits = 200;
+    updateResources();
+  }
+  const upgradeTab = document.querySelector('[data-tab="upgrades"]');
+  if (upgradeTab) {
+    upgradeTab.click();
+  }
+}
+
+function registerTutorialNodeKill(typeId) {
+  if (!tutorialState.nodeShowcaseActive || !typeId) return;
+  const need = tutorialState.requiredNodeKills[typeId];
+  if (need) {
+    tutorialState.nodeKillProgress[typeId] = Math.min(need, (tutorialState.nodeKillProgress[typeId] || 0) + 1);
+  }
+  if (isTutorialNodeGoalComplete()) {
+    tutorialState.nodeShowcaseActive = false;
+    tutorialState.awaitingNodeKills = false;
+    tutorialState.nodeCapOverride = null;
+    document.body.classList.remove('tutorial-locked');
+  } else {
+    nodeSpawnTimer = 0;
+  }
+  refreshTutorialStepUI();
+}
+
+function handleTutorialUpgradePurchase() {
+  if (!tutorialState.active) return;
+  const step = getCurrentTutorialStep();
+  if (!step || step.id !== 'upgrade') return;
+  tutorialState.upgradePurchased = true;
+  refreshTutorialStepUI(step);
+}
+
+function handleTutorialSkillCheckResult() {
+  if (!tutorialState.active) return;
+  const step = getCurrentTutorialStep();
+  if (!step || step.id !== 'upgrade') return;
+  if (!tutorialState.awaitingSkillCheck && tutorialState.skillCheckComplete) return;
+  tutorialState.skillCheckComplete = true;
+  tutorialState.awaitingSkillCheck = false;
+  refreshTutorialStepUI();
+}
+
+function getTutorialNodeTypeOverride() {
+  if (!tutorialState.nodeShowcaseActive) return null;
+  const nextId = tutorialState.pendingNodeTypes.find((id) => {
+    const need = tutorialState.requiredNodeKills[id] || 0;
+    const have = tutorialState.nodeKillProgress[id] || 0;
+    return have < need;
+  });
+  if (!nextId) return null;
+  return nodeTypes.find((type) => type.id === nextId) || null;
+}
+
+function getActiveNodeCap() {
+  if (tutorialState.nodeCapOverride != null) {
+    return tutorialState.nodeCapOverride;
+  }
+  return stats.maxNodes;
+}
+
+function snapshotTutorialPersistence() {
+  return {
+    completed: tutorialState.completed || state.tutorialCompleted || getTutorialCompletionFlag(),
+    prefs: { showTips: Boolean(state.settings.showTips) },
+  };
+}
+
+function restoreTutorialPersistence(snapshot) {
+  if (!snapshot) return;
+  if (snapshot.completed) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true');
+      }
+    } catch (error) {
+      console.warn('Failed to restore tutorial completion', error);
+    }
+  }
+  if (snapshot.prefs) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(TUTORIAL_PREF_KEY, JSON.stringify(snapshot.prefs));
+      }
+    } catch (error) {
+      console.warn('Failed to restore tutorial preferences', error);
+    }
+  }
+}
+
 function generateSkins() {
   skins = [
     { id: 'default', name: 'Default Core', cost: 0, description: 'Standard breach-grade node.' },
     {
       id: 'midnight',
       name: 'Midnight Bloom',
-      cost: 1500,
+      cost: 15000,
       description: 'Orbital halo with drifting starlight around a midnight core.',
     },
     {
       id: 'ember',
       name: 'Ember Pulse',
-      cost: 4000,
+      cost: 40000,
       description: 'Forged casing split with molten fractures and radiant sparks.',
     },
     {
       id: 'glitch',
       name: 'Glitch Prism',
-      cost: 12000,
+      cost: 120000,
       description: 'Reality-warping shader, shifts per click.',
     },
     {
       id: 'aurora',
       name: 'Aurora Silk',
-      cost: 25000,
+      cost: 250000,
       description: 'Multilayer lattice of refracted light and harmonic pulses.',
     },
   ];
@@ -1580,8 +2191,14 @@ function generateUpgrades() {
       stats.damage += stats.baseDamage * data.perLevel * level;
     },
     crit: (stats, level, data) => {
-      stats.critChance += data.perLevel * level;
-      stats.critMultiplier *= Math.pow(data.multiplierGrowth || 1, level);
+      const chanceBonus = Math.max(0, data.perLevel || 0);
+      if (chanceBonus > 0) {
+        stats.critChance += chanceBonus * level;
+      }
+      const growth = Math.max(1, data.multiplierGrowth || 1);
+      if (growth > 1) {
+        stats.critMultiplier *= Math.pow(growth, level);
+      }
     },
     economyNode: (stats, level, data) => {
       stats.bitNodeBonus += data.perLevel * level;
@@ -1606,15 +2223,24 @@ function generateUpgrades() {
       const withinTier = i % 10;
       const maxLevel = family.minLevel + (i % (family.maxLevel - family.minLevel + 1));
       let perLevel = 0.09 * Math.pow(2.2, i);
+      let multiplierGrowth = family.key === 'crit' ? 1.5 : 1;
       if (family.key === 'economy' || family.key === 'economyNode') {
         perLevel = 5 * Math.pow(3.3, tierIndex);
+      }
+      if (family.key === 'crit') {
+        const critConfig = getCritUpgradeConfig(i);
+        perLevel = critConfig.chancePerLevel;
+        multiplierGrowth = critConfig.multiplierGrowth;
       }
       const costBase = family.baseCost * 2 ** tierIndex;
       const costScale = 1.5;
       const id = `${family.key.toUpperCase()}_${idCounter}`;
       const tierLabel = tierIndex === 0 ? '' : ` ${romanNumeral(tierIndex + 1)}`;
       const name = `${family.baseName}${tierLabel} ${romanNumeral(withinTier + 1)}`;
-      const desc = describeUpgrade(family.key, perLevel, maxLevel);
+      const desc =
+        family.key === 'crit'
+          ? describeCritUpgrade(perLevel, maxLevel, multiplierGrowth)
+          : describeUpgrade(family.key, perLevel, maxLevel);
       const requirements = {};
       const currency = 'bits';
       const category = family.category || family.key;
@@ -1633,7 +2259,7 @@ function generateUpgrades() {
         sequenceIndex: i,
         previousId,
         effect: (statsObj, level) =>
-          effects[family.key](statsObj, level, { perLevel, family, multiplierGrowth: family.key === 'crit' ? 1.5 : 1 }),
+          effects[family.key](statsObj, level, { perLevel, family, multiplierGrowth }),
       };
       upgrades.push(upgrade);
       upgradeLookup.set(id, upgrade);
@@ -1688,8 +2314,6 @@ function describeUpgrade(category, perLevel, maxLevel) {
   switch (category) {
     case 'damage':
       return `+${(perLevel * 100).toFixed(1)}% damage / level (${maxLevel} lvls)`;
-    case 'crit':
-      return `+${(perLevel * 100).toFixed(1)}% crit chance / level, +1.5x crit multiplier / level`;
     case 'economyNode':
       return `+${perLevel.toFixed(1)} bits from nodes / level`;
     case 'economy':
@@ -1699,6 +2323,28 @@ function describeUpgrade(category, perLevel, maxLevel) {
     default:
       return '';
   }
+}
+
+function describeCritUpgrade(chancePerLevel, maxLevel, multiplierGrowth) {
+  const chanceCopy = chancePerLevel > 0 ? `+${(chancePerLevel * 100).toFixed(2)}% crit chance / level` : '';
+  const damageCopy = multiplierGrowth > 1 ? `+${multiplierGrowth.toFixed(2)}x crit damage / level` : '';
+  const parts = [chanceCopy, damageCopy].filter(Boolean);
+  const body = parts.length > 0 ? parts.join(', ') : 'Critical damage';
+  return `${body} (${maxLevel} lvls)`;
+}
+
+function getCritUpgradeConfig(sequenceIndex) {
+  const critConfigs = [
+    { chancePerLevel: 0.05, multiplierGrowth: 1.5 },
+    { chancePerLevel: 0, multiplierGrowth: 1.5 },
+    { chancePerLevel: 0.0625, multiplierGrowth: 1.5 },
+    { chancePerLevel: 0, multiplierGrowth: 1.5 },
+    { chancePerLevel: 0.1, multiplierGrowth: 1.5 },
+  ];
+  if (sequenceIndex < critConfigs.length) {
+    return critConfigs[sequenceIndex];
+  }
+  return { chancePerLevel: 0, multiplierGrowth: 1.5 };
 }
 
 function generateAreaUpgrades() {
@@ -1719,23 +2365,6 @@ function generateSpawnUpgrades() {
       delayReduction: 0.35,
       nodeBonus: 2,
       minDelay: 0.24,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
-        statsObj.maxNodes += upgrade.nodeBonus * level;
-      },
-    },
-    {
-      id: 'hypernode-overclock',
-      name: 'Hypernode Overclock',
-      tierNames: ['Hypernode Overclock I', 'Hypernode Overclock II'],
-      description: '+3 max nodes & -0.6s spawn delay per level',
-      maxLevel: 2,
-      costBase: 20,
-      costScale: 1.9,
-      currency: 'prestige',
-      delayReduction: 0.6,
-      nodeBonus: 3,
-      minDelay: 0.06,
       effect: (statsObj, level, upgrade) => {
         statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
         statsObj.maxNodes += upgrade.nodeBonus * level;
@@ -2217,6 +2846,139 @@ function getUpgradeDisplayName(upgrade, level) {
   return upgrade.name;
 }
 
+function getUpgradeDepth(upgrade, memo = new Map()) {
+  if (!upgrade) return 0;
+  if (memo.has(upgrade.id)) return memo.get(upgrade.id);
+  if (!upgrade.previousId) {
+    memo.set(upgrade.id, 0);
+    return 0;
+  }
+  const previous = upgradeLookup.get(upgrade.previousId);
+  const depth = 1 + getUpgradeDepth(previous, memo);
+  memo.set(upgrade.id, depth);
+  return depth;
+}
+
+function buildSkillBranchLayout(activeFilter) {
+  const categorySequences = buildCategorySequences();
+  const visibleUpgrades = getVisibleUpgradeSet(activeFilter, categorySequences);
+  const branchMap = new Map();
+  const depthMemo = new Map();
+  upgrades.forEach((upgrade) => {
+    if (!isCategoryVisible(upgrade.category, activeFilter)) return;
+    if (!visibleUpgrades.has(upgrade.id)) return;
+    const level = state.upgrades[upgrade.id] || 0;
+    const depth = getUpgradeDepth(upgrade, depthMemo);
+    const branch = branchMap.get(upgrade.category) || [];
+    branch.push({ upgrade, level, depth });
+    branchMap.set(upgrade.category, branch);
+  });
+  branchMap.forEach((list, category) => {
+    const sorted = [...list].sort((a, b) => (a.upgrade.sequenceIndex || 0) - (b.upgrade.sequenceIndex || 0));
+    const depthRows = new Map();
+    const positioned = sorted.map((entry) => {
+      const row = depthRows.get(entry.depth) || 0;
+      depthRows.set(entry.depth, row + 1);
+      return { ...entry, row };
+    });
+    branchMap.set(category, positioned);
+  });
+  return branchMap;
+}
+
+function drawSkillConnections(layer, elementMap) {
+  if (!layer) return;
+  layer.innerHTML = '';
+  const rect = layer.getBoundingClientRect();
+  elementMap.forEach((nodeEl, id) => {
+    const upgrade = upgradeLookup.get(id);
+    if (!upgrade?.previousId) return;
+    const parentEl = elementMap.get(upgrade.previousId);
+    if (!parentEl) return;
+    const childRect = nodeEl.getBoundingClientRect();
+    const parentRect = parentEl.getBoundingClientRect();
+    const startX = parentRect.left + parentRect.width / 2 - rect.left;
+    const startY = parentRect.top + parentRect.height / 2 - rect.top;
+    const endX = childRect.left + childRect.width / 2 - rect.left;
+    const endY = childRect.top + childRect.height / 2 - rect.top;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const length = Math.hypot(dx, dy);
+    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const line = document.createElement('span');
+    line.className = 'skill-connector';
+    line.style.width = `${length}px`;
+    line.style.transform = `translate(${startX}px, ${startY}px) rotate(${angle}deg)`;
+    layer.appendChild(line);
+  });
+}
+
+function getSkillCheckPreview(upgrade, cost, previousLevel = 0) {
+  const difficulty = upgrade.category === 'damage' ? 'easy' : 'normal';
+  const rewardBits = Math.ceil(cost * (difficulty === 'hard' ? 0.95 : difficulty === 'normal' ? 0.7 : 0.45));
+  const rewardXP = Math.ceil(15 * (difficulty === 'hard' ? 2.2 : difficulty === 'normal' ? 1.4 : 1));
+  const penalty = Math.min(state[upgrade.currency] || 0, cost);
+  return {
+    difficulty,
+    rewardBits,
+    rewardXP,
+    penalty,
+    rewardLabel: `Reward: +${rewardBits.toLocaleString()} bits, +${rewardXP.toLocaleString()} XP`,
+    penaltyLabel: `Penalty: -${penalty.toLocaleString()} ${upgrade.currency}`,
+    previousLevel,
+  };
+}
+
+function showSkillDetail(target, upgrade) {
+  if (!UI.skillDetailPopup || !target || !upgrade) return;
+  const level = state.upgrades[upgrade.id] || 0;
+  const nextLevel = Math.min(upgrade.maxLevel, level + 1);
+  const cost = getUpgradeCost(upgrade, level);
+  const preview = getSkillCheckPreview(upgrade, cost, level);
+  const detail = UI.skillDetailPopup;
+  detail.innerHTML = `
+    <div class="title">${upgrade.name}</div>
+    <div class="meta">
+      <span>Next: ${nextLevel}/${upgrade.maxLevel}</span>
+      <span>Cost: ${cost.toLocaleString()} ${upgrade.currency}</span>
+      <span>Skill check: 18% chance (${preview.difficulty})</span>
+      <span>${preview.rewardLabel}</span>
+      <span>${preview.penaltyLabel}</span>
+    </div>
+    <div class="desc">${upgrade.description}</div>
+  `;
+  detail.classList.remove('hidden');
+  const rect = target.getBoundingClientRect();
+  const popupRect = detail.getBoundingClientRect();
+  const margin = 10;
+  let left = rect.left;
+  let top = rect.bottom + margin;
+  if (left + popupRect.width > window.innerWidth) {
+    left = window.innerWidth - popupRect.width - margin;
+  }
+  if (top + popupRect.height > window.innerHeight) {
+    top = rect.top - popupRect.height - margin;
+  }
+  detail.style.left = `${Math.max(8, left)}px`;
+  detail.style.top = `${Math.max(8, top)}px`;
+}
+
+function hideSkillDetail() {
+  if (UI.skillDetailPopup) {
+    UI.skillDetailPopup.classList.add('hidden');
+  }
+}
+
+function setupSkillDetailDismissal() {
+  document.addEventListener('pointerdown', (event) => {
+    if (!UI.skillDetailPopup || UI.skillDetailPopup.classList.contains('hidden')) return;
+    if (event.target.closest('.skill-node')) return;
+    if (!UI.skillDetailPopup.contains(event.target)) {
+      hideSkillDetail();
+    }
+  });
+}
+
 function renderUpgrades(filter) {
   if (!UI.skillTree) return;
   const buttonFilter = document.querySelector('.filter.active')?.dataset.filter;
@@ -2224,70 +2986,70 @@ function renderUpgrades(filter) {
   state.selectedUpgradeFilter = activeFilter;
   syncFilterButtons(activeFilter);
   UI.skillTree.innerHTML = '';
+  hideSkillDetail();
   const fragment = document.createDocumentFragment();
-  const categorySequences = buildCategorySequences();
-  const visibleUpgrades = getVisibleUpgradeSet(activeFilter, categorySequences);
-  const branchMap = new Map();
-  const branchCounters = new Map();
-  upgrades.forEach((upgrade) => {
-    if (!isCategoryVisible(upgrade.category, activeFilter)) {
-      return;
-    }
-    if (!visibleUpgrades.has(upgrade.id)) {
-      return;
-    }
-    const level = state.upgrades[upgrade.id] || 0;
-    const counter = branchCounters.get(upgrade.category) || 0;
-    const tier = Math.floor(counter / 6);
-    const branch = branchMap.get(upgrade.category) || [];
-    if (!branch[tier]) {
-      branch[tier] = [];
-    }
-    branch[tier].push({ upgrade, level });
-    branchMap.set(upgrade.category, branch);
-    branchCounters.set(upgrade.category, counter + 1);
-  });
+  const branchMap = buildSkillBranchLayout(activeFilter);
 
-  branchMap.forEach((tiers, category) => {
+  branchMap.forEach((nodes, category) => {
     const branchEl = document.createElement('section');
     branchEl.className = 'skill-branch';
     branchEl.dataset.category = category;
     branchEl.setAttribute('role', 'listitem');
     const title = document.createElement('div');
     title.className = 'branch-title';
-    const totalNodes = tiers.reduce((acc, tierNodes) => acc + tierNodes.length, 0);
+    const totalNodes = nodes.length;
     title.innerHTML = `<span>${category.toUpperCase()}</span><span>${totalNodes} nodes</span>`;
     const track = document.createElement('div');
     track.className = 'branch-track';
-    tiers.forEach((tierNodes, tierIndex) => {
-      tierNodes.forEach(({ upgrade, level }) => {
-        const nodeEl = document.createElement('button');
-        nodeEl.type = 'button';
-        nodeEl.className = 'skill-node';
-        if (tierIndex === 0) {
-          nodeEl.classList.add('origin');
-        }
-        nodeEl.dataset.id = upgrade.id;
-        nodeEl.dataset.category = upgrade.category;
-        const displayName = getUpgradeDisplayName(upgrade, level);
-        nodeEl.innerHTML = `
+    const connectorLayer = document.createElement('div');
+    connectorLayer.className = 'connector-layer';
+    const depthMax = nodes.reduce((max, node) => Math.max(max, node.depth), 0);
+    track.style.gridTemplateColumns = `repeat(${Math.max(1, depthMax + 1)}, minmax(180px, 1fr))`;
+    const elementMap = new Map();
+    nodes.forEach(({ upgrade, level, depth, row }) => {
+      const nodeEl = document.createElement('button');
+      nodeEl.type = 'button';
+      nodeEl.className = 'skill-node';
+      if (depth === 0) {
+        nodeEl.classList.add('origin');
+      }
+      nodeEl.dataset.id = upgrade.id;
+      nodeEl.dataset.category = upgrade.category;
+      nodeEl.style.gridColumn = depth + 1;
+      nodeEl.style.gridRow = row + 1;
+      const displayName = getUpgradeDisplayName(upgrade, level);
+      const lockedByReq = !meetsRequirements(upgrade);
+      const previousMet = !upgrade.previousId || (state.upgrades[upgrade.previousId] || 0) > 0;
+      nodeEl.innerHTML = `
           <div class="title">${displayName}</div>
           <div class="desc">${upgrade.description}</div>
           <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
           <div class="cost">Cost: <span>${formatCost(upgrade, level)}</span> ${upgrade.currency}</div>
         `;
-        if (level >= upgrade.maxLevel) {
-          nodeEl.classList.add('purchased');
-        }
-        if (!meetsRequirements(upgrade)) {
-          nodeEl.classList.add('locked');
-        }
-        nodeEl.addEventListener('click', () => attemptPurchase(upgrade));
-        nodeEl.addEventListener('mousemove', (event) => showUpgradeTooltip(event, upgrade));
-        nodeEl.addEventListener('mouseleave', hideTooltip);
-        track.appendChild(nodeEl);
+      if (level >= upgrade.maxLevel) {
+        nodeEl.classList.add('purchased');
+      } else if (!lockedByReq && previousMet) {
+        nodeEl.classList.add('available');
+      }
+      if (lockedByReq || !previousMet) {
+        nodeEl.classList.add('locked');
+      }
+      nodeEl.addEventListener('click', (event) => {
+        showSkillDetail(nodeEl, upgrade);
+        attemptPurchase(upgrade);
+        event.stopPropagation();
       });
+      nodeEl.addEventListener('mousemove', (event) => showUpgradeTooltip(event, upgrade));
+      nodeEl.addEventListener('mouseleave', () => {
+        hideTooltip();
+        hideSkillDetail();
+      });
+      nodeEl.addEventListener('mouseenter', () => showSkillDetail(nodeEl, upgrade));
+      track.appendChild(nodeEl);
+      elementMap.set(upgrade.id, nodeEl);
     });
+    track.appendChild(connectorLayer);
+    requestAnimationFrame(() => drawSkillConnections(connectorLayer, elementMap));
     branchEl.appendChild(title);
     branchEl.appendChild(track);
     fragment.appendChild(branchEl);
@@ -2364,6 +3126,7 @@ function attemptPurchase(upgrade) {
       document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
     renderUpgrades(activeFilter);
     renderMilestones();
+    handleTutorialUpgradePurchase(upgrade);
     maybeStartSkillCheck(upgrade, cost, level);
     queueSave();
   }
@@ -2371,16 +3134,18 @@ function attemptPurchase(upgrade) {
 
 function maybeStartSkillCheck(upgrade, cost, previousLevel) {
   if (skillCheckState.active) return;
+  const forcingTutorialCheck = tutorialState.active && tutorialState.awaitingUpgrade && !tutorialState.skillCheckComplete;
   const baseChance = 0.18;
-  if (Math.random() > baseChance) {
+  if (!forcingTutorialCheck && Math.random() > baseChance) {
     return;
   }
-  const difficulty = upgrade.category === 'damage' ? 'easy' : 'normal';
-  const rewardBits = Math.ceil(cost * (difficulty === 'hard' ? 0.95 : difficulty === 'normal' ? 0.7 : 0.45));
-  const rewardXP = Math.ceil(15 * (difficulty === 'hard' ? 2.2 : difficulty === 'normal' ? 1.4 : 1));
+  const preview = getSkillCheckPreview(upgrade, cost, previousLevel);
+  const difficulty = forcingTutorialCheck ? 'easy' : preview.difficulty;
+  const { rewardBits, rewardXP, penalty } = preview;
   startSkillCheck({
     upgrade,
     difficulty,
+    summary: preview,
     reward: () => {
       state.bits += rewardBits;
       gainXP(rewardXP);
@@ -2388,7 +3153,6 @@ function maybeStartSkillCheck(upgrade, cost, previousLevel) {
       updateResources();
     },
     onFail: () => {
-      const penalty = Math.min(state[upgrade.currency], cost);
       state[upgrade.currency] -= penalty;
       state.upgrades[upgrade.id] = previousLevel;
       updateStats();
@@ -2401,6 +3165,10 @@ function maybeStartSkillCheck(upgrade, cost, previousLevel) {
       queueSave();
     },
   });
+  if (forcingTutorialCheck) {
+    tutorialState.awaitingSkillCheck = true;
+    tutorialState.awaitingUpgrade = false;
+  }
 }
 
 function showUpgradeTooltip(event, upgrade) {
@@ -3716,9 +4484,17 @@ const SKILL_CHECK_VARIANT_DETAILS = {
     title: 'Access Elevator',
     description: 'Ride the vertical stream so the carrier slips through the access window for {target}.',
   },
+  lock: {
+    title: 'Circular Dial',
+    description: 'Rotate the dial so the glowing slice snaps over {target}.',
+  },
+  orbit: {
+    title: 'Orbital Sync',
+    description: 'Catch the orbiting spark inside the breach band around {target}.',
+  },
 };
 
-const SKILL_CHECK_VARIANTS = ['linear', 'vertical'];
+const SKILL_CHECK_VARIANTS = ['linear', 'vertical', 'lock', 'orbit'];
 const SKILL_CHECK_CONFETTI_COLORS = ['#8fffe0', '#6ed6ff', '#ff82be', '#ffe566'];
 
 function getSkillCheckVariant() {
@@ -3835,7 +4611,7 @@ function attemptSkillCheckResolution() {
   resolveSkillCheck(withinWindow);
 }
 
-function startSkillCheck({ upgrade, difficulty, reward, onFail }) {
+function startSkillCheck({ upgrade, difficulty, reward, onFail, summary }) {
   if (!UI.skillCheck || !UI.skillCheckAction || !UI.skillCheckTarget || !UI.skillCheckSlider) return;
   const config = getSkillCheckConfig(difficulty);
   const sliderPosition = Math.min(0.95, Math.max(0.05, Math.random()));
@@ -3855,11 +4631,25 @@ function startSkillCheck({ upgrade, difficulty, reward, onFail }) {
   skillCheckState.targetStart = targetStart;
   skillCheckState.targetEnd = targetStart + config.windowSize;
   skillCheckState.difficulty = difficulty;
+  skillCheckState.meta = summary || null;
   setSkillCheckVariant(variant);
   const variantCopy = SKILL_CHECK_VARIANT_DETAILS[variant] || SKILL_CHECK_VARIANT_DETAILS.linear;
   UI.skillCheckTitle.textContent = `${variantCopy.title} — ${difficulty.toUpperCase()}`;
   const targetLabel = upgrade?.name || 'the target';
   UI.skillCheckDescription.textContent = variantCopy.description.replace('{target}', targetLabel);
+  if (UI.skillCheckUpgrade) {
+    UI.skillCheckUpgrade.textContent = targetLabel;
+  }
+  if (UI.skillCheckTier) {
+    const nextLevel = (upgrade ? (state.upgrades[upgrade.id] || 0) + 1 : 0) || 0;
+    UI.skillCheckTier.textContent = nextLevel ? `Next tier: ${nextLevel}` : '';
+  }
+  if (UI.skillCheckReward) {
+    UI.skillCheckReward.textContent = summary?.rewardLabel || '';
+  }
+  if (UI.skillCheckPenalty) {
+    UI.skillCheckPenalty.textContent = summary?.penaltyLabel || '';
+  }
   UI.skillCheck.classList.remove('hidden');
   refreshSkillCheckVisuals();
   UI.skillCheckAction.focus();
@@ -3884,6 +4674,7 @@ function resolveSkillCheck(success) {
       createFloatText(document.body, 'Skill check failed', '#ff6ea8');
     }
   }
+  handleTutorialSkillCheckResult(success);
   skillCheckState.reward = null;
   skillCheckState.onFail = null;
   skillCheckState.sliderSpeed = 0;
@@ -3901,6 +4692,7 @@ function resolveSkillCheck(success) {
   if (UI.skillCheckAction) {
     UI.skillCheckAction.blur();
   }
+  skillCheckState.meta = null;
 }
 
 function updateSkillCheck(delta) {
@@ -3994,7 +4786,8 @@ function updateNodes(delta) {
   if (!UI.nodeArea) return;
   if (!state.currentLevel.active) return;
   nodeSpawnTimer -= delta;
-  if (nodeSpawnTimer <= 0 && activeNodes.size < stats.maxNodes) {
+  const maxNodes = getActiveNodeCap();
+  if (nodeSpawnTimer <= 0 && activeNodes.size < maxNodes) {
     spawnNode();
     nodeSpawnTimer = Math.max(0.15, stats.nodeSpawnDelay);
   }
@@ -4002,6 +4795,7 @@ function updateNodes(delta) {
   if (!areaRect) return;
   const { width, height } = areaRect;
   activeNodes.forEach((node) => {
+    tickNodeBehavior(node, delta);
     node.position.x += node.velocity.x * delta;
     node.position.y += node.velocity.y * delta;
     node.rotation += node.rotationSpeed * delta;
@@ -4264,6 +5058,9 @@ function spawnNode() {
   if (!UI.nodeArea) return;
   const areaRect = getNodeAreaRect();
   if (!areaRect) return;
+  const tutorialType = getTutorialNodeTypeOverride();
+  const type = tutorialType || weightedNodeType();
+  if (!type) return;
   const { width, height } = areaRect;
   const margin = 90;
   const horizontalRange = Math.max(0, width - NODE_SIZE);
@@ -4302,7 +5099,7 @@ function spawnNode() {
       break;
   }
 
-  const type = weightedNodeType();
+  triggerArenaFlash(type);
   const travelTimeBase = 10 + Math.random() * 6;
   const travelTime = travelTimeBase / Math.max(1, type.speedMultiplier || 1);
   const velocity = {
@@ -4322,6 +5119,13 @@ function spawnNode() {
     rotationSpeed: (Math.random() - 0.5) * 28,
     bounds: margin,
   };
+  if (type.id === 'prismatic') {
+    node.behaviorState = { hueTimer: 0 };
+    applyPrismaticHue(node, pickPrismaticHue(type));
+  }
+  if (type.id === 'void') {
+    node.behaviorState = { drain: 0 };
+  }
   const el = document.createElement('div');
   el.className = `node ${type.color} skin-${state.skins.active}`;
   const visual = document.createElement('div');
@@ -4342,6 +5146,9 @@ function spawnNode() {
   node.fillEl = fill;
   node.healthRingEl = healthRing;
   node.hpEl = hpLabel;
+  if (type.id === 'prismatic') {
+    applyPrismaticHue(node, node.currentHue || pickPrismaticHue(type));
+  }
   applyNodeTransform(node);
   UI.nodeArea.appendChild(el);
   requestAnimationFrame(() => {
@@ -4353,12 +5160,81 @@ function spawnNode() {
   updateNodeElement(node);
 }
 
+function pickPrismaticHue(type) {
+  if (!type?.hues?.length) return 'azure';
+  const index = Math.floor(Math.random() * type.hues.length);
+  return type.hues[index] || 'azure';
+}
+
+const PRISMATIC_COLORS = {
+  azure: { hex: '#7ef6ff', rgb: '126, 246, 255' },
+  emerald: { hex: '#6df3a1', rgb: '109, 243, 161' },
+  crimson: { hex: '#ff6ea8', rgb: '255, 110, 168' },
+  auric: { hex: '#ffd166', rgb: '255, 209, 102' },
+  void: { hex: '#b38bff', rgb: '179, 139, 255' },
+};
+
+function applyPrismaticHue(node, hue) {
+  if (!node?.el) return;
+  const palette = PRISMATIC_COLORS[hue] || PRISMATIC_COLORS.azure;
+  node.currentHue = hue;
+  node.el.dataset.hue = hue;
+  node.el.style.setProperty('--node-prism-color', palette.hex);
+  node.el.style.setProperty('--node-prism-rgb', palette.rgb);
+}
+
+function tickNodeBehavior(node, delta) {
+  if (!node?.type) return;
+  if (node.type.id === 'void') {
+    const drain = Math.max(0, node.type.behavior?.drainPerSecond || 0);
+    if (drain > 0) {
+      const damage = drain * delta;
+      state.health = Math.max(0, state.health - damage);
+      const healFactor = Math.max(0, node.type.behavior?.healOnDrain || 0);
+      if (healFactor > 0 && node.hp < node.maxHP) {
+        node.hp = Math.min(node.maxHP, node.hp + damage * healFactor);
+        updateNodeElement(node);
+      }
+    }
+  }
+  if (node.type.id === 'prismatic') {
+    node.behaviorState = node.behaviorState || { hueTimer: 0 };
+    node.behaviorState.hueTimer += delta;
+    if (!node.currentHue) {
+      applyPrismaticHue(node, pickPrismaticHue(node.type));
+    }
+    if (node.behaviorState.hueTimer >= 3.2) {
+      node.behaviorState.hueTimer = 0;
+      applyPrismaticHue(node, pickPrismaticHue(node.type));
+    }
+  }
+}
+
 function weightedNodeType() {
   const roll = Math.random();
-  if (roll >= 0.995) return nodeTypes.find((type) => type.id === 'gold') || nodeTypes[0];
+  if (roll >= 0.997) return nodeTypes.find((type) => type.id === 'gold') || nodeTypes[0];
+  if (roll >= 0.992) return nodeTypes.find((type) => type.id === 'prismatic') || nodeTypes[0];
+  if (roll >= 0.965) return nodeTypes.find((type) => type.id === 'void') || nodeTypes[0];
   if (roll >= 0.74) return nodeTypes.find((type) => type.id === 'blue') || nodeTypes[0];
-  if (roll >= 0.68) return nodeTypes.find((type) => type.id === 'green') || nodeTypes[0];
+  if (roll >= 0.64) return nodeTypes.find((type) => type.id === 'green') || nodeTypes[0];
   return nodeTypes.find((type) => type.id === 'red') || nodeTypes[0];
+}
+
+let arenaFlashTimeout;
+function triggerArenaFlash(type) {
+  if (!type || !UI.nodeArea || !UI.nodeArenaBackdrop) return;
+  const rare = type.id === 'gold' || type.id === 'void' || type.id === 'prismatic';
+  if (!rare) return;
+  const highlight =
+    (type.id === 'gold' && '#ffd166') ||
+    (type.id === 'void' && '#b38bff') ||
+    (type.id === 'prismatic' && PRISMATIC_COLORS.azure.hex) ||
+    '#7fffd6';
+  UI.nodeArea.style.setProperty('--rare-highlight', highlight);
+  UI.nodeArenaBackdrop?.style.setProperty('--rare-highlight', highlight);
+  UI.nodeArea.classList.add('rare-flash');
+  clearTimeout(arenaFlashTimeout);
+  arenaFlashTimeout = setTimeout(() => UI.nodeArea.classList.remove('rare-flash'), 1200);
 }
 
 function calculateCursorDamage(options = {}) {
@@ -4435,6 +5311,8 @@ function getBossDamageFromNodeType(typeId) {
   if (typeId === 'blue') return Math.round(randomInRange(30, 40));
   if (typeId === 'green') return Math.round(randomInRange(80, 150));
   if (typeId === 'gold') return Math.round(randomInRange(200, 400));
+  if (typeId === 'void') return Math.round(randomInRange(260, 420));
+  if (typeId === 'prismatic') return Math.round(randomInRange(120, 320));
   return 0;
 }
 
@@ -4443,12 +5321,23 @@ function destroyNode(node) {
   playSFX('nodeDie');
   const key = node.type.id;
   state.nodesDestroyed[key] = (state.nodesDestroyed[key] || 0) + 1;
+  registerTutorialNodeKill(node.type?.id);
   createNodeExplosion(node);
   if (node.type?.id === 'green') {
     applyGreenNodeMomentum(node);
   }
   if (node.type?.id === 'gold') {
     createGoldenBitBurst(node);
+  }
+  if (node.type?.id === 'void') {
+    const restored = Math.min(state.maxHealth - state.health, Math.ceil(node.maxHP * 0.04));
+    if (restored > 0) {
+      state.health += restored;
+      createFloatText(node.el, `+${restored} HP`, '#b38bff');
+    }
+  }
+  if (node.type?.id === 'prismatic' && node.currentHue) {
+    createFloatText(node.el, node.currentHue.toUpperCase(), '#cde7ff');
   }
   spawnBitTokens(node, rewardsGranted?.bits || 0);
   if (node.shakeTimeout) clearTimeout(node.shakeTimeout);
@@ -4460,7 +5349,7 @@ function destroyNode(node) {
 
 function dropRewards(node) {
   const type = node?.type || nodeTypes[0];
-  const rewards = type.reward(state.currentLevel.index);
+  const rewards = type.reward(state.currentLevel.index, node);
   const baseBits = rewards.bits ?? 0;
   const nodeElement = node?.el;
   let harvestedBits = 0;
@@ -4530,7 +5419,7 @@ function applyNodeTransform(node) {
 function createNodeExplosion(node) {
   if (!UI.particleLayer || !node.el) return;
   if (state.settings.reducedAnimation) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
   const nodeRect = node.el.getBoundingClientRect();
   const x = nodeRect.left - areaRect.left + nodeRect.width / 2;
   const y = nodeRect.top - areaRect.top + nodeRect.height / 2;
@@ -4545,7 +5434,7 @@ function createNodeExplosion(node) {
 
 function createGoldenBitBurst(node) {
   if (!UI.particleLayer || !node.el || state.settings.reducedAnimation) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
   const nodeRect = node.el.getBoundingClientRect();
   const x = nodeRect.left - areaRect.left + nodeRect.width / 2;
   const y = nodeRect.top - areaRect.top + nodeRect.height / 2;
@@ -4569,28 +5458,45 @@ function createGoldenBitBurst(node) {
 
 function spawnBitTokens(node, rewardBits = 0) {
   if (!UI.bitLayer || !node.el) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
   const nodeRect = node.el.getBoundingClientRect();
   const centerX = nodeRect.left - areaRect.left + nodeRect.width / 2;
   const centerY = nodeRect.top - areaRect.top + nodeRect.height / 2;
   const baseCount = 3 + Math.floor(Math.random() * 3);
-  const tokenCount = state.settings.reducedAnimation ? Math.max(1, Math.floor(baseCount / 2)) : baseCount;
+  const requestedTokenCount = state.settings.reducedAnimation ? Math.max(1, Math.floor(baseCount / 2)) : baseCount;
+  const existingTokens = UI.bitLayer.childElementCount || 0;
+  const maxTokens = 80;
+  const availableSlots = Math.max(0, maxTokens - existingTokens);
+  const tokenCount = Math.max(1, Math.min(requestedTokenCount, availableSlots || 1));
   const valueBase = Math.max(1, Math.round(4 + state.currentLevel.index * 1.2));
   const isGold = node?.type?.id === 'gold';
   const tokenValues = [];
   const normalizedReward = Math.max(0, rewardBits);
-  const desiredTotal = normalizedReward > 0 ? Math.max(tokenCount, Math.round(normalizedReward * 0.2)) : valueBase * tokenCount;
+  const desiredTotal =
+    normalizedReward > 0
+      ? Math.max(requestedTokenCount, Math.round(normalizedReward * 0.2))
+      : valueBase * requestedTokenCount;
   const goldBase = isGold ? Math.max(valueBase, Math.ceil(desiredTotal / tokenCount)) : valueBase;
-  for (let i = 0; i < tokenCount; i += 1) {
+  for (let i = 0; i < requestedTokenCount; i += 1) {
     let tokenValue = isGold
       ? Math.round(goldBase * (0.7 + Math.random() * 0.6))
       : valueBase + Math.floor(Math.random() * valueBase);
-    if (isGold && i === tokenCount - 1) {
+    if (isGold && i === requestedTokenCount - 1) {
       const runningTotal = tokenValues.reduce((sum, val) => sum + val, 0);
       tokenValue = Math.max(tokenValue, desiredTotal - runningTotal);
     }
     tokenValues.push(tokenValue);
   }
+  if (tokenCount < tokenValues.length) {
+    const compressed = new Array(tokenCount).fill(0);
+    tokenValues.forEach((value, index) => {
+      compressed[index % tokenCount] += value;
+    });
+    tokenValues.length = 0;
+    tokenValues.push(...compressed);
+  }
+  const fragment = document.createDocumentFragment();
+  const spawnedTokens = [];
   for (let i = 0; i < tokenCount; i += 1) {
     const token = document.createElement('div');
     token.className = 'bit-token';
@@ -4615,15 +5521,17 @@ function spawnBitTokens(node, rewardBits = 0) {
         collectBitToken(token);
       }
     });
-    UI.bitLayer.appendChild(token);
-    requestAnimationFrame(() => token.classList.add('visible'));
+    fragment.appendChild(token);
+    spawnedTokens.push(token);
   }
+  UI.bitLayer.appendChild(fragment);
+  requestAnimationFrame(() => spawnedTokens.forEach((token) => token.classList.add('visible')));
   requestBitTokenSweep();
 }
 
 function collectBitToken(token) {
   if (!token || token.classList.contains('collecting')) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
   const { x: clampedX, y: clampedY } = getPointerCenterInArea(areaRect);
   token.classList.add('collecting');
   token.style.pointerEvents = 'none';
@@ -4923,6 +5831,7 @@ function updateBossBar() {
     value.textContent = `${Math.round(ratio * 100)}%`;
   }
   updateBossDamageCounter();
+  updateBossPhaseBar();
 }
 
 function playBossDefeatAnimation(bossEl) {
@@ -5021,6 +5930,27 @@ function updateStats() {
   state.health = Math.min(state.health, state.maxHealth);
   applyCursorSize();
   persistStatsSnapshot();
+  updateQuickStats();
+  updateBossPhaseBar();
+}
+
+function updateQuickStats() {
+  if (!UI.quickStatDamage) return;
+  UI.quickStatDamage.textContent = `${Math.round(stats.damage).toLocaleString()}`;
+  UI.quickStatCrit.textContent = `${(stats.critChance * 100).toFixed(1)}% x${stats.critMultiplier.toFixed(2)}`;
+  UI.quickStatAuto.textContent = `${stats.autoInterval.toFixed(2)}s`;
+  UI.quickStatSpawn.textContent = `${stats.nodeSpawnDelay.toFixed(2)}s / ${stats.maxNodes}`;
+  const bossHp = Math.round(getBossBaseHP(state.currentLevel.index) * stats.bossHPFactor);
+  UI.quickStatBoss.textContent = bossHp.toLocaleString();
+}
+
+function updateBossPhaseBar() {
+  if (!UI.bossPhaseFill || !UI.bossPhasePhase) return;
+  const max = Math.max(1, state.currentLevel.bossMaxHP || getBossBaseHP(state.currentLevel.index));
+  const ratio = state.currentLevel.bossActive ? Math.max(0, state.currentLevel.bossHP) / max : 0;
+  UI.bossPhaseFill.style.transform = `scaleX(${ratio})`;
+  const phase = ratio > 0.66 ? 1 : ratio > 0.33 ? 2 : ratio > 0 ? 3 : '-';
+  UI.bossPhasePhase.textContent = state.currentLevel.bossActive ? `Phase ${phase}` : 'Idle';
 }
 
 function updateResources() {
@@ -5042,6 +5972,8 @@ function updateResources() {
   renderSpeedUpgrades();
   updateTabAvailability();
   updateUpgradeTabAvailability();
+  updateQuickStats();
+  updateBossPhaseBar();
 }
 
 function gainXP(amount) {
@@ -5101,7 +6033,9 @@ function totalNodesDestroyed() {
     state.nodesDestroyed.red +
     state.nodesDestroyed.blue +
     state.nodesDestroyed.green +
-    state.nodesDestroyed.gold
+    state.nodesDestroyed.gold +
+    (state.nodesDestroyed.void || 0) +
+    (state.nodesDestroyed.prismatic || 0)
   );
 }
 
