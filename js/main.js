@@ -1449,7 +1449,7 @@ function applyDisplaySettings() {
   document.body.classList.toggle('disable-crt', !state.settings.crt);
   document.body.classList.toggle('disable-scanlines', !state.settings.scanlines);
   document.body.classList.toggle('reduced-motion', state.settings.reducedAnimation);
-  document.body.classList.remove('palette-violet', 'palette-diamond', 'palette-gold', 'palette-emerald', 'palette-pinky', 'palette-saphire');
+  document.body.classList.remove('palette-violet', 'palette-diamond', 'palette-gold', 'palette-emerald', 'palette-pinky', 'palette-ruby');
   if (state.settings.palette && state.settings.palette !== 'default') {
     document.body.classList.add(`palette-${state.settings.palette}`);
   }
