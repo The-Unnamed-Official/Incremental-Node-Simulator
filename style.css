@@ -3846,7 +3846,7 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   align-items: flex-end;
   justify-content: center;
   pointer-events: none;
-  z-index: 1200;
+  z-index: 70;
 }
 
 .tutorial-overlay.hidden {
