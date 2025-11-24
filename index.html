@@ -254,6 +254,16 @@
               <span>Reduce animation</span>
               <input type="checkbox" id="reduce-animation" class="switch-input" />
             </label>
+            <label class="setting setting-toggle">
+              <span>Show tips occasionally</span>
+              <input type="checkbox" id="tips-toggle" class="switch-input" checked />
+            </label>
+            <div class="setting setting-inline">
+              <div class="setting-label">Tutorial controls</div>
+              <div class="setting-actions">
+                <button id="replay-tutorial" class="pill">Replay tutorial</button>
+              </div>
+            </div>
             <label class="setting">
               <span>Palette</span>
               <div class="select-shell">
@@ -501,6 +511,24 @@
           <span>BGM volume</span>
           <input type="range" id="bgm-volume" min="0" max="100" value="50" />
         </label>
+      </div>
+    </div>
+  </div>
+  <div id="tutorial-overlay" class="tutorial-overlay hidden" aria-live="polite">
+    <div class="tutorial-backdrop"></div>
+    <div id="tutorial-highlight" class="tutorial-highlight" aria-hidden="true"></div>
+    <div class="tutorial-panel" role="dialog" aria-modal="false">
+      <div class="tutorial-header">
+        <div>
+          <div id="tutorial-step-title" class="tutorial-title">Welcome to NodeShift</div>
+          <div id="tutorial-step-progress" class="tutorial-progress"></div>
+        </div>
+        <button id="tutorial-skip" class="pill subtle" type="button">Skip tutorial</button>
+      </div>
+      <p id="tutorial-step-body" class="tutorial-body"></p>
+      <div id="tutorial-step-goal" class="tutorial-goal" aria-live="polite"></div>
+      <div class="tutorial-actions">
+        <button id="tutorial-next" class="pill" type="button">Next</button>
       </div>
     </div>
   </div>
