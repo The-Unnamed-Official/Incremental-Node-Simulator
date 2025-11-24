@@ -136,6 +136,57 @@ body.palette-ruby {
   --bg-alt: #1c0d0d;
 }
 
+body.palette-nebula {
+  --accent: #9fc4ff;
+  --accent-capital: #b896ff;
+  --accent-strong: #c9deff;
+  --accent-slight: #6f7cb8;
+  --accent-slighty: #4b4f8c;
+  --accent-slighter: #2c2f52;
+  --accent-slightest: #15162a;
+  --accent-drop: #0f1022;
+  --accent-soft: #9fc4ff33;
+  --accent-softer: #3c3f8c33;
+  --panel: #0d0f1cf5;
+  --panel-strong: #12142afa;
+  --bg: #080910;
+  --bg-alt: #0f1020;
+}
+
+body.palette-sunset {
+  --accent: #ffb07f;
+  --accent-capital: #ff8166;
+  --accent-strong: #ffd1a8;
+  --accent-slight: #c2764d;
+  --accent-slighty: #8c5335;
+  --accent-slighter: #4b2d1c;
+  --accent-slightest: #2a170d;
+  --accent-drop: #1d1009;
+  --accent-soft: #ffb07f33;
+  --accent-softer: #8c533533;
+  --panel: #1c110cf5;
+  --panel-strong: #221511fa;
+  --bg: #0f0a07;
+  --bg-alt: #1c130d;
+}
+
+body.palette-obsidian {
+  --accent: #7de4c2;
+  --accent-capital: #66b6ff;
+  --accent-strong: #a6ffec;
+  --accent-slight: #3e7c6b;
+  --accent-slighty: #2a5c52;
+  --accent-slighter: #18352f;
+  --accent-slightest: #0b1c19;
+  --accent-drop: #071411;
+  --accent-soft: #7de4c233;
+  --accent-softer: #2b594b33;
+  --panel: #0c1514f5;
+  --panel-strong: #101c1bfa;
+  --bg: #070d0c;
+  --bg-alt: #0d1a18;
+}
+
 * {
   box-sizing: border-box;
   cursor: none !important;

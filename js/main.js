@@ -1449,7 +1449,17 @@ function applyDisplaySettings() {
   document.body.classList.toggle('disable-crt', !state.settings.crt);
   document.body.classList.toggle('disable-scanlines', !state.settings.scanlines);
   document.body.classList.toggle('reduced-motion', state.settings.reducedAnimation);
-  document.body.classList.remove('palette-violet', 'palette-diamond', 'palette-gold', 'palette-emerald', 'palette-pinky', 'palette-ruby');
+  document.body.classList.remove(
+    'palette-violet',
+    'palette-diamond',
+    'palette-gold',
+    'palette-emerald',
+    'palette-pinky',
+    'palette-ruby',
+    'palette-nebula',
+    'palette-sunset',
+    'palette-obsidian',
+  );
   if (state.settings.palette && state.settings.palette !== 'default') {
     document.body.classList.add(`palette-${state.settings.palette}`);
   }
@@ -1580,8 +1590,14 @@ function generateUpgrades() {
       stats.damage += stats.baseDamage * data.perLevel * level;
     },
     crit: (stats, level, data) => {
-      stats.critChance += data.perLevel * level;
-      stats.critMultiplier *= Math.pow(data.multiplierGrowth || 1, level);
+      const chanceBonus = Math.max(0, data.perLevel || 0);
+      if (chanceBonus > 0) {
+        stats.critChance += chanceBonus * level;
+      }
+      const growth = Math.max(1, data.multiplierGrowth || 1);
+      if (growth > 1) {
+        stats.critMultiplier *= Math.pow(growth, level);
+      }
     },
     economyNode: (stats, level, data) => {
       stats.bitNodeBonus += data.perLevel * level;
@@ -1606,15 +1622,24 @@ function generateUpgrades() {
       const withinTier = i % 10;
       const maxLevel = family.minLevel + (i % (family.maxLevel - family.minLevel + 1));
       let perLevel = 0.09 * Math.pow(2.2, i);
+      let multiplierGrowth = family.key === 'crit' ? 1.5 : 1;
       if (family.key === 'economy' || family.key === 'economyNode') {
         perLevel = 5 * Math.pow(3.3, tierIndex);
+      }
+      if (family.key === 'crit') {
+        const critConfig = getCritUpgradeConfig(i);
+        perLevel = critConfig.chancePerLevel;
+        multiplierGrowth = critConfig.multiplierGrowth;
       }
       const costBase = family.baseCost * 2 ** tierIndex;
       const costScale = 1.5;
       const id = `${family.key.toUpperCase()}_${idCounter}`;
       const tierLabel = tierIndex === 0 ? '' : ` ${romanNumeral(tierIndex + 1)}`;
       const name = `${family.baseName}${tierLabel} ${romanNumeral(withinTier + 1)}`;
-      const desc = describeUpgrade(family.key, perLevel, maxLevel);
+      const desc =
+        family.key === 'crit'
+          ? describeCritUpgrade(perLevel, maxLevel, multiplierGrowth)
+          : describeUpgrade(family.key, perLevel, maxLevel);
       const requirements = {};
       const currency = 'bits';
       const category = family.category || family.key;
@@ -1633,7 +1658,7 @@ function generateUpgrades() {
         sequenceIndex: i,
         previousId,
         effect: (statsObj, level) =>
-          effects[family.key](statsObj, level, { perLevel, family, multiplierGrowth: family.key === 'crit' ? 1.5 : 1 }),
+          effects[family.key](statsObj, level, { perLevel, family, multiplierGrowth }),
       };
       upgrades.push(upgrade);
       upgradeLookup.set(id, upgrade);
@@ -1688,8 +1713,6 @@ function describeUpgrade(category, perLevel, maxLevel) {
   switch (category) {
     case 'damage':
       return `+${(perLevel * 100).toFixed(1)}% damage / level (${maxLevel} lvls)`;
-    case 'crit':
-      return `+${(perLevel * 100).toFixed(1)}% crit chance / level, +1.5x crit multiplier / level`;
     case 'economyNode':
       return `+${perLevel.toFixed(1)} bits from nodes / level`;
     case 'economy':
@@ -1699,6 +1722,28 @@ function describeUpgrade(category, perLevel, maxLevel) {
     default:
       return '';
   }
+}
+
+function describeCritUpgrade(chancePerLevel, maxLevel, multiplierGrowth) {
+  const chanceCopy = chancePerLevel > 0 ? `+${(chancePerLevel * 100).toFixed(2)}% crit chance / level` : '';
+  const damageCopy = multiplierGrowth > 1 ? `+${multiplierGrowth.toFixed(2)}x crit damage / level` : '';
+  const parts = [chanceCopy, damageCopy].filter(Boolean);
+  const body = parts.length > 0 ? parts.join(', ') : 'Critical damage';
+  return `${body} (${maxLevel} lvls)`;
+}
+
+function getCritUpgradeConfig(sequenceIndex) {
+  const critConfigs = [
+    { chancePerLevel: 0.05, multiplierGrowth: 1.5 },
+    { chancePerLevel: 0, multiplierGrowth: 1.5 },
+    { chancePerLevel: 0.0625, multiplierGrowth: 1.5 },
+    { chancePerLevel: 0, multiplierGrowth: 1.5 },
+    { chancePerLevel: 0.1, multiplierGrowth: 1.5 },
+  ];
+  if (sequenceIndex < critConfigs.length) {
+    return critConfigs[sequenceIndex];
+  }
+  return { chancePerLevel: 0, multiplierGrowth: 1.5 };
 }
 
 function generateAreaUpgrades() {
@@ -1719,23 +1764,6 @@ function generateSpawnUpgrades() {
       delayReduction: 0.35,
       nodeBonus: 2,
       minDelay: 0.24,
-      effect: (statsObj, level, upgrade) => {
-        statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
-        statsObj.maxNodes += upgrade.nodeBonus * level;
-      },
-    },
-    {
-      id: 'hypernode-overclock',
-      name: 'Hypernode Overclock',
-      tierNames: ['Hypernode Overclock I', 'Hypernode Overclock II'],
-      description: '+3 max nodes & -0.6s spawn delay per level',
-      maxLevel: 2,
-      costBase: 20,
-      costScale: 1.9,
-      currency: 'prestige',
-      delayReduction: 0.6,
-      nodeBonus: 3,
-      minDelay: 0.06,
       effect: (statsObj, level, upgrade) => {
         statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
         statsObj.maxNodes += upgrade.nodeBonus * level;
@@ -4530,7 +4558,7 @@ function applyNodeTransform(node) {
 function createNodeExplosion(node) {
   if (!UI.particleLayer || !node.el) return;
   if (state.settings.reducedAnimation) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
   const nodeRect = node.el.getBoundingClientRect();
   const x = nodeRect.left - areaRect.left + nodeRect.width / 2;
   const y = nodeRect.top - areaRect.top + nodeRect.height / 2;
@@ -4545,7 +4573,7 @@ function createNodeExplosion(node) {
 
 function createGoldenBitBurst(node) {
   if (!UI.particleLayer || !node.el || state.settings.reducedAnimation) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
   const nodeRect = node.el.getBoundingClientRect();
   const x = nodeRect.left - areaRect.left + nodeRect.width / 2;
   const y = nodeRect.top - areaRect.top + nodeRect.height / 2;
@@ -4569,28 +4597,45 @@ function createGoldenBitBurst(node) {
 
 function spawnBitTokens(node, rewardBits = 0) {
   if (!UI.bitLayer || !node.el) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
   const nodeRect = node.el.getBoundingClientRect();
   const centerX = nodeRect.left - areaRect.left + nodeRect.width / 2;
   const centerY = nodeRect.top - areaRect.top + nodeRect.height / 2;
   const baseCount = 3 + Math.floor(Math.random() * 3);
-  const tokenCount = state.settings.reducedAnimation ? Math.max(1, Math.floor(baseCount / 2)) : baseCount;
+  const requestedTokenCount = state.settings.reducedAnimation ? Math.max(1, Math.floor(baseCount / 2)) : baseCount;
+  const existingTokens = UI.bitLayer.childElementCount || 0;
+  const maxTokens = 80;
+  const availableSlots = Math.max(0, maxTokens - existingTokens);
+  const tokenCount = Math.max(1, Math.min(requestedTokenCount, availableSlots || 1));
   const valueBase = Math.max(1, Math.round(4 + state.currentLevel.index * 1.2));
   const isGold = node?.type?.id === 'gold';
   const tokenValues = [];
   const normalizedReward = Math.max(0, rewardBits);
-  const desiredTotal = normalizedReward > 0 ? Math.max(tokenCount, Math.round(normalizedReward * 0.2)) : valueBase * tokenCount;
+  const desiredTotal =
+    normalizedReward > 0
+      ? Math.max(requestedTokenCount, Math.round(normalizedReward * 0.2))
+      : valueBase * requestedTokenCount;
   const goldBase = isGold ? Math.max(valueBase, Math.ceil(desiredTotal / tokenCount)) : valueBase;
-  for (let i = 0; i < tokenCount; i += 1) {
+  for (let i = 0; i < requestedTokenCount; i += 1) {
     let tokenValue = isGold
       ? Math.round(goldBase * (0.7 + Math.random() * 0.6))
       : valueBase + Math.floor(Math.random() * valueBase);
-    if (isGold && i === tokenCount - 1) {
+    if (isGold && i === requestedTokenCount - 1) {
       const runningTotal = tokenValues.reduce((sum, val) => sum + val, 0);
       tokenValue = Math.max(tokenValue, desiredTotal - runningTotal);
     }
     tokenValues.push(tokenValue);
   }
+  if (tokenCount < tokenValues.length) {
+    const compressed = new Array(tokenCount).fill(0);
+    tokenValues.forEach((value, index) => {
+      compressed[index % tokenCount] += value;
+    });
+    tokenValues.length = 0;
+    tokenValues.push(...compressed);
+  }
+  const fragment = document.createDocumentFragment();
+  const spawnedTokens = [];
   for (let i = 0; i < tokenCount; i += 1) {
     const token = document.createElement('div');
     token.className = 'bit-token';
@@ -4615,15 +4660,17 @@ function spawnBitTokens(node, rewardBits = 0) {
         collectBitToken(token);
       }
     });
-    UI.bitLayer.appendChild(token);
-    requestAnimationFrame(() => token.classList.add('visible'));
+    fragment.appendChild(token);
+    spawnedTokens.push(token);
   }
+  UI.bitLayer.appendChild(fragment);
+  requestAnimationFrame(() => spawnedTokens.forEach((token) => token.classList.add('visible')));
   requestBitTokenSweep();
 }
 
 function collectBitToken(token) {
   if (!token || token.classList.contains('collecting')) return;
-  const areaRect = UI.nodeArea.getBoundingClientRect();
+  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
   const { x: clampedX, y: clampedY } = getPointerCenterInArea(areaRect);
   token.classList.add('collecting');
   token.style.pointerEvents = 'none';
