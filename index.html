@@ -73,28 +73,6 @@
           <span class="resource-value" id="lp-display">0</span>
         </div>
       </div>
-      <div class="quick-stats" aria-live="polite">
-        <div class="quick-stat" data-stat="damage">
-          <span class="label">Damage</span>
-          <span class="value" id="stat-damage">0</span>
-        </div>
-        <div class="quick-stat" data-stat="crit">
-          <span class="label">Crit</span>
-          <span class="value" id="stat-crit">0%</span>
-        </div>
-        <div class="quick-stat" data-stat="auto">
-          <span class="label">Auto</span>
-          <span class="value" id="stat-auto">0s</span>
-        </div>
-        <div class="quick-stat" data-stat="spawn">
-          <span class="label">Spawn</span>
-          <span class="value" id="stat-spawn">0s</span>
-        </div>
-        <div class="quick-stat" data-stat="hp">
-          <span class="label">Boss HP</span>
-          <span class="value" id="stat-boss">0</span>
-        </div>
-      </div>
     </header>
 
     <main class="main-layout">
@@ -429,6 +407,35 @@
       </div>
     </div>
   </div>
+  <div id="quick-stats-panel" class="quick-stats-panel" aria-live="polite">
+    <button id="quick-stats-toggle" class="quick-stats-toggle" type="button" aria-label="Toggle quick stats panel">
+      <i class="fa-solid fa-arrow-left-long" style="color: #63E6BE;"></i>
+    </button>
+    <div class="quick-stats-shell">
+      <div class="quick-stats" aria-live="polite">
+        <div class="quick-stat" data-stat="damage">
+          <span class="label">Damage</span>
+          <span class="value" id="stat-damage">0</span>
+        </div>
+        <div class="quick-stat" data-stat="crit">
+          <span class="label">Crit</span>
+          <span class="value" id="stat-crit">0%</span>
+        </div>
+        <div class="quick-stat" data-stat="auto">
+          <span class="label">Auto</span>
+          <span class="value" id="stat-auto">0s</span>
+        </div>
+        <div class="quick-stat" data-stat="spawn">
+          <span class="label">Spawn</span>
+          <span class="value" id="stat-spawn">0s</span>
+        </div>
+        <div class="quick-stat" data-stat="hp">
+          <span class="label">Boss HP</span>
+          <span class="value" id="stat-boss">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="update-log" class="update-log hidden" role="dialog" aria-modal="true" aria-labelledby="update-log-title">
     <div class="update-log-shell">
       <div id="update-log-tabs" class="update-log-tabs" role="tablist"></div>
@@ -501,6 +508,7 @@
   <script src="js/core/constants.js" defer></script>
   <script src="js/core/state.js" defer></script>
   <script src="js/core/audio.js" defer></script>
+  <script src="js/ui/quick-stats-panel.js" defer></script>
   <script src="js/ui/music-player.js" defer></script>
   <script src="js/main.js" defer></script>
 </body>
