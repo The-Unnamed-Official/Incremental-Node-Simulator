@@ -27,6 +27,8 @@ function createInitialState() {
       blue: 0,
       green: 0,
       gold: 0,
+      void: 0,
+      prismatic: 0,
     },
     bossKills: 0,
     currentLevel: {
