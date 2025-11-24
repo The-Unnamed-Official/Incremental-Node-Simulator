@@ -491,6 +491,72 @@ body.disable-scanlines #crt-overlay {
   transition: transform 0.32s ease;
 }
 
+.quick-stats-panel {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: repeating-linear-gradient(135deg, var(--accent-drop), var(--bg));
+  border: var(--pixel-border) solid var(--accent-slight);
+  border-top: 7px groove var(--accent-slight);
+  border-bottom: 7px groove var(--accent-slight);
+  padding: 14px;
+  z-index: 9;
+  image-rendering: pixelated;
+  backdrop-filter: blur(6px);
+  transition: transform 0.35s ease, box-shadow 0.3s ease, opacity 0.3s ease,
+    border-top 0.3s ease, border-bottom 0.3s ease;
+  cursor: grab;
+}
+
+.quick-stats-panel::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.quick-stats-panel.dragging {
+  cursor: grabbing;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.quick-stats-panel.collapsed {
+  transform: translateX(calc(-100% + 54px));
+  opacity: 0.3;
+}
+
+.quick-stats-shell {
+  position: relative;
+}
+
+.quick-stats-toggle {
+  position: absolute;
+  top: -7px;
+  right: -55px;
+  width: 48px;
+  height: 48px;
+  background: repeating-linear-gradient(135deg, var(--accent-drop), var(--bg));
+  border: var(--pixel-border) solid var(--accent-slight);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-stats-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.45);
+}
+
+.quick-stats-panel .quick-stats {
+  margin-top: 0;
+}
+
 .quick-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

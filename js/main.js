@@ -2494,7 +2494,10 @@ function renderUpgrades(filter) {
         event.stopPropagation();
       });
       nodeEl.addEventListener('mousemove', (event) => showUpgradeTooltip(event, upgrade));
-      nodeEl.addEventListener('mouseleave', hideTooltip);
+      nodeEl.addEventListener('mouseleave', () => {
+        hideTooltip();
+        hideSkillDetail();
+      });
       nodeEl.addEventListener('mouseenter', () => showSkillDetail(nodeEl, upgrade));
       track.appendChild(nodeEl);
       elementMap.set(upgrade.id, nodeEl);
