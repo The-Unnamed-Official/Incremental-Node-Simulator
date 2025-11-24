@@ -2136,6 +2136,12 @@ body.disable-scanlines #crt-overlay {
   display: inline-flex;
 }
 
+.skin-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
 .save-controls {
   display: grid;
   gap: 12px;
@@ -2667,12 +2673,13 @@ body.disable-scanlines #crt-overlay {
 .area-upgrade-grid {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .area-upgrade {
   display: grid;
   gap: 10px;
+  min-width: 0;
   padding: 20px;
   text-align: left;
   background: repeating-linear-gradient(135deg, var(--accent-drop) 0 10px, var(--bg) 10px 20px);
