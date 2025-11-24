@@ -1882,8 +1882,7 @@ body.disable-scanlines #crt-overlay {
 .skill-tree {
   position: relative;
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(260px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 24px;
   padding: 14px 10px 18px 14px;
   max-height: clamp(280px, 55vh, 520px);
@@ -2135,6 +2134,12 @@ body.disable-scanlines #crt-overlay {
   width: 100%;
   justify-content: space-between;
   display: inline-flex;
+}
+
+.skin-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
 }
 
 .save-controls {
@@ -2668,12 +2673,14 @@ body.disable-scanlines #crt-overlay {
 .area-upgrade-grid {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  width: 100%;
 }
 
 .area-upgrade {
   display: grid;
   gap: 10px;
+  min-width: 0;
   padding: 20px;
   text-align: left;
   background: repeating-linear-gradient(135deg, var(--accent-drop) 0 10px, var(--bg) 10px 20px);
@@ -3846,7 +3853,7 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   align-items: flex-end;
   justify-content: center;
   pointer-events: none;
-  z-index: 1200;
+  z-index: 70;
 }
 
 .tutorial-overlay.hidden {

@@ -879,7 +879,6 @@ function updateSaveTimestamp() {
 }
 
 function startNewGame() {
-  const tutorialSnapshot = snapshotTutorialPersistence();
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(SAVE_KEY);
@@ -916,7 +915,6 @@ function startNewGame() {
     updateStats();
     updateResources();
     localStorage.clear();
-    restoreTutorialPersistence(tutorialSnapshot);
     location.reload();
   }, 2000);
 }
