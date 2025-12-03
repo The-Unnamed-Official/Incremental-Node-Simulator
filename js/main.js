@@ -1666,7 +1666,7 @@ const tutorialSteps = [
   {
     id: 'upgrade',
     title: 'Buy your first upgrade',
-    body: 'Open the Upgrades tab and purchase any upgrade. Upgrades raise damage, crits, economy, and more. This one will trigger a guided skill check—click inside the highlighted band before the timer ends.',
+    body: 'Open the Upgrades tab and purchase any upgrade. Upgrades raise damage, crits, economy, and more. This one will trigger a guided skill check—click inside the highlighted band before the timer ends or use your space-bar, that works too!.',
     target: () => document.querySelector('[data-tab="upgrades"]'),
     onEnter: prepareUpgradeTutorial,
   },

@@ -2747,9 +2747,9 @@ body.disable-scanlines #crt-overlay {
 
 .float-text {
   position: fixed;
-  font-size: 1.8rem;
+  font-size: 1.2rem;
   pointer-events: none;
-  animation: float-ghost 1.6s ease-out forwards;
+  animation: float-ghost 1.6s ease-in forwards;
   z-index: 50;
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.22), 0 0 18px rgba(127, 255, 214, 0.3);
   filter: drop-shadow(0 0 6px rgba(127, 255, 214, 0.35));
@@ -2757,7 +2757,7 @@ body.disable-scanlines #crt-overlay {
 }
 
 .float-text.critical {
-  animation-duration: 2.1s;
+  animation-duration: 3.1s;
 }
 
 @keyframes float-ghost {
@@ -2766,17 +2766,17 @@ body.disable-scanlines #crt-overlay {
     transform: translate(-50%, 0) scale(1);
   }
   25% {
-    transform: translate(calc(-50% - 6px), -18px) scale(1.05);
+    transform: translate(calc(-50% - 3px), -38px) scale(1.05);
   }
   50% {
-    transform: translate(calc(-50% + 8px), -36px) scale(1.08);
+    transform: translate(calc(-50% + 9px), -56px) scale(1.08);
   }
   75% {
-    transform: translate(calc(-50% - 5px), -56px) scale(1.12);
+    transform: translate(calc(-50% - 12x), -76px) scale(1.12);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -78px) scale(1.15);
+    transform: translate(-50%, -108px) scale(1.15);
   }
 }
 
