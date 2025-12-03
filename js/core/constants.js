@@ -9,7 +9,7 @@ const GAME_VERSION = 'v0.633';
 const UPDATE_LOGS = [
   {
     version: 'v0.633',
-    title: 'Important bug fixes!',
+    title: 'Many important bug fixes and other neat additions!',
     description: 'This update fixes key upgrade issues and introduces a fresh skill challenge.',
     changes: [
       'The issue with skill upgrades continuing behind the upgrading card making them unpurchasable after just a few upgrades have been fixed!',
@@ -18,6 +18,7 @@ const UPDATE_LOGS = [
       'Introduced the dual-axis Axis Weave skill check and retired the broken radial version.',
       'Improved damage counters for better clarity.',
       "Made LAYERS' border shift through black and white :O",
+      "And so, so, so many other bug fixes.. believe me...",
     ],
   },
   {
