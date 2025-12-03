@@ -4,9 +4,23 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.630';
+const GAME_VERSION = 'v0.633';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.633',
+    title: 'Many important bug fixes and other neat additions!',
+    description: 'This update fixes key upgrade issues and introduces a fresh skill challenge.',
+    changes: [
+      'The issue with skill upgrades continuing behind the upgrading card making them unpurchasable after just a few upgrades have been fixed!',
+      'Improved damage counters.',
+      'Skill upgrades now wrap cleanly into new rows instead of stretching off-screen.',
+      'Introduced the dual-axis Axis Weave skill check and retired the broken radial version.',
+      'Improved damage counters for better clarity.',
+      "Made LAYERS' border shift through black and white :O",
+      "And so, so, so many other bug fixes.. believe me...",
+    ],
+  },
   {
     version: 'v0.630',
     title: 'Music Update v2!',
