@@ -9,13 +9,14 @@ const GAME_VERSION = 'v0.635';
 const UPDATE_LOGS = [
   {
     version: 'v0.633',
-    title: 'Important bug fix!',
+    title: 'Important bug fixes!',
     description:
       'This update I have fixed an issue with upgrade cards.',
     changes: [
-      {
-        text: 'The issue with skill upgrades continuing behind the upgrading card making them unpurchasable after just a few upgrades have been fixed!',
-      },
+      'The issue with skill upgrades continuing behind the upgrading card making them unpurchasable after just a few upgrades have been fixed!',
+      'Improved damage counters and radial skill checks',
+      'Also fixed a bug with the radial skill checks!',
+      "Made LAYERS' border shift through black and white :O"
     ],
   },
   {
