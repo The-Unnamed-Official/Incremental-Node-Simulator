@@ -5273,7 +5273,7 @@ function calculateCursorDamage(options = {}) {
 function strikeNode(node) {
   const { damage, crit } = calculateCursorDamage();
   if (crit) {
-    createFloatText(node.el, 'CRIT!', '#ff6ea8');
+    createFloatText(node.el, 'CRIT!', '#ff6ea8', { variant: 'critical' });
   }
   node.hp -= damage;
   triggerNodeDamageEffect(node);
@@ -5298,16 +5298,20 @@ function triggerNodeDamageEffect(node) {
   node.hitTimeout = setTimeout(() => node.el && node.el.classList.remove('hit'), 220);
 }
 
-function createFloatText(target, text, color = 'var(--accent-strong)') {
+function createFloatText(target, text, color = 'var(--accent-strong)', options = {}) {
   const rect = target.getBoundingClientRect();
   const float = document.createElement('div');
   float.className = 'float-text';
+  if (options.variant === 'critical') {
+    float.classList.add('critical');
+  }
   float.style.left = `${rect.left + rect.width / 2}px`;
   float.style.top = `${rect.top + rect.height / 2}px`;
   float.style.color = color;
   float.textContent = text;
   document.body.appendChild(float);
-  setTimeout(() => float.remove(), 1600);
+  const lifespan = options.variant === 'critical' ? 2100 : 1600;
+  setTimeout(() => float.remove(), lifespan);
 }
 
 function randomInRange(min, max) {
@@ -5768,7 +5772,7 @@ function getBossCursorDamage() {
   const { damage, crit } = calculateCursorDamage();
   const bossDamage = Math.max(1, damage * 0.5);
   if (crit && activeBoss?.el) {
-    createFloatText(activeBoss.el, 'CRIT!', '#ff6ea8');
+    createFloatText(activeBoss.el, 'CRIT!', '#ff6ea8', { variant: 'critical' });
   }
   return bossDamage;
 }

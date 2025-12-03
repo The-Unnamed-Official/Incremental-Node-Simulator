@@ -2756,6 +2756,10 @@ body.disable-scanlines #crt-overlay {
   transform-origin: 50% 100%;
 }
 
+.float-text.critical {
+  animation-duration: 2.1s;
+}
+
 @keyframes float-ghost {
   0% {
     opacity: 1;
