@@ -13,7 +13,7 @@
   const applyTrackVisuals = (track, coverEl, shell) => {
     if (!track || !coverEl || !shell) return;
     const accent = track.accent || 'var(--accent)';
-    const accent2 = track.accent2 || '#0b1020';
+    const accent2 = track.accent2 || 'var(--accent-slight)';
     coverEl.style.setProperty('--cover-accent', accent);
     coverEl.style.setProperty('--cover-accent-secondary', accent2);
     coverEl.style.setProperty('--cover-image', track.cover ? `url('${track.cover}')` : 'none');
