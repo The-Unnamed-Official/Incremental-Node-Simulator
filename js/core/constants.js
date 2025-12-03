@@ -12,6 +12,8 @@ const UPDATE_LOGS = [
     title: 'Important bug fixes!',
     description: 'This update fixes key upgrade issues and introduces a fresh skill challenge.',
     changes: [
+      'The issue with skill upgrades continuing behind the upgrading card making them unpurchasable after just a few upgrades have been fixed!',
+      'Improved damage counters.',
       'Skill upgrades now wrap cleanly into new rows instead of stretching off-screen.',
       'Introduced the dual-axis Axis Weave skill check and retired the broken radial version.',
       'Improved damage counters for better clarity.',
