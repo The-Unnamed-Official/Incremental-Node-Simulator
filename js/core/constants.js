@@ -10,13 +10,12 @@ const UPDATE_LOGS = [
   {
     version: 'v0.633',
     title: 'Important bug fixes!',
-    description:
-      'This update I have fixed an issue with upgrade cards.',
+    description: 'This update fixes key upgrade issues and introduces a fresh skill challenge.',
     changes: [
-      'The issue with skill upgrades continuing behind the upgrading card making them unpurchasable after just a few upgrades have been fixed!',
-      'Improved damage counters and radial skill checks',
-      'Also fixed a bug with the radial skill checks!',
-      "Made LAYERS' border shift through black and white :O"
+      'Skill upgrades now wrap cleanly into new rows instead of stretching off-screen.',
+      'Introduced the dual-axis Axis Weave skill check and retired the broken radial version.',
+      'Improved damage counters for better clarity.',
+      "Made LAYERS' border shift through black and white :O",
     ],
   },
   {
