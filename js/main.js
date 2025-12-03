@@ -4560,7 +4560,7 @@ function updateSkillCheckSliderVisuals() {
   }
   const angle = skillCheckState.sliderPosition * 360;
   if (UI.skillCheckDialPointer) {
-    UI.skillCheckDialPointer.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+    UI.skillCheckDialPointer.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
   }
   if (UI.skillCheckOrbitPointer) {
     UI.skillCheckOrbitPointer.style.transform = `rotate(${angle}deg)`;
@@ -5285,7 +5285,7 @@ function createFloatText(target, text, color = 'var(--accent-strong)') {
   float.style.color = color;
   float.textContent = text;
   document.body.appendChild(float);
-  setTimeout(() => float.remove(), 800);
+  setTimeout(() => float.remove(), 1600);
 }
 
 function randomInRange(min, max) {

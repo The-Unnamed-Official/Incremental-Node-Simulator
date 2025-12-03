@@ -2747,20 +2747,32 @@ body.disable-scanlines #crt-overlay {
 
 .float-text {
   position: fixed;
-  font-size: 0.9rem;
+  font-size: 1.8rem;
   pointer-events: none;
-  animation: float-up 0.8s ease forwards;
+  animation: float-ghost 1.6s ease-out forwards;
   z-index: 50;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.22), 0 0 18px rgba(127, 255, 214, 0.3);
+  filter: drop-shadow(0 0 6px rgba(127, 255, 214, 0.35));
+  transform-origin: 50% 100%;
 }
 
-@keyframes float-up {
-  from {
+@keyframes float-ghost {
+  0% {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translate(-50%, 0) scale(1);
   }
-  to {
+  25% {
+    transform: translate(calc(-50% - 6px), -18px) scale(1.05);
+  }
+  50% {
+    transform: translate(calc(-50% + 8px), -36px) scale(1.08);
+  }
+  75% {
+    transform: translate(calc(-50% - 5px), -56px) scale(1.12);
+  }
+  100% {
     opacity: 0;
-    transform: translate(-50%, -40px);
+    transform: translate(-50%, -78px) scale(1.15);
   }
 }
 
@@ -3092,9 +3104,70 @@ body.skill-fail::after {
   width: 4px;
   height: 70px;
   background: linear-gradient(180deg, var(--accent-capital), var(--accent-strong));
-  transform-origin: center 90%;
+  transform: translate(-50%, -100%);
+  transform-origin: 50% 100%;
   border-radius: 3px;
   box-shadow: 0 0 10px rgba(127, 255, 214, 0.4);
+  pointer-events: none;
+  transition: transform 0.08s linear;
+}
+
+.skill-check-orbit {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto;
+}
+
+.skill-check-orbit-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: var(--pixel-border) solid var(--accent-slighter);
+  background: radial-gradient(circle, rgba(127, 255, 214, 0.08), rgba(0, 0, 0, 0.25));
+  box-shadow: inset 0 0 0 1px rgba(127, 255, 214, 0.12);
+}
+
+.skill-check-orbit-target {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  mask-image: radial-gradient(circle, transparent 64%, #000 66%);
+  background: conic-gradient(from 0deg, transparent, rgba(127, 255, 214, 0.25), transparent);
+  pointer-events: none;
+}
+
+.skill-check-orbit-pointer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  transform-origin: center;
+  pointer-events: none;
+  transition: transform 0.08s linear;
+}
+
+.skill-check-orbit-light {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-top: 8px;
+  background: radial-gradient(circle, #8fffe0, var(--accent-capital));
+  box-shadow: 0 0 14px rgba(127, 255, 214, 0.7);
+}
+
+.skill-check-orbit-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--accent-capital), var(--accent-drop));
+  box-shadow: 0 0 12px rgba(127, 255, 214, 0.4);
 }
 
 .skill-check-dial-core {
