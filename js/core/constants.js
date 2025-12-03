@@ -4,9 +4,26 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.620';
+const GAME_VERSION = 'v0.630';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.630',
+    title: 'Music Update v2!',
+    description:
+      'This update focuses on adding a more diverse amount of music tracks from The Unnamed aka the creator himself! You can check them out by clicking his name in the music player!',
+    changes: [
+      {
+        text: 'Added 4 new songs to the playlist!',
+        sub: [
+          'LAYERS',
+          'Cooked Beyond Return',
+          'Flowing',
+          'Still'
+        ],
+      },
+    ],
+  },
   {
     version: 'v0.620',
     title: 'Node Expansion & System Reworks!',
