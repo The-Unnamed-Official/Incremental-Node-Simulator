@@ -3029,7 +3029,6 @@ body.skill-fail::after {
   pointer-events: none;
 }
 
-.skill-check-meter--lock .skill-check-track,
 .skill-check-meter--vertical .skill-check-track {
   display: none;
 }
@@ -3066,49 +3065,6 @@ body.skill-fail::after {
   box-shadow: 0 0 12px var(--accent-slight);
   transform: translateY(-50%);
   pointer-events: none;
-}
-
-.skill-check-dial {
-  position: relative;
-  width: 180px;
-  height: 180px;
-  margin: 0 auto;
-  border: var(--pixel-border) solid var(--accent-slighter);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(127, 255, 214, 0.1), rgba(0, 0, 0, 0.2));
-  overflow: hidden;
-  box-shadow: inset 0 0 0 2px rgba(127, 255, 214, 0.15);
-}
-
-.skill-check-dial-ring {
-  position: absolute;
-  inset: 12px;
-  border-radius: 50%;
-  border: 2px dashed var(--accent-slighter);
-  box-shadow: 0 0 12px rgba(127, 255, 214, 0.12);
-}
-
-.skill-check-dial-target {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  mask-image: radial-gradient(circle, transparent 58%, #000 60%);
-  background: conic-gradient(from 0deg, transparent, rgba(127, 255, 214, 0.25), transparent);
-}
-
-.skill-check-dial-pointer {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 4px;
-  height: 70px;
-  background: linear-gradient(180deg, var(--accent-capital), var(--accent-strong));
-  transform: translate(-50%, -100%);
-  transform-origin: 50% 100%;
-  border-radius: 3px;
-  box-shadow: 0 0 10px rgba(127, 255, 214, 0.4);
-  pointer-events: none;
-  transition: transform 0.08s linear;
 }
 
 .skill-check-cross {
@@ -3162,18 +3118,6 @@ body.skill-fail::after {
   right: 0;
   height: 7px;
   transform: translateY(-50%);
-}
-
-.skill-check-dial-core {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 26px;
-  height: 26px;
-  background: radial-gradient(circle, var(--accent-strong), var(--accent-drop));
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 12px rgba(127, 255, 214, 0.4);
 }
 
 .skill-check-timer {
