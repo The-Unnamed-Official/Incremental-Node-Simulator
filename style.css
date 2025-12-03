@@ -3761,6 +3761,28 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.35), 0 8px 16px rgba(0, 0, 0, 0.35);
 }
 
+.music-player .player-cover.is-layers-track {
+  background: linear-gradient(135deg, #000000 0%, #ffffff 50%, #000000 100%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.18) 0 6px, transparent 6px 12px);
+  background-size: 220% 220%, 12px 12px;
+  animation: layers-cover-pulse 5s ease-in-out infinite;
+}
+
+@keyframes layers-cover-pulse {
+  0% {
+    background-position: 0% 0%, 0 0;
+    filter: brightness(1);
+  }
+  50% {
+    background-position: 100% 100%, 0 0;
+    filter: brightness(1.08);
+  }
+  100% {
+    background-position: 0% 0%, 0 0;
+    filter: brightness(1);
+  }
+}
+
 .music-player .player-cover::after {
   content: '';
   position: absolute;
