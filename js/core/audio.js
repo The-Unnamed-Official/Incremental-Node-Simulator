@@ -47,7 +47,7 @@ document.addEventListener('bgm-track-change', (event) => {
 
 const baseBgmTracks = [
   {
-    src: 'files/bg_music.mp3',
+    src: 'files/music/bg_music.mp3',
     title: 'Gray Rain',
     artist: 'The Unnamed',
     accent: '#63e6be',
@@ -55,7 +55,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music.jpg',
   },
   {
-    src: 'files/bg_music2.mp3',
+    src: 'files/music/bg_music2.mp3',
     title: 'Broken Echoes',
     artist: 'The Unnamed',
     accent: '#7ef6ff',
@@ -63,7 +63,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music2.jpg',
   },
   {
-    src: 'files/bg_music3.mp3',
+    src: 'files/music/bg_music3.mp3',
     title: 'Metal Crusher',
     artist: 'The Unnamed',
     accent: '#ffb8e8',
@@ -71,7 +71,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music3.jpg',
   },
   {
-    src: 'files/bg_music4.mp3',
+    src: 'files/music/bg_music4.mp3',
     title: 'Keep It Up',
     artist: 'The Unnamed',
     accent: '#8df6a2',
@@ -79,7 +79,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music4.jpg',
   },
   {
-    src: 'files/bg_music5.mp3',
+    src: 'files/music/bg_music5.mp3',
     title: 'Neon Drift',
     artist: 'The Unnamed',
     accent: '#2189d3ff',
@@ -87,7 +87,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music5.jpg',
   },
   {
-    src: 'files/bg_music6.mp3',
+    src: 'files/music/bg_music6.mp3',
     title: 'Every End...',
     artist: 'The Unnamed',
     accent: '#8ad7ff',
@@ -95,7 +95,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music6.jpg',
   },
   {
-    src: 'files/bg_music7.mp3',
+    src: 'files/music/bg_music7.mp3',
     title: 'Heaven Says',
     artist: 'The Unnamed',
     accent: '#3a3631ff',
@@ -103,7 +103,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music7,8,9,10,11,12.jpg',
   },
   {
-    src: 'files/bg_music8.mp3',
+    src: 'files/music/bg_music8.mp3',
     title: 'Intruder',
     artist: 'The Unnamed',
     accent: '#3a3631ff',
@@ -111,7 +111,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music7,8,9,10,11,12.jpg',
   },
   {
-    src: 'files/bg_music9.mp3',
+    src: 'files/music/bg_music9.mp3',
     title: 'Break You Down',
     artist: 'The Unnamed',
     accent: '#3a3631ff',
@@ -119,7 +119,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music7,8,9,10,11,12.jpg',
   },
   {
-    src: 'files/bg_music10.mp3',
+    src: 'files/music/bg_music10.mp3',
     title: 'Overthrone',
     artist: 'The Unnamed',
     accent: '#3a3631ff',
@@ -127,7 +127,7 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music7,8,9,10,11,12.jpg',
   },
   {
-    src: 'files/bg_music11.mp3',
+    src: 'files/music/bg_music11.mp3',
     title: 'Encounter',
     artist: 'The Unnamed',
     accent: '#3a3631ff',
@@ -135,12 +135,44 @@ const baseBgmTracks = [
     cover: 'files/covers/bg_music7,8,9,10,11,12.jpg',
   },
   {
-    src: 'files/bg_music12.mp3',
+    src: 'files/music/bg_music12.mp3',
     title: 'Manipulated',
     artist: 'The Unnamed',
     accent: '#3a3631ff',
     accent2: '#5d5e61ff',
     cover: 'files/covers/bg_music7,8,9,10,11,12.jpg',
+  },
+  {
+    src: 'files/music/bg_music13.mp3',
+    title: 'LAYERS',
+    artist: 'The Unnamed',
+    accent: '#ffffffff',
+    accent2: '#000000ff',
+    cover: 'files/covers/bg_music13.jpg',
+  },
+  {
+    src: 'files/music/bg_music14.mp3',
+    title: 'Cooked Beyond Return',
+    artist: 'The Unnamed',
+    accent: '#7d34b9ff',
+    accent2: '#570c75ff',
+    cover: 'files/covers/bg_music14.jpg',
+  },
+  {
+    src: 'files/music/bg_music15.mp3',
+    title: 'Flowing',
+    artist: 'The Unnamed',
+    accent: '#2d3f41ff',
+    accent2: '#353e57ff',
+    cover: 'files/covers/bg_music15,16.jpg',
+  },
+  {
+    src: 'files/music/bg_music16.mp3',
+    title: 'Still',
+    artist: 'The Unnamed',
+    accent: '#3d4a55ff',
+    accent2: '#6d757cff',
+    cover: 'files/covers/bg_music15,16.jpg',
   },
 ];
 let bgmTracks = [];
