@@ -3759,7 +3759,16 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   background: linear-gradient(135deg, #000000 0%, #ffffff 50%, #000000 100%),
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.18) 0 6px, transparent 6px 12px);
   background-size: 220% 220%, 12px 12px;
+}
+
+.music-player .player-cover.is-layers-track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  background-size: inherit;
   animation: layers-cover-pulse 0.6666s ease-out infinite;
+  z-index: 0;
 }
 
 @keyframes layers-cover-pulse {
@@ -3786,6 +3795,7 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   background-position: center;
   mix-blend-mode: screen;
   opacity: 0.55;
+  z-index: 1;
 }
 
 .music-player .cover-sigil {
@@ -3798,6 +3808,7 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   letter-spacing: 2px;
   color: var(--player-accent);
   text-shadow: 0 0 18px var(--accent), 2px 2px 0 rgba(0, 0, 0, 0.45);
+  z-index: 2;
 }
 
 .music-player .player-meta {
