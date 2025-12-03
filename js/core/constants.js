@@ -4,9 +4,20 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.630';
+const GAME_VERSION = 'v0.635';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.633',
+    title: 'Important bug fix!',
+    description:
+      'This update I have fixed an issue with upgrade cards.',
+    changes: [
+      {
+        text: 'The issue with skill upgrades continuing behind the upgrading card making them unpurchasable after just a few upgrades have been fixed!',
+      },
+    ],
+  },
   {
     version: 'v0.630',
     title: 'Music Update v2!',
