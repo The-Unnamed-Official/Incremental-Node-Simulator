@@ -3765,7 +3765,7 @@ body.cursor-music-dragging #custom-cursor .cursor-dot {
   background: linear-gradient(135deg, #000000 0%, #ffffff 50%, #000000 100%),
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.18) 0 6px, transparent 6px 12px);
   background-size: 220% 220%, 12px 12px;
-  animation: layers-cover-pulse 0.6666s ease-in-out infinite;
+  animation: layers-cover-pulse 0.6666s ease-out infinite;
 }
 
 @keyframes layers-cover-pulse {
