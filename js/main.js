@@ -168,8 +168,6 @@ function cacheElements() {
   UI.skillCheckTarget = document.getElementById('skill-check-target');
   UI.skillCheckSlider = document.getElementById('skill-check-slider');
   UI.skillCheckVariants = document.querySelectorAll('[data-skill-variant]');
-  UI.skillCheckDialTarget = document.getElementById('skill-check-lock-target');
-  UI.skillCheckDialPointer = document.getElementById('skill-check-lock-pointer');
   UI.skillCheckVerticalTarget = document.getElementById('skill-check-vertical-target');
   UI.skillCheckVerticalSlider = document.getElementById('skill-check-vertical-slider');
   UI.skillCheckCrossTarget = document.getElementById('skill-check-cross-target');
@@ -4457,13 +4455,15 @@ function setupSkillCheck() {
     return;
   }
   UI.skillCheckAction.addEventListener('click', attemptSkillCheckResolution);
-  UI.skillCheckAction.addEventListener('keydown', (event) => {
+  const handleSkillCheckKey = (event) => {
     if (!skillCheckState.active) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       attemptSkillCheckResolution();
     }
-  });
+  };
+  UI.skillCheckAction.addEventListener('keydown', handleSkillCheckKey);
+  document.addEventListener('keydown', handleSkillCheckKey);
 }
 
 const SKILL_CHECK_VARIANT_DETAILS = {
@@ -4471,21 +4471,17 @@ const SKILL_CHECK_VARIANT_DETAILS = {
     title: 'Signal Pulse',
     description: 'Time the resolve pulse when the signal crosses the highlighted zone around {target}.',
   },
-  vertical: {
-    title: 'Access Elevator',
-    description: 'Ride the vertical stream so the carrier slips through the access window for {target}.',
-  },
-  lock: {
-    title: 'Circular Dial',
-    description: 'Rotate the dial so the glowing slice snaps over {target}.',
-  },
   cross: {
     title: 'Axis Weave',
     description: 'Catch the sweeping horizontal beam and the climbing lift inside the same access window for {target}.',
   },
+  vertical: {
+    title: 'Access Elevator',
+    description: 'Ride the vertical stream so the carrier slips through the access window for {target}.',
+  },
 };
 
-const SKILL_CHECK_VARIANTS = ['linear', 'vertical', 'lock', 'cross'];
+const SKILL_CHECK_VARIANTS = ['linear', 'vertical', 'cross'];
 const SKILL_CHECK_CONFETTI_COLORS = ['#8fffe0', '#6ed6ff', '#ff82be', '#ffe566'];
 
 function getSkillCheckVariant() {
@@ -4533,12 +4529,6 @@ function updateSkillCheckTargets() {
     UI.skillCheckTarget.style.left = `${startPercent}%`;
     UI.skillCheckTarget.style.width = `${windowPercent}%`;
   }
-  const startDeg = skillCheckState.targetStart * 360;
-  const endDeg = skillCheckState.targetEnd * 360;
-  const band = `conic-gradient(from ${startDeg}deg, transparent 0deg, transparent ${startDeg}deg, rgba(120, 255, 214, 0.1) ${startDeg}deg, rgba(120, 255, 214, 0.35) ${endDeg}deg, transparent ${endDeg}deg, transparent 360deg)`;
-  if (UI.skillCheckDialTarget) {
-    UI.skillCheckDialTarget.style.background = band;
-  }
   if (UI.skillCheckVerticalTarget) {
     UI.skillCheckVerticalTarget.style.top = `${startPercent}%`;
     UI.skillCheckVerticalTarget.style.height = `${windowPercent}%`;
@@ -4560,10 +4550,6 @@ function updateSkillCheckSliderVisuals() {
     UI.skillCheckCrossH.style.left = `${sliderPercent}%`;
   }
   const secondaryPercent = skillCheckState.secondaryPosition * 100;
-  const angle = skillCheckState.sliderPosition * 360;
-  if (UI.skillCheckDialPointer) {
-    UI.skillCheckDialPointer.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
-  }
   if (UI.skillCheckVerticalSlider) {
     UI.skillCheckVerticalSlider.style.top = `${sliderPercent}%`;
   }
@@ -4628,7 +4614,8 @@ function startSkillCheck({ upgrade, difficulty, reward, onFail, summary }) {
   const variant = getSkillCheckVariant();
   skillCheckState.active = true;
   skillCheckState.timer = 0;
-  skillCheckState.duration = config.duration;
+  const duration = variant === 'cross' ? Math.max(config.duration, 60) : config.duration;
+  skillCheckState.duration = duration;
   skillCheckState.reward = reward;
   skillCheckState.onFail = onFail || null;
   skillCheckState.sliderSpeed = config.sliderSpeed;
