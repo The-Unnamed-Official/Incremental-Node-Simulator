@@ -31,8 +31,13 @@ const skillCheckState = {
   sliderPosition: 0,
   sliderDirection: 1,
   sliderSpeed: 0,
+  secondaryPosition: 0,
+  secondaryDirection: 1,
+  secondarySpeed: 0,
   targetStart: 0,
   targetEnd: 0,
+  secondaryStart: 0,
+  secondaryEnd: 0,
   windowSize: 0,
   difficulty: 'normal',
   variant: 'linear',
@@ -165,10 +170,11 @@ function cacheElements() {
   UI.skillCheckVariants = document.querySelectorAll('[data-skill-variant]');
   UI.skillCheckDialTarget = document.getElementById('skill-check-lock-target');
   UI.skillCheckDialPointer = document.getElementById('skill-check-lock-pointer');
-  UI.skillCheckOrbitTarget = document.getElementById('skill-check-orbit-target');
-  UI.skillCheckOrbitPointer = document.getElementById('skill-check-orbit-pointer');
   UI.skillCheckVerticalTarget = document.getElementById('skill-check-vertical-target');
   UI.skillCheckVerticalSlider = document.getElementById('skill-check-vertical-slider');
+  UI.skillCheckCrossTarget = document.getElementById('skill-check-cross-target');
+  UI.skillCheckCrossH = document.getElementById('skill-check-cross-h');
+  UI.skillCheckCrossV = document.getElementById('skill-check-cross-v');
   UI.skillCheckAction = document.getElementById('skill-check-action');
   UI.skillCheckTitle = document.getElementById('skill-check-title');
   UI.skillCheckDescription = document.getElementById('skill-check-description');
@@ -2844,40 +2850,26 @@ function getUpgradeDisplayName(upgrade, level) {
   return upgrade.name;
 }
 
-function getUpgradeDepth(upgrade, memo = new Map()) {
-  if (!upgrade) return 0;
-  if (memo.has(upgrade.id)) return memo.get(upgrade.id);
-  if (!upgrade.previousId) {
-    memo.set(upgrade.id, 0);
-    return 0;
-  }
-  const previous = upgradeLookup.get(upgrade.previousId);
-  const depth = 1 + getUpgradeDepth(previous, memo);
-  memo.set(upgrade.id, depth);
-  return depth;
-}
+const MAX_BRANCH_COLUMNS = 3;
 
 function buildSkillBranchLayout(activeFilter) {
   const categorySequences = buildCategorySequences();
   const visibleUpgrades = getVisibleUpgradeSet(activeFilter, categorySequences);
   const branchMap = new Map();
-  const depthMemo = new Map();
   upgrades.forEach((upgrade) => {
     if (!isCategoryVisible(upgrade.category, activeFilter)) return;
     if (!visibleUpgrades.has(upgrade.id)) return;
     const level = state.upgrades[upgrade.id] || 0;
-    const depth = getUpgradeDepth(upgrade, depthMemo);
     const branch = branchMap.get(upgrade.category) || [];
-    branch.push({ upgrade, level, depth });
+    branch.push({ upgrade, level });
     branchMap.set(upgrade.category, branch);
   });
   branchMap.forEach((list, category) => {
     const sorted = [...list].sort((a, b) => (a.upgrade.sequenceIndex || 0) - (b.upgrade.sequenceIndex || 0));
-    const depthRows = new Map();
-    const positioned = sorted.map((entry) => {
-      const row = depthRows.get(entry.depth) || 0;
-      depthRows.set(entry.depth, row + 1);
-      return { ...entry, row };
+    const positioned = sorted.map((entry, index) => {
+      const column = index % MAX_BRANCH_COLUMNS;
+      const row = Math.floor(index / MAX_BRANCH_COLUMNS);
+      return { ...entry, column, row };
     });
     branchMap.set(category, positioned);
   });
@@ -3001,19 +2993,20 @@ function renderUpgrades(filter) {
     track.className = 'branch-track';
     const connectorLayer = document.createElement('div');
     connectorLayer.className = 'connector-layer';
-    const depthMax = nodes.reduce((max, node) => Math.max(max, node.depth), 0);
-    track.style.gridTemplateColumns = `repeat(${Math.max(1, depthMax + 1)}, minmax(180px, 1fr))`;
+    const columnMax = nodes.reduce((max, node) => Math.max(max, node.column || 0), 0);
+    const columnCount = Math.min(MAX_BRANCH_COLUMNS, Math.max(1, columnMax + 1));
+    track.style.gridTemplateColumns = `repeat(${columnCount}, minmax(180px, 1fr))`;
     const elementMap = new Map();
-    nodes.forEach(({ upgrade, level, depth, row }) => {
+    nodes.forEach(({ upgrade, level, column, row }) => {
       const nodeEl = document.createElement('button');
       nodeEl.type = 'button';
       nodeEl.className = 'skill-node';
-      if (depth === 0) {
+      if (!upgrade.previousId) {
         nodeEl.classList.add('origin');
       }
       nodeEl.dataset.id = upgrade.id;
       nodeEl.dataset.category = upgrade.category;
-      nodeEl.style.gridColumn = depth + 1;
+      nodeEl.style.gridColumn = (column % columnCount) + 1;
       nodeEl.style.gridRow = row + 1;
       const displayName = getUpgradeDisplayName(upgrade, level);
       const lockedByReq = !meetsRequirements(upgrade);
@@ -4486,13 +4479,13 @@ const SKILL_CHECK_VARIANT_DETAILS = {
     title: 'Circular Dial',
     description: 'Rotate the dial so the glowing slice snaps over {target}.',
   },
-  orbit: {
-    title: 'Orbital Sync',
-    description: 'Catch the orbiting spark inside the breach band around {target}.',
+  cross: {
+    title: 'Axis Weave',
+    description: 'Catch the sweeping horizontal beam and the climbing lift inside the same access window for {target}.',
   },
 };
 
-const SKILL_CHECK_VARIANTS = ['linear', 'vertical', 'lock', 'orbit'];
+const SKILL_CHECK_VARIANTS = ['linear', 'vertical', 'lock', 'cross'];
 const SKILL_CHECK_CONFETTI_COLORS = ['#8fffe0', '#6ed6ff', '#ff82be', '#ffe566'];
 
 function getSkillCheckVariant() {
@@ -4534,6 +4527,8 @@ function flashSkillCheckFailTint() {
 function updateSkillCheckTargets() {
   const startPercent = skillCheckState.targetStart * 100;
   const windowPercent = skillCheckState.windowSize * 100;
+  const secondaryStartPercent = skillCheckState.secondaryStart * 100;
+  const secondaryWindowPercent = skillCheckState.windowSize * 100;
   if (UI.skillCheckTarget) {
     UI.skillCheckTarget.style.left = `${startPercent}%`;
     UI.skillCheckTarget.style.width = `${windowPercent}%`;
@@ -4544,12 +4539,15 @@ function updateSkillCheckTargets() {
   if (UI.skillCheckDialTarget) {
     UI.skillCheckDialTarget.style.background = band;
   }
-  if (UI.skillCheckOrbitTarget) {
-    UI.skillCheckOrbitTarget.style.background = band;
-  }
   if (UI.skillCheckVerticalTarget) {
     UI.skillCheckVerticalTarget.style.top = `${startPercent}%`;
     UI.skillCheckVerticalTarget.style.height = `${windowPercent}%`;
+  }
+  if (UI.skillCheckCrossTarget) {
+    UI.skillCheckCrossTarget.style.left = `${startPercent}%`;
+    UI.skillCheckCrossTarget.style.top = `${secondaryStartPercent}%`;
+    UI.skillCheckCrossTarget.style.width = `${windowPercent}%`;
+    UI.skillCheckCrossTarget.style.height = `${secondaryWindowPercent}%`;
   }
 }
 
@@ -4558,15 +4556,19 @@ function updateSkillCheckSliderVisuals() {
   if (UI.skillCheckSlider) {
     UI.skillCheckSlider.style.left = `${sliderPercent}%`;
   }
+  if (UI.skillCheckCrossH) {
+    UI.skillCheckCrossH.style.left = `${sliderPercent}%`;
+  }
+  const secondaryPercent = skillCheckState.secondaryPosition * 100;
   const angle = skillCheckState.sliderPosition * 360;
   if (UI.skillCheckDialPointer) {
     UI.skillCheckDialPointer.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
   }
-  if (UI.skillCheckOrbitPointer) {
-    UI.skillCheckOrbitPointer.style.transform = `rotate(${angle}deg)`;
-  }
   if (UI.skillCheckVerticalSlider) {
     UI.skillCheckVerticalSlider.style.top = `${sliderPercent}%`;
+  }
+  if (UI.skillCheckCrossV) {
+    UI.skillCheckCrossV.style.top = `${secondaryPercent}%`;
   }
 }
 
@@ -4603,10 +4605,14 @@ function spawnSkillCheckConfetti() {
 
 function attemptSkillCheckResolution() {
   if (!skillCheckState.active) return;
-  const withinWindow =
+  const withinPrimaryWindow =
     skillCheckState.sliderPosition >= skillCheckState.targetStart &&
     skillCheckState.sliderPosition <= skillCheckState.targetEnd;
-  resolveSkillCheck(withinWindow);
+  const withinSecondaryWindow =
+    skillCheckState.variant !== 'cross' ||
+    (skillCheckState.secondaryPosition >= skillCheckState.secondaryStart &&
+      skillCheckState.secondaryPosition <= skillCheckState.secondaryEnd);
+  resolveSkillCheck(withinPrimaryWindow && withinSecondaryWindow);
 }
 
 function startSkillCheck({ upgrade, difficulty, reward, onFail, summary }) {
@@ -4616,6 +4622,9 @@ function startSkillCheck({ upgrade, difficulty, reward, onFail, summary }) {
   const sliderDirection = sliderPosition > 0.5 ? -1 : 1;
   const maxTargetStart = Math.max(0, 1 - config.windowSize);
   const targetStart = maxTargetStart > 0 ? Math.random() * maxTargetStart : 0;
+  const secondaryPosition = Math.min(0.95, Math.max(0.05, Math.random()));
+  const secondaryDirection = secondaryPosition > 0.5 ? -1 : 1;
+  const secondaryStart = maxTargetStart > 0 ? Math.random() * maxTargetStart : 0;
   const variant = getSkillCheckVariant();
   skillCheckState.active = true;
   skillCheckState.timer = 0;
@@ -4623,11 +4632,16 @@ function startSkillCheck({ upgrade, difficulty, reward, onFail, summary }) {
   skillCheckState.reward = reward;
   skillCheckState.onFail = onFail || null;
   skillCheckState.sliderSpeed = config.sliderSpeed;
+  skillCheckState.secondarySpeed = variant === 'cross' ? config.sliderSpeed * 0.92 : config.sliderSpeed;
   skillCheckState.windowSize = config.windowSize;
   skillCheckState.sliderPosition = sliderPosition;
+  skillCheckState.secondaryPosition = variant === 'cross' ? secondaryPosition : sliderPosition;
   skillCheckState.sliderDirection = sliderDirection;
+  skillCheckState.secondaryDirection = variant === 'cross' ? secondaryDirection : sliderDirection;
   skillCheckState.targetStart = targetStart;
   skillCheckState.targetEnd = targetStart + config.windowSize;
+  skillCheckState.secondaryStart = variant === 'cross' ? secondaryStart : targetStart;
+  skillCheckState.secondaryEnd = skillCheckState.secondaryStart + config.windowSize;
   skillCheckState.difficulty = difficulty;
   skillCheckState.meta = summary || null;
   setSkillCheckVariant(variant);
@@ -4676,6 +4690,11 @@ function resolveSkillCheck(success) {
   skillCheckState.reward = null;
   skillCheckState.onFail = null;
   skillCheckState.sliderSpeed = 0;
+  skillCheckState.secondarySpeed = 0;
+  skillCheckState.secondaryPosition = 0;
+  skillCheckState.secondaryDirection = 1;
+  skillCheckState.secondaryStart = 0;
+  skillCheckState.secondaryEnd = 0;
   skillCheckState.windowSize = 0;
   skillCheckState.timer = 0;
   if (UI.skillCheckProgress) {
@@ -4700,6 +4719,7 @@ function updateSkillCheck(delta) {
   if (UI.skillCheckProgress) {
     UI.skillCheckProgress.style.width = `${Math.max(0, (1 - elapsed) * 100)}%`;
   }
+  let sliderMoved = false;
   if (skillCheckState.sliderSpeed > 0) {
     skillCheckState.sliderPosition += skillCheckState.sliderSpeed * delta * skillCheckState.sliderDirection;
     if (skillCheckState.sliderPosition >= 1) {
@@ -4709,6 +4729,21 @@ function updateSkillCheck(delta) {
       skillCheckState.sliderPosition = 0;
       skillCheckState.sliderDirection = 1;
     }
+    sliderMoved = true;
+  }
+  if (skillCheckState.variant === 'cross' && skillCheckState.secondarySpeed > 0) {
+    skillCheckState.secondaryPosition +=
+      skillCheckState.secondarySpeed * delta * skillCheckState.secondaryDirection;
+    if (skillCheckState.secondaryPosition >= 1) {
+      skillCheckState.secondaryPosition = 1;
+      skillCheckState.secondaryDirection = -1;
+    } else if (skillCheckState.secondaryPosition <= 0) {
+      skillCheckState.secondaryPosition = 0;
+      skillCheckState.secondaryDirection = 1;
+    }
+    sliderMoved = true;
+  }
+  if (sliderMoved) {
     updateSkillCheckSliderVisuals();
   }
   if (skillCheckState.timer >= skillCheckState.duration) {

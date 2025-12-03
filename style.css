@@ -3030,7 +3030,6 @@ body.skill-fail::after {
 }
 
 .skill-check-meter--lock .skill-check-track,
-.skill-check-meter--orbit .skill-check-track,
 .skill-check-meter--vertical .skill-check-track {
   display: none;
 }
@@ -3112,62 +3111,57 @@ body.skill-fail::after {
   transition: transform 0.08s linear;
 }
 
-.skill-check-orbit {
+.skill-check-cross {
   position: relative;
-  width: 180px;
-  height: 180px;
-  margin: 0 auto;
-}
-
-.skill-check-orbit-track {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
   border: var(--pixel-border) solid var(--accent-slighter);
-  background: radial-gradient(circle, rgba(127, 255, 214, 0.08), rgba(0, 0, 0, 0.25));
+  background: linear-gradient(135deg, rgba(127, 255, 214, 0.08), rgba(0, 0, 0, 0.35));
   box-shadow: inset 0 0 0 1px rgba(127, 255, 214, 0.12);
 }
 
-.skill-check-orbit-target {
+.skill-check-cross-backdrop {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  mask-image: radial-gradient(circle, transparent 64%, #000 66%);
-  background: conic-gradient(from 0deg, transparent, rgba(127, 255, 214, 0.25), transparent);
+  background-image: linear-gradient(
+      90deg,
+      rgba(127, 255, 214, 0.06) 1px,
+      transparent 1px
+    ),
+    linear-gradient(0deg, rgba(127, 255, 214, 0.06) 1px, transparent 1px);
+  background-size: 18px 18px;
   pointer-events: none;
 }
 
-.skill-check-orbit-pointer {
+.skill-check-cross-target {
   position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  transform-origin: center;
+  background: linear-gradient(135deg, rgba(127, 255, 214, 0.22), rgba(127, 255, 214, 0.12));
+  border: var(--pixel-border) solid var(--accent-slight);
+  box-shadow: 0 0 0 1px rgba(127, 255, 214, 0.16), 0 0 12px rgba(127, 255, 214, 0.28);
+  transition: left 0.2s ease-out, top 0.2s ease-out, width 0.2s ease-out, height 0.2s ease-out;
   pointer-events: none;
-  transition: transform 0.08s linear;
 }
 
-.skill-check-orbit-light {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  margin-top: 8px;
-  background: radial-gradient(circle, #8fffe0, var(--accent-capital));
-  box-shadow: 0 0 14px rgba(127, 255, 214, 0.7);
-}
-
-.skill-check-orbit-core {
+.skill-check-cross-slider {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, var(--accent-capital), var(--accent-drop));
-  box-shadow: 0 0 12px rgba(127, 255, 214, 0.4);
+  background: linear-gradient(135deg, var(--accent-capital), var(--accent-strong));
+  box-shadow: 0 0 16px rgba(127, 255, 214, 0.45);
+  pointer-events: none;
+}
+
+.skill-check-cross-slider--h {
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  transform: translateX(-50%);
+}
+
+.skill-check-cross-slider--v {
+  left: 0;
+  right: 0;
+  height: 7px;
+  transform: translateY(-50%);
 }
 
 .skill-check-dial-core {
