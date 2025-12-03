@@ -1923,10 +1923,22 @@ body.disable-scanlines #crt-overlay {
 
 .branch-track {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
   gap: 18px;
   position: relative;
   padding: 10px 0;
+}
+
+@media (max-width: 960px) {
+  .branch-track {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .branch-track {
+    grid-template-columns: 1fr;
+  }
 }
 
 .branch-track .connector-layer {
