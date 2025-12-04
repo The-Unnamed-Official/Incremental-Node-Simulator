@@ -174,6 +174,38 @@ const baseBgmTracks = [
     accent2: '#6d757cff',
     cover: 'files/covers/bg_music15,16.jpg',
   },
+  {
+    src: 'files/music/bg_music17.mp3',
+    title: 'Close to the Edge',
+    artist: 'The Unnamed',
+    accent: '#1d2327ff',
+    accent2: '#1c2f38ff',
+    cover: 'files/covers/bg_music17.jpg',
+  },
+  {
+    src: 'files/music/bg_music18.mp3',
+    title: 'FaultCode',
+    artist: 'The Unnamed',
+    accent: '#1f2d7aff',
+    accent2: '#381c20ff',
+    cover: 'files/covers/bg_music18.jpg',
+  },
+  {
+    src: 'files/music/bg_music19.mp3',
+    title: 'Stranger to Myself',
+    artist: 'The Unnamed',
+    accent: '#4d4a3fff',
+    accent2: '#382a25ff',
+    cover: 'files/covers/bg_music19.jpg',
+  },
+  {
+    src: 'files/music/bg_music20.mp3',
+    title: 'Too Close',
+    artist: 'The Unnamed',
+    accent: '#443919ff',
+    accent2: '#294350ff',
+    cover: 'files/covers/bg_music20.jpg',
+  },
 ];
 let bgmTracks = [];
 let bgmTrackIndex = 0;

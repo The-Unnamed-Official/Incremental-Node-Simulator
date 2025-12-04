@@ -4,9 +4,25 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.633';
+const GAME_VERSION = 'v0.635';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v0.635',
+    title: 'MORE MUSICCC',
+    description: "This update adds ANOTHER 4 new songs which actually as ofthis release isn't out yet :O (5th of December)",
+    changes: [
+      'Added 4 new songs to the playlist!',
+      {
+        sub: [
+          'Close to the Edge',
+          'FaultCode',
+          'Stranger to Myself',
+          'Too Close',
+        ],
+      },
+    ],
+  },
   {
     version: 'v0.633',
     title: 'Many important bug fixes and other neat additions!',
@@ -33,7 +49,7 @@ const UPDATE_LOGS = [
           'LAYERS',
           'Cooked Beyond Return',
           'Flowing',
-          'Still'
+          'Still',
         ],
       },
     ],
