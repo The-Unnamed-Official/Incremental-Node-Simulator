@@ -180,7 +180,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#1d2327ff',
     accent2: '#1c2f38ff',
-    cover: 'files/covers/bg_music17.jpg',
+    cover: 'files/covers/bg_music17.png',
   },
   {
     src: 'files/music/bg_music18.mp3',
@@ -188,7 +188,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#1f2d7aff',
     accent2: '#381c20ff',
-    cover: 'files/covers/bg_music18.jpg',
+    cover: 'files/covers/bg_music18.png',
   },
   {
     src: 'files/music/bg_music19.mp3',
@@ -196,7 +196,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#4d4a3fff',
     accent2: '#382a25ff',
-    cover: 'files/covers/bg_music19.jpg',
+    cover: 'files/covers/bg_music19.png',
   },
   {
     src: 'files/music/bg_music20.mp3',
@@ -204,7 +204,7 @@ const baseBgmTracks = [
     artist: 'The Unnamed',
     accent: '#443919ff',
     accent2: '#294350ff',
-    cover: 'files/covers/bg_music20.jpg',
+    cover: 'files/covers/bg_music20.png',
   },
 ];
 let bgmTracks = [];
