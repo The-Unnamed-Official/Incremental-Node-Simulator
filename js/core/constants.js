@@ -4,21 +4,98 @@ const LEVEL_DURATION_INCREMENT = 10;
 const BASE_BOSS_HP = 200;
 const BOSS_HP_INCREMENT = 100;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v0.635';
+const GAME_VERSION = 'v1.700';
 
 const UPDATE_LOGS = [
   {
-    version: 'v0.635',
-    title: 'MORE MUSICCC',
-    description: "This update adds ANOTHER 4 new songs which actually as ofthis release isn't out yet :O (5th of December)",
+    version: 'v1.700',
+    title: 'Total Rework & Bugfix',
+    description:
+      'A full-scale rework focused on clearer progression, stronger performance, better scaled-device support, a richer crypto loop, and a huge amount of polish and bug fixing across the whole game.',
     changes: [
-      'Added 4 new songs to the playlist!',
       {
+        text: 'Full game rework',
         sub: [
-          'Close to the Edge',
-          'FaultCode',
-          'Stranger to Myself',
-          'Too Close',
+          'Refreshed the main battlefield visuals with a cleaner arena, sharper readability, and smoother high-density rendering.',
+          'Reworked player progression so Operator Rank now reads clearly as a bar instead of being confused with Stage progression.',
+          'Added a boss countdown directly into the boss tracker so you can see exactly when the next boss will spawn.',
+          'Added more themes, including Ocean, Storm, and Terminal.',
+        ],
+      },
+      {
+        text: 'Bug fixes lined up cleanly',
+        sub: [
+          'Skill tree cards and upgrade cards now adapt correctly to different resolutions, browser zoom levels, and scaled devices.',
+          'The overall game layout is more zoomed out by default so the interface feels less cramped on desktop displays.',
+          'Phone and smaller-device layouts now stack more cleanly, with touch-friendly spacing and fewer overlapping panels.',
+          'Hidden skills and upgrade cards no longer slip off-screen on smaller or differently scaled displays.',
+          'New upgrades now wrap into clean rows instead of drifting out of bounds and becoming unpurchasable.',
+          'Inline tab and upgrade text now stays balanced and readable instead of breaking into ugly chopped-up word stacks.',
+          'Upgrade tabs now show their requirements cleanly instead of stacking unreadable lock text.',
+          'Cards and upgrades that cannot be afforded now read as disabled and greyed out until you can buy them.',
+          'Live purchase requirement text now updates correctly as your bits, prestige, LP, or CC change.',
+          'The refreshed tutorial is forced once on the first launch after v1.700 so returning players see the new guidance.',
+          'Floating text for damage, currencies, and requirements now spreads out more clearly instead of collapsing into itself.',
+          'Node movement no longer lags behind because of transform easing fighting the live simulation.',
+          'Spawn timing now catches up correctly during dense waves, preventing delayed or uneven swarm growth.',
+          'High-density fights now shed heavier effects automatically so hundreds of active nodes stay smooth and responsive.',
+        ],
+      },
+      {
+        text: 'Balance and systems',
+        sub: [
+          'Critical upgrades were rebalanced and total crit chance is now hard-capped at 70%.',
+          'Some nodes can now drop very rare bonus CC payouts.',
+          'Node HP bars now update live while damaged nodes slowly regenerate 1% of their max HP every second.',
+          'The Crypto Mine now shows mined-so-far output live, supports early withdrawal at 70%, and states that behavior clearly in the interface.',
+          'The tutorial now covers currencies, skills, nodes, stages, themes, settings, crypto systems, and progression more thoroughly.',
+        ],
+      },
+      {
+        text: 'Animation rework and combat feedback',
+        sub: [
+          'A large batch of cursor, node, and boss animations was fully reworked to feel cleaner, heavier, and more responsive.',
+          'Node hurt, death, and boss impact animations now have clearer visual punch without undoing the performance improvements for dense fights.',
+          'Critical hits now get stronger feedback too, including sharper cursor reactions, brighter impact bursts, and more noticeable CRIT moments.',
+        ],
+      },
+      {
+        text: 'Playlist expansion (Songs 21-45)',
+        sub: [
+          '21. AA EE OO - The Unnamed & Mixin',
+          '22. Abyssal - The Unnamed',
+          '23. Darkness in Light - The Unnamed',
+          '24. Do Better - The Unnamed',
+          '25. Equinox, Equilibrium - The Unnamed & Mixin',
+          '26. Felled - The Unnamed',
+          '27. I Had to Become This - The Unnamed & Mixin',
+          '28. If I Let it Out - The Unnamed & Mixin',
+          '29. Call - The Unnamed & Mixin',
+          '30. Lit Up - The Unnamed',
+          '31. Laminar - The Unnamed',
+          '32. Peace for Thoughts - The Unnamed',
+          '33. Roll the Black Tide - The Unnamed & Bouy & Calzif',
+          '34. Ruined Lives - The Unnamed & Mixin',
+          '35. Sevenfold - The Unnamed & Mixin',
+          '36. Static Touch - The Unnamed & Mixin',
+          '37. Still Here, Not Living - The Unnamed & Mixin',
+          '38. Still Not Enough - The Unnamed & Mixin',
+          '39. Synth Melody - The Unnamed',
+          '40. Too Much Silence - The Unnamed & Mixin',
+          '41. Vivid Flow - The Unnamed',
+          '42. Vocal Harm - The Unnamed',
+          '43. Voluntary Chaos - The Unnamed',
+          '44. Watching From the Outside - The Unnamed & Mixin',
+          '45. Cryo - The Unnamed & Mixin',
+        ],
+      },
+      {
+        text: 'Cleanup and removals',
+        sub: [
+          'Removed the buyable skin system because it no longer added meaningful progression.',
+          'Retired the old skin panel to keep settings focused and reduce clutter.',
+          'Achievements and milestones now have more distinct card styling so progress screens are easier to scan.',
+          'Cleaned up several legacy UI and save-state edge cases tied to the old presentation layer.',
         ],
       },
     ],
