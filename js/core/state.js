@@ -57,6 +57,8 @@ function createInitialState() {
     crypto: {
       deposit: 0,
       rate: 0,
+      mined: 0,
+      duration: 0,
       timeRemaining: 0,
       speedUpgrades: {},
     },

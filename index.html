@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NodeShift</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://kit.fontawesome.com/fe85db6219.js" crossorigin="anonymous"></script>
+  <script src="https://kit.fontawesome.com/f34561342c.js" crossorigin="anonymous"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="icon" type="image/png" sizes="16x16" href="files/icons/favicons/favicon-16.png">
@@ -19,6 +19,7 @@
     href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap"
     rel="stylesheet"
   />
+  <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
 </head>
 <body class="vhs">
   <div id="crt-overlay"></div>
@@ -64,9 +65,15 @@
           <span class="resource-label">XP</span>
           <span class="resource-value" id="xp-display">0</span>
         </div>
-        <div class="resource">
-          <span class="resource-label">Level</span>
-          <span class="resource-value" id="level-display">1</span>
+        <div class="resource resource-progress rank-resource">
+          <span class="resource-label">Operator Rank</span>
+          <div class="resource-progress-header">
+            <span class="resource-value" id="rank-display">1</span>
+            <span class="resource-subvalue" id="rank-progress-label">0 / 100 XP</span>
+          </div>
+          <div class="resource-progress-track">
+            <div id="rank-progress-fill" class="resource-progress-fill"></div>
+          </div>
         </div>
         <div class="resource">
           <span class="resource-label">LP</span>
@@ -78,16 +85,19 @@
     <main class="main-layout">
       <section class="gameplay">
         <div class="level-readout">
-          <div>Level <span id="current-level">1</span></div>
+          <div>Stage <span id="current-level">1</span></div>
           <label class="level-select" for="level-select">
-            <span class="label">Select level</span>
+            <span class="label">Select stage</span>
             <div class="select-shell">
               <select id="level-select" class="native-select"></select>
             </div>
           </label>
         </div>
         <div class="boss-phase" aria-live="polite">
-          <div class="boss-phase-label">Boss Integrity</div>
+          <div class="boss-phase-header">
+            <div class="boss-phase-label">Boss Tracker</div>
+            <div id="boss-phase-meta" class="boss-phase-meta">Boss in 01:00</div>
+          </div>
           <div class="boss-phase-track">
             <div id="boss-phase-fill" class="boss-phase-fill"></div>
             <div id="boss-phase-phase" class="boss-phase-phase">Phase 1</div>
@@ -169,7 +179,7 @@
 
         <section id="tab-crypto" class="tab-content">
           <h2>Crypto Mine</h2>
-          <p>Invest Bits into the quantum miners to produce CC.</p>
+          <p>Invest Bits into the quantum miners to produce CC. You can cash out early at any point for 70% of what the miners have produced so far.</p>
           <div class="crypto-panel">
             <label>Deposit amount</label>
             <div class="pill-group">
@@ -181,6 +191,31 @@
             <div class="field">
               <input type="number" id="custom-deposit" min="0" placeholder="custom bits" />
               <button id="confirm-deposit" class="pill">deposit</button>
+            </div>
+            <div id="crypto-mine-visual" class="crypto-mine-visual" aria-live="polite">
+              <div class="crypto-mine-core" aria-hidden="true">
+                <div class="crypto-mine-core-ring"></div>
+                <div class="crypto-mine-core-center"></div>
+                <div class="crypto-mine-scan"></div>
+              </div>
+              <div class="crypto-mine-status">
+                <div class="crypto-visual-header">
+                  <span class="crypto-badge">Quantum Drill</span>
+                  <span id="crypto-status" class="crypto-status">Idle</span>
+                </div>
+                <div class="crypto-yield-line">
+                  <span>Mined so far</span>
+                  <strong id="crypto-mined">0 CC</strong>
+                </div>
+                <div class="crypto-yield-line">
+                  <span>Withdraw now (70%)</span>
+                  <strong id="crypto-early-withdraw">0 CC</strong>
+                </div>
+                <div class="progress-bar crypto-progress">
+                  <div id="crypto-progress-fill" class="progress-fill"></div>
+                </div>
+                <p class="system-note crypto-note">Full timer pays 100%. Early withdrawal ends the run and pays 70% of mined CC.</p>
+              </div>
             </div>
             <div class="field">
               <label>Deposited</label>
@@ -194,7 +229,7 @@
               <label>Time remaining</label>
               <span id="crypto-timer"></span>
             </div>
-            <button id="withdraw-crypto" class="pill">withdraw</button>
+            <button id="withdraw-crypto" class="pill">Withdraw early (70%)</button>
             <div class="crypto-upgrade-panel">
               <h3>Conversion accelerator</h3>
               <p class="system-note">Invest cryptcoins to raise your base conversion speed.</p>
@@ -265,7 +300,7 @@
               </div>
             </div>
             <label class="setting">
-              <span>Palette</span>
+              <span>Theme</span>
               <div class="select-shell">
                 <select id="palette-select" class="native-select">
                   <option value="default">default</option>
@@ -278,14 +313,13 @@
                   <option value="nebula">nebula</option>
                   <option value="sunset">sunset</option>
                   <option value="obsidian">obsidian</option>
+                  <option value="ocean">ocean</option>
+                  <option value="storm">storm</option>
+                  <option value="terminal">terminal</option>
                 </select>
               </div>
               <div id="palette-preview-row" class="palette-preview-row" aria-hidden="true"></div>
             </label>
-          </div>
-          <div class="skin-panel">
-            <h3>Node skins</h3>
-            <div id="skin-grid" class="skin-grid"></div>
           </div>
           <div class="save-controls">
             <h3>Progress</h3>

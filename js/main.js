@@ -15,8 +15,15 @@ let activeUpdateLogVersion = null;
 let frameCounter = 0;
 let cachedNodeAreaRect = null;
 let cachedNodeAreaFrame = -1;
+let activeFloatTextCount = 0;
+const floatTextLaneState = new Map();
 const GREEN_MOMENTUM_DURATION = 6;
 const GREEN_MOMENTUM_MAX_STACKS = 3;
+const HIGH_DENSITY_NODE_THRESHOLD = 120;
+const HIGH_DENSITY_EFFECT_THRESHOLD = 90;
+const MAX_SPAWNS_PER_FRAME = 24;
+const MAX_FLOAT_TEXTS = 40;
+const NODE_PASSIVE_REGEN_RATE = 0.01;
 let greenMomentumTimer = 0;
 let greenMomentumStacks = 0;
 
@@ -45,6 +52,8 @@ const skillCheckState = {
 
 const TUTORIAL_STORAGE_KEY = 'ins-tutorial-complete';
 const TUTORIAL_PREF_KEY = 'ins-tutorial-prefs';
+const VERSION_TUTORIAL_PROMPT_VERSION = 'v1.700';
+let shouldForceVersionTutorial = false;
 const tutorialState = {
   active: false,
   completed: false,
@@ -74,7 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupLayoutMetrics();
   setupStickyTopBarState();
   setupUpdateLogs();
-  generateSkins();
   generateUpgrades();
   generateAreaUpgrades();
   generateCollectUpgrades();
@@ -90,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
   applySavedUpgradeFilter();
   setupSettings();
   renderPalettePreviews();
-  renderSkins();
   renderMilestones();
   renderAchievements();
   renderAreaUpgrades();
@@ -121,7 +128,9 @@ function cacheElements() {
   UI.cryptcoins = document.getElementById('cryptcoin-display');
   UI.prestige = document.getElementById('prestige-display');
   UI.xp = document.getElementById('xp-display');
-  UI.level = document.getElementById('level-display');
+  UI.rank = document.getElementById('rank-display');
+  UI.rankProgressFill = document.getElementById('rank-progress-fill');
+  UI.rankProgressLabel = document.getElementById('rank-progress-label');
   UI.lp = document.getElementById('lp-display');
   UI.skillTree = document.getElementById('skill-tree');
   UI.upgradeCount = document.getElementById('upgrade-count');
@@ -151,6 +160,12 @@ function cacheElements() {
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
   UI.cryptoReturns = document.getElementById('crypto-returns');
   UI.cryptoTimer = document.getElementById('crypto-timer');
+  UI.cryptoStatus = document.getElementById('crypto-status');
+  UI.cryptoMined = document.getElementById('crypto-mined');
+  UI.cryptoEarlyWithdraw = document.getElementById('crypto-early-withdraw');
+  UI.cryptoProgressFill = document.getElementById('crypto-progress-fill');
+  UI.withdrawCrypto = document.getElementById('withdraw-crypto');
+  UI.cryptoMineVisual = document.getElementById('crypto-mine-visual');
   UI.cryptoSpeedUpgrades = document.getElementById('crypto-speed-upgrades');
   UI.labLocked = document.getElementById('lab-locked');
   UI.labPanel = document.getElementById('lab-panel');
@@ -208,6 +223,7 @@ function cacheElements() {
   UI.quickStatBoss = document.getElementById('stat-boss');
   UI.bossPhaseFill = document.getElementById('boss-phase-fill');
   UI.bossPhasePhase = document.getElementById('boss-phase-phase');
+  UI.bossPhaseMeta = document.getElementById('boss-phase-meta');
   UI.palettePreviewRow = document.getElementById('palette-preview-row');
   UI.skillDetailPopup = document.getElementById('skill-detail-popup');
   UI.nodeArenaBackdrop = document.getElementById('node-arena-backdrop');
@@ -459,11 +475,6 @@ function hydrateState(source = {}) {
   const mergedMilestones = { ...(defaults.milestoneClaims || {}), ...(source.milestoneClaims || {}) };
   const mergedAchievementClaims = { ...(defaults.achievementClaims || {}), ...(source.achievementClaims || {}) };
   const mergedAchievementLog = { ...(defaults.achievementLog || {}), ...(source.achievementLog || {}) };
-  const mergedSkins = {
-    active: (source.skins && source.skins.active) || defaults.skins.active,
-    owned: (source.skins && source.skins.owned) || defaults.skins.owned,
-  };
-
   state.bits = Number.isFinite(Number(source.bits)) ? Number(source.bits) : defaults.bits;
   state.cryptcoins = Number.isFinite(Number(source.cryptcoins)) ? Number(source.cryptcoins) : defaults.cryptcoins;
   state.prestige = Number.isFinite(Number(source.prestige)) ? Number(source.prestige) : defaults.prestige;
@@ -489,6 +500,11 @@ function hydrateState(source = {}) {
     blue: Math.max(0, Number.isFinite(Number(mergedNodes.blue)) ? Number(mergedNodes.blue) : defaults.nodesDestroyed.blue),
     green: Math.max(0, Number.isFinite(Number(mergedNodes.green)) ? Number(mergedNodes.green) : defaults.nodesDestroyed.green),
     gold: Math.max(0, Number.isFinite(Number(mergedNodes.gold)) ? Number(mergedNodes.gold) : defaults.nodesDestroyed.gold),
+    void: Math.max(0, Number.isFinite(Number(mergedNodes.void)) ? Number(mergedNodes.void) : defaults.nodesDestroyed.void),
+    prismatic: Math.max(
+      0,
+      Number.isFinite(Number(mergedNodes.prismatic)) ? Number(mergedNodes.prismatic) : defaults.nodesDestroyed.prismatic,
+    ),
   };
   state.bossKills = Number.isFinite(Number(source.bossKills)) ? Number(source.bossKills) : defaults.bossKills;
   state.currentLevel = {
@@ -581,12 +597,17 @@ function hydrateState(source = {}) {
   state.crypto = {
     deposit: Math.max(0, Number.isFinite(Number(mergedCrypto.deposit)) ? Number(mergedCrypto.deposit) : defaults.crypto.deposit),
     rate: Math.max(0, Number.isFinite(Number(mergedCrypto.rate)) ? Number(mergedCrypto.rate) : defaults.crypto.rate),
+    mined: Math.max(0, Number.isFinite(Number(mergedCrypto.mined)) ? Number(mergedCrypto.mined) : defaults.crypto.mined),
+    duration: Math.max(0, Number.isFinite(Number(mergedCrypto.duration)) ? Number(mergedCrypto.duration) : defaults.crypto.duration),
     timeRemaining: Math.max(
       0,
       Number.isFinite(Number(mergedCrypto.timeRemaining)) ? Number(mergedCrypto.timeRemaining) : defaults.crypto.timeRemaining,
     ),
     speedUpgrades: sanitizeRecord(mergedCryptoSpeed),
   };
+  if (state.crypto.deposit > 0 && state.crypto.duration <= 0) {
+    state.crypto.duration = Math.max(10, Math.log(state.crypto.deposit + 1) * 30);
+  }
   if (state.crypto.deposit > 0) {
     recalculateCryptoRate();
   }
@@ -594,8 +615,8 @@ function hydrateState(source = {}) {
     state.cryptoUnlocked = true;
   }
   state.skins = {
-    active: typeof mergedSkins.active === 'string' ? mergedSkins.active : defaults.skins.active,
-    owned: new Set(Array.isArray(mergedSkins.owned) ? mergedSkins.owned : defaults.skins.owned),
+    active: defaults.skins.active,
+    owned: new Set(['default']),
   };
   state.milestoneClaims = sanitizeRecord(mergedMilestones);
   state.achievementClaims = sanitizeRecord(mergedAchievementClaims);
@@ -608,9 +629,6 @@ function hydrateState(source = {}) {
         stats[key] = savedStatsSnapshot[key];
       }
     });
-  }
-  if (!state.skins.owned.has('default')) {
-    state.skins.owned.add('default');
   }
   state.settings = {
     crt: coerceBoolean(mergedSettings.crt, defaults.settings.crt),
@@ -755,11 +773,6 @@ function saveGame(options = {}) {
         bossActive: state.currentLevel.bossActive,
       },
       settings: state.settings,
-      skins: {
-        active: state.skins?.active,
-        // truncate owned list to limit size
-        owned: Array.from(state.skins?.owned || []).slice(0, 32),
-      },
       lastSavedAt: Date.now(),
     };
 
@@ -894,8 +907,9 @@ function startNewGame() {
 
   setTimeout(() => {
     hydrateState(getDefaultState());
-    activeNodes.forEach((node) => node.el.remove());
+    activeNodes.forEach((node) => node.el?.remove());
     activeNodes.clear();
+    syncNodeDensityState();
     if (activeBoss?.el) {
       activeBoss.el.remove();
     }
@@ -908,7 +922,6 @@ function startNewGame() {
     state.health = state.maxHealth;
     hideLevelDialog();
     applySavedUpgradeFilter();
-    renderSkins();
     renderMilestones();
     renderAchievements();
     renderAreaUpgrades();
@@ -988,7 +1001,7 @@ function formatTabRequirement(rule) {
   if (!rule) return '';
   const parts = [];
   if (rule.minLevel) {
-    parts.push(`Lv ${rule.minLevel}`);
+    parts.push(`Rank ${rule.minLevel}`);
   }
   if (rule.requirementLabel) {
     parts.push(rule.requirementLabel);
@@ -998,6 +1011,34 @@ function formatTabRequirement(rule) {
     parts.push(label);
   }
   return parts.join(' • ');
+}
+
+function setLockableButtonContent(button, label, requirement = '') {
+  if (!button) return;
+  const safeLabel = label || button.dataset.label || '';
+  if (requirement) {
+    button.innerHTML = `
+      <span class="button-label">${safeLabel}</span>
+      <span class="button-meta">${requirement}</span>
+    `;
+    return;
+  }
+  button.innerHTML = `<span class="button-label">${safeLabel}</span>`;
+}
+
+function getRuleFailureMessage(rule, currency = null) {
+  if (!rule) return 'Locked';
+  if (rule.minLevel && state.level < rule.minLevel) {
+    return `Reach Rank ${rule.minLevel}`;
+  }
+  if (rule.requirementLabel && rule.requirement && typeof rule.requirement === 'function' && !rule.requirement()) {
+    return rule.requirementLabel;
+  }
+  if (rule.cost && currency && state[currency] < rule.cost.amount) {
+    const shortfall = Math.max(0, rule.cost.amount - state[currency]);
+    return `Need ${formatNumberShort(shortfall)} ${rule.cost.currency}`;
+  }
+  return 'Locked';
 }
 
 function updateTabAvailability() {
@@ -1011,12 +1052,12 @@ function updateTabAvailability() {
     btn.classList.toggle('purchasable', !unlocked && canPurchase);
     const baseLabel = rule?.label || btn.dataset.label || btn.textContent;
     const requirement = !unlocked ? formatTabRequirement(rule) : '';
-    btn.textContent = requirement ? `${baseLabel} (${requirement})` : baseLabel;
+    setLockableButtonContent(btn, baseLabel, requirement);
     btn.setAttribute('aria-disabled', unlocked ? 'false' : 'true');
     if (unlocked) {
       btn.removeAttribute('title');
     } else {
-      btn.title = rule?.label ? `${rule.label} locked` : 'Locked';
+      btn.title = requirement || (rule?.label ? `${rule.label} locked` : 'Locked');
     }
   });
 }
@@ -1025,13 +1066,13 @@ function attemptTabUnlock(tabId, sourceEl) {
   const rule = getTabRule(tabId);
   if (!rule || isTabUnlocked(tabId)) return true;
   if (rule.minLevel && state.level < rule.minLevel) {
-    if (sourceEl) createFloatText(sourceEl, `Reach level ${rule.minLevel}`, '#ff6ea8');
+    if (sourceEl) createFloatText(sourceEl, getRuleFailureMessage(rule), '#ff6ea8', { variant: 'requirement', priority: 'high' });
     return false;
   }
   if (!rule.cost) return false;
   const { currency, amount } = rule.cost;
   if (state[currency] < amount) {
-    if (sourceEl) createFloatText(sourceEl, 'Insufficient resources', '#ff6ea8');
+    if (sourceEl) createFloatText(sourceEl, getRuleFailureMessage(rule, currency), '#ff6ea8', { variant: 'requirement', priority: 'high' });
     return false;
   }
   state[currency] -= amount;
@@ -1042,7 +1083,7 @@ function attemptTabUnlock(tabId, sourceEl) {
     queueSave();
   }
   updateResources();
-  if (sourceEl) createFloatText(sourceEl, 'Unlocked!', '#76f4c6');
+  if (sourceEl) createFloatText(sourceEl, 'Unlocked!', '#76f4c6', { variant: 'status', priority: 'high' });
   return true;
 }
 
@@ -1050,13 +1091,17 @@ function attemptUpgradeSectionUnlock(sectionId, sourceEl) {
   const rule = getUpgradeSectionRule(sectionId);
   if (!rule || isUpgradeSectionUnlocked(sectionId)) return true;
   if (rule.minLevel && state.level < rule.minLevel) {
-    if (sourceEl) createFloatText(sourceEl, `Reach level ${rule.minLevel}`, '#ff6ea8');
+    if (sourceEl) createFloatText(sourceEl, getRuleFailureMessage(rule), '#ff6ea8', { variant: 'requirement', priority: 'high' });
+    return false;
+  }
+  if (rule.requirement && typeof rule.requirement === 'function' && !rule.requirement()) {
+    if (sourceEl) createFloatText(sourceEl, getRuleFailureMessage(rule), '#ff6ea8', { variant: 'requirement', priority: 'high' });
     return false;
   }
   if (!rule.cost) return false;
   const { currency, amount } = rule.cost;
   if (state[currency] < amount) {
-    if (sourceEl) createFloatText(sourceEl, 'Insufficient resources', '#ff6ea8');
+    if (sourceEl) createFloatText(sourceEl, getRuleFailureMessage(rule, currency), '#ff6ea8', { variant: 'requirement', priority: 'high' });
     return false;
   }
   state[currency] -= amount;
@@ -1064,7 +1109,7 @@ function attemptUpgradeSectionUnlock(sectionId, sourceEl) {
     state[rule.stateKey] = true;
   }
   updateResources();
-  if (sourceEl) createFloatText(sourceEl, 'Unlocked!', '#76f4c6');
+  if (sourceEl) createFloatText(sourceEl, 'Unlocked!', '#76f4c6', { variant: 'status', priority: 'high' });
   return true;
 }
 
@@ -1122,7 +1167,7 @@ function updateUpgradeTabAvailability() {
     btn.classList.toggle('purchasable', !unlocked && purchasable);
     const baseLabel = rule?.label || btn.dataset.label || btn.textContent;
     const requirement = !unlocked ? formatTabRequirement(rule) : '';
-    btn.textContent = baseLabel;
+    setLockableButtonContent(btn, baseLabel, requirement);
     btn.setAttribute('aria-disabled', unlocked ? 'false' : 'true');
     if (requirement) {
       btn.title = `${baseLabel} — ${requirement}`;
@@ -1161,10 +1206,6 @@ function setupUpgradeTabs() {
       if (rule && !isUpgradeSectionUnlocked(sectionId)) {
         const unlocked = attemptUpgradeSectionUnlock(sectionId, btn);
         if (!unlocked || !isUpgradeSectionUnlocked(sectionId)) {
-          const requirement = formatTabRequirement(rule);
-          if (requirement) {
-            createFloatText(btn, requirement, '#ff6ea8');
-          }
           updateUpgradeTabAvailability();
           return;
         }
@@ -1453,9 +1494,12 @@ function closeUpdateLog() {
 function maybeShowUpdateLog() {
   const seen = typeof state.lastSeenVersion === 'string' ? state.lastSeenVersion : null;
   if (seen !== GAME_VERSION) {
+    shouldForceVersionTutorial = GAME_VERSION === VERSION_TUTORIAL_PROMPT_VERSION;
     openUpdateLog(GAME_VERSION, false);
     state.lastSeenVersion = GAME_VERSION;
     queueSave();
+  } else {
+    shouldForceVersionTutorial = false;
   }
 }
 
@@ -1549,6 +1593,9 @@ const PALETTE_SWATCHES = {
   nebula: ['#9fc4ff', '#0d0f1c'],
   sunset: ['#ffb07f', '#1c110c'],
   obsidian: ['#815f92', '#281a2e'],
+  ocean: ['#4dd9ff', '#07141c'],
+  storm: ['#9db6ff', '#12182b'],
+  terminal: ['#86ff90', '#0b140e'],
 };
 
 function renderPalettePreviews() {
@@ -1590,6 +1637,9 @@ function applyDisplaySettings() {
     'palette-nebula',
     'palette-sunset',
     'palette-obsidian',
+    'palette-ocean',
+    'palette-storm',
+    'palette-terminal',
   );
   if (state.settings.palette && state.settings.palette !== 'default') {
     document.body.classList.add(`palette-${state.settings.palette}`);
@@ -1637,10 +1687,17 @@ function applySettingsToControls() {
 const tutorialSteps = [
   {
     id: 'resources',
-    title: 'Track your resources',
-    body: 'The top bar tracks Bits, Cryptcoins (CC), Prestige, XP, Level, and LP. Watch these values climb as you shred nodes.',
+    title: 'Track the currencies',
+    body: 'The top bar tracks Bits, CC, Prestige, XP, Operator Rank, and LP. Bits buy most upgrades, CC powers advanced systems, Prestige unlocks larger progression jumps, XP fills your Rank bar, and LP supports long-term sync upgrades.',
     target: () => document.querySelector('.resource-bar'),
     goal: 'Keep an eye on these numbers—every system flows through them.',
+  },
+  {
+    id: 'rank',
+    title: 'Operator Rank vs Stage',
+    body: 'Operator Rank is your player progression bar. Stage is the current breach difficulty in the arena. Rank unlocks systems while Stage controls node health, reward scale, and boss pressure.',
+    target: () => document.querySelector('.top-bar') || document.querySelector('.resource-bar'),
+    goal: 'Rank = player progression. Stage = current combat lane.',
   },
   {
     id: 'arena',
@@ -1652,7 +1709,7 @@ const tutorialSteps = [
   {
     id: 'side-panel',
     title: 'Systems dock',
-    body: 'Use these tabs to buy upgrades, tweak settings, browse skins, and manage crypto or lab systems. The right panel is your command center.',
+    body: 'Use these tabs to buy upgrades, manage the Crypto Mine and Lab, swap themes, and tune settings. The right panel is your command center, and locked tabs now explain what they need.',
     target: () => document.querySelector('.side-panel'),
     goal: 'Tabs unlock more tools as you progress.',
   },
@@ -1664,25 +1721,60 @@ const tutorialSteps = [
     onEnter: startNodeShowcase,
   },
   {
+    id: 'rare-nodes',
+    title: 'Rare node roles',
+    body: 'Green Nodes move faster and help snowball. Gold Nodes burst richer rewards. Void Nodes drain pressure with heavier stats and sustain effects. Prismatic Nodes rotate reward types based on their current hue.',
+    target: () => UI.nodeArea,
+    goal: 'Node colors matter. Each rare family changes reward flow or combat tempo.',
+  },
+  {
     id: 'upgrade',
-    title: 'Buy your first upgrade',
+    title: 'Skills and the main tree',
     body: 'Open the Upgrades tab and purchase any upgrade. Upgrades raise damage, crits, economy, and more. This one will trigger a guided skill check—click inside the highlighted band before the timer ends or use your space-bar, that works too!.',
     target: () => document.querySelector('[data-tab="upgrades"]'),
     onEnter: prepareUpgradeTutorial,
   },
   {
+    id: 'upgrade-sections',
+    title: 'Specialized upgrade lanes',
+    body: 'Point Magnet expands collection reach, Faster Nodes increases swarm density and spawn speed, and Point Speed makes the cursor strike faster. Locked tabs now show their requirements clearly instead of hiding them.',
+    target: () => document.querySelector('.upgrade-tabs'),
+    goal: 'The side upgrade lanes tune collection, swarm size, and attack tempo.',
+  },
+  {
+    id: 'currencies',
+    title: 'What everything is for',
+    body: 'Bits handle everyday purchases. CC is your advanced currency for mining upgrades, the Crypto Mine, and later research. Prestige unlocks stronger progression lanes. XP fills Operator Rank. LP is awarded for long-term progress and stage pushing.',
+    target: () => document.querySelector('.resource-bar'),
+    goal: 'Spend Bits often, protect Prestige, and use CC for advanced systems.',
+  },
+  {
     id: 'achievements',
-    title: 'Achievements & milestones',
-    body: 'Achievements grant quick rewards (like “Destroy your first node”), and milestones unlock bigger boosts, skins, or new systems over time. Claim them often.',
+    title: 'Achievements and milestones',
+    body: 'Achievements grant quick rewards (like “Destroy your first node”), and milestones unlock bigger boosts or new systems over time. Claim them often.',
     target: () => document.querySelector('.progress-dock'),
     goal: 'Check in for easy claims to keep momentum.',
   },
   {
     id: 'levels',
-    title: 'Push levels & bosses',
-    body: 'Levels set node health and rewards. Beating bosses increases node level difficulty and payouts. You can replay old levels or push forward for bigger gains.',
+    title: 'Push stages and bosses',
+    body: 'Stages set node health and rewards. Beating bosses increases stage difficulty and payouts. You can replay old stages or push forward for bigger gains.',
     target: () => document.querySelector('.level-readout'),
     goal: 'Kill nodes → earn bits → buy upgrades → beat bosses → unlock more content.',
+  },
+  {
+    id: 'boss-tracker',
+    title: 'Boss tracker and stages',
+    body: 'The boss bar now doubles as a countdown when a boss is not active. When the timer ends, the boss arrives. Boss wins advance your Stage, raise payouts, and keep the run scaling.',
+    target: () => document.querySelector('.boss-phase'),
+    goal: 'Watch the countdown, survive the stage, then break the boss to advance.',
+  },
+  {
+    id: 'crypto-mine',
+    title: 'Crypto Mine and CC',
+    body: 'Deposit Bits into the Crypto Mine to generate CC over time. The mine now shows mined-so-far output live, and you can withdraw early for 70% of the current CC if you do not want to wait for the full timer.',
+    target: () => document.querySelector('[data-tab="crypto"]'),
+    goal: 'Full timer pays 100%. Early withdrawal pays 70% of mined CC.',
   },
   {
     id: 'music',
@@ -1692,8 +1784,15 @@ const tutorialSteps = [
     goal: 'Pick a track you like; they are all DMCA-safe.',
   },
   {
+    id: 'themes',
+    title: 'Themes and presentation',
+    body: 'Themes are cosmetic style swaps, while reduced animation and settings help late-game fights stay smoother and easier to read. Use them to make the game look how you want without losing clarity.',
+    target: () => document.querySelector('.top-bar-settings'),
+    goal: 'Use themes for style and settings for comfort and performance.',
+  },
+  {
     id: 'settings',
-    title: 'Replay or tweak tips',
+    title: 'Themes and settings',
     body: 'Settings let you replay this tutorial or toggle occasional tips. Use the “Replay tutorial” button if you want a refresher.',
     target: () => document.querySelector('[data-tab="settings"]') || document.querySelector('.top-bar-settings'),
     goal: 'Use settings to revisit guidance without slowing normal runs.',
@@ -1701,7 +1800,7 @@ const tutorialSteps = [
   {
     id: 'finish',
     title: 'You are ready',
-    body: 'Keep the loop going—destroy nodes, gather resources, buy upgrades, and conquer bosses. Have fun experimenting with builds and skins!',
+    body: 'Keep the loop going—destroy nodes, gather resources, buy upgrades, and conquer bosses. Have fun experimenting with builds and themes!',
     target: () => UI.nodeArea,
     goal: 'Good luck, Operator.',
   },
@@ -1711,6 +1810,7 @@ function setupTutorial() {
   loadTutorialPreferences();
   const storedCompletion = getTutorialCompletionFlag();
   tutorialState.completed = state.tutorialCompleted || storedCompletion;
+  const forceTutorial = shouldForceVersionTutorial && GAME_VERSION === VERSION_TUTORIAL_PROMPT_VERSION;
   if (tutorialState.completed && !state.tutorialCompleted) {
     state.tutorialCompleted = true;
     queueSave();
@@ -1725,7 +1825,21 @@ function setupTutorial() {
   document.addEventListener('scroll', refreshTutorialHighlight, true);
   persistTutorialPreferences();
   applySettingsToControls();
-  if (!tutorialState.completed) {
+  if (forceTutorial) {
+    tutorialState.completed = false;
+    state.tutorialCompleted = false;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(TUTORIAL_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.warn('Failed to reset tutorial completion for version tutorial prompt', error);
+    }
+    queueSave();
+    closeUpdateLog();
+    startTutorial({ replay: true });
+    shouldForceVersionTutorial = false;
+  } else if (!tutorialState.completed) {
     startTutorial();
   }
 }
@@ -2000,6 +2114,7 @@ function startNodeShowcase() {
   tutorialState.nodeCapOverride = 1;
   activeNodes.forEach((node) => node.el?.remove());
   activeNodes.clear();
+  syncNodeDensityState();
   nodeSpawnTimer = 0;
   document.body.classList.add('tutorial-locked');
 }
@@ -2070,7 +2185,7 @@ function getActiveNodeCap() {
   if (tutorialState.nodeCapOverride != null) {
     return tutorialState.nodeCapOverride;
   }
-  return stats.maxNodes;
+  return Math.max(1, Math.floor(stats.maxNodes));
 }
 
 function snapshotTutorialPersistence() {
@@ -2103,37 +2218,13 @@ function restoreTutorialPersistence(snapshot) {
 }
 
 function generateSkins() {
-  skins = [
-    { id: 'default', name: 'Default Core', cost: 0, description: 'Standard breach-grade node.' },
-    {
-      id: 'midnight',
-      name: 'Midnight Bloom',
-      cost: 15000,
-      description: 'Orbital halo with drifting starlight around a midnight core.',
-    },
-    {
-      id: 'ember',
-      name: 'Ember Pulse',
-      cost: 40000,
-      description: 'Forged casing split with molten fractures and radiant sparks.',
-    },
-    {
-      id: 'glitch',
-      name: 'Glitch Prism',
-      cost: 120000,
-      description: 'Reality-warping shader, shifts per click.',
-    },
-    {
-      id: 'aurora',
-      name: 'Aurora Silk',
-      cost: 250000,
-      description: 'Multilayer lattice of refracted light and harmonic pulses.',
-    },
-  ];
+  skins = [];
 }
 
 function renderSkins() {
+  if (!UI.skinGrid) return;
   UI.skinGrid.innerHTML = '';
+  if (skins.length === 0) return;
   skins.forEach((skin) => {
     const card = document.createElement('div');
     card.className = 'skin-card';
@@ -2332,21 +2423,26 @@ function describeCritUpgrade(chancePerLevel, maxLevel, multiplierGrowth) {
   const damageCopy = multiplierGrowth > 1 ? `+${multiplierGrowth.toFixed(2)}x crit damage / level` : '';
   const parts = [chanceCopy, damageCopy].filter(Boolean);
   const body = parts.length > 0 ? parts.join(', ') : 'Critical damage';
-  return `${body} (${maxLevel} lvls)`;
+  const capCopy = chancePerLevel > 0 ? ', capped at 70% total crit chance' : '';
+  return `${body}${capCopy} (${maxLevel} lvls)`;
 }
 
 function getCritUpgradeConfig(sequenceIndex) {
   const critConfigs = [
-    { chancePerLevel: 0.05, multiplierGrowth: 1.5 },
-    { chancePerLevel: 0, multiplierGrowth: 1.5 },
-    { chancePerLevel: 0.0625, multiplierGrowth: 1.5 },
-    { chancePerLevel: 0, multiplierGrowth: 1.5 },
-    { chancePerLevel: 0.1, multiplierGrowth: 1.5 },
+    { chancePerLevel: 0.018, multiplierGrowth: 1.24 },
+    { chancePerLevel: 0, multiplierGrowth: 1.2 },
+    { chancePerLevel: 0.02, multiplierGrowth: 1.18 },
+    { chancePerLevel: 0, multiplierGrowth: 1.16 },
+    { chancePerLevel: 0.022, multiplierGrowth: 1.14 },
+    { chancePerLevel: 0, multiplierGrowth: 1.12 },
+    { chancePerLevel: 0.024, multiplierGrowth: 1.1 },
+    { chancePerLevel: 0, multiplierGrowth: 1.08 },
+    { chancePerLevel: 0.012, multiplierGrowth: 1.06 },
   ];
   if (sequenceIndex < critConfigs.length) {
     return critConfigs[sequenceIndex];
   }
-  return { chancePerLevel: 0, multiplierGrowth: 1.5 };
+  return { chancePerLevel: 0, multiplierGrowth: 1.04 };
 }
 
 function generateAreaUpgrades() {
@@ -2358,15 +2454,46 @@ function generateSpawnUpgrades() {
     {
       id: 'replicant-forge',
       name: 'Replicant Forge',
-      tierNames: ['Replicant Forge I', 'Replicant Forge II'],
-      description: '+2 max nodes & -0.35s spawn delay per level',
-      maxLevel: 2,
+      description: '+6 max nodes and faster baseline replication every level',
+      maxLevel: 4,
       costBase: 3200,
       costScale: 1.52,
       currency: 'bits',
-      delayReduction: 0.35,
-      nodeBonus: 2,
-      minDelay: 0.24,
+      delayReduction: 0.12,
+      nodeBonus: 6,
+      minDelay: 0.18,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
+        statsObj.maxNodes += upgrade.nodeBonus * level;
+      },
+    },
+    {
+      id: 'swarm-weave',
+      name: 'Swarm Weave',
+      description: '+14 max nodes with tighter queue handling per level',
+      maxLevel: 4,
+      costBase: 18000,
+      costScale: 1.6,
+      currency: 'bits',
+      delayReduction: 0.04,
+      nodeBonus: 14,
+      minDelay: 0.12,
+      effect: (statsObj, level, upgrade) => {
+        statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
+        statsObj.maxNodes += upgrade.nodeBonus * level;
+      },
+    },
+    {
+      id: 'quantum-relay',
+      name: 'Quantum Relay',
+      description: '+28 max nodes and denser relay bursts per level',
+      maxLevel: 3,
+      costBase: 85000,
+      costScale: 1.68,
+      currency: 'bits',
+      delayReduction: 0.03,
+      nodeBonus: 28,
+      minDelay: 0.09,
       effect: (statsObj, level, upgrade) => {
         statsObj.nodeSpawnDelay = Math.max(upgrade.minDelay, statsObj.nodeSpawnDelay - upgrade.delayReduction * level);
         statsObj.maxNodes += upgrade.nodeBonus * level;
@@ -2521,6 +2648,7 @@ function renderAreaUpgrades() {
     `;
     const affordable = !maxed && state[upgrade.currency] >= cost && state.lp >= lpCost;
     button.classList.toggle('available', affordable);
+    button.classList.toggle('unaffordable', !maxed && !affordable);
     button.disabled = maxed || !affordable;
     button.addEventListener('click', () => attemptAreaPurchase(upgrade));
     fragment.appendChild(button);
@@ -2595,6 +2723,7 @@ function renderCollectUpgrades() {
     `;
     const affordable = !maxed && state[upgrade.currency] >= cost;
     button.classList.toggle('available', affordable);
+    button.classList.toggle('unaffordable', !maxed && !affordable);
     button.disabled = maxed || !affordable;
     button.addEventListener('click', () => attemptCollectPurchase(upgrade));
     fragment.appendChild(button);
@@ -2671,6 +2800,7 @@ function renderSpawnUpgrades() {
     const resourcePool = upgrade.currency === 'prestige' ? state.prestige : state.bits;
     const affordable = !maxed && resourcePool >= cost && state.prestige >= prestigeCost;
     button.classList.toggle('available', affordable);
+    button.classList.toggle('unaffordable', !maxed && !affordable);
     button.disabled = maxed || !affordable;
     button.addEventListener('click', () => attemptSpawnPurchase(upgrade));
     fragment.appendChild(button);
@@ -2745,6 +2875,7 @@ function renderSpeedUpgrades() {
     `;
     const affordable = !maxed && state[upgrade.currency] >= cost;
     button.classList.toggle('available', affordable);
+    button.classList.toggle('unaffordable', !maxed && !affordable);
     button.disabled = maxed || !affordable;
     button.addEventListener('click', () => attemptSpeedPurchase(upgrade));
     fragment.appendChild(button);
@@ -2848,8 +2979,6 @@ function getUpgradeDisplayName(upgrade, level) {
   return upgrade.name;
 }
 
-const MAX_BRANCH_COLUMNS = 3;
-
 function buildSkillBranchLayout(activeFilter) {
   const categorySequences = buildCategorySequences();
   const visibleUpgrades = getVisibleUpgradeSet(activeFilter, categorySequences);
@@ -2863,13 +2992,10 @@ function buildSkillBranchLayout(activeFilter) {
     branchMap.set(upgrade.category, branch);
   });
   branchMap.forEach((list, category) => {
-    const sorted = [...list].sort((a, b) => (a.upgrade.sequenceIndex || 0) - (b.upgrade.sequenceIndex || 0));
-    const positioned = sorted.map((entry, index) => {
-      const column = index % MAX_BRANCH_COLUMNS;
-      const row = Math.floor(index / MAX_BRANCH_COLUMNS);
-      return { ...entry, column, row };
-    });
-    branchMap.set(category, positioned);
+    branchMap.set(
+      category,
+      [...list].sort((a, b) => (a.upgrade.sequenceIndex || 0) - (b.upgrade.sequenceIndex || 0)),
+    );
   });
   return branchMap;
 }
@@ -2935,6 +3061,8 @@ function showSkillDetail(target, upgrade) {
     </div>
     <div class="desc">${upgrade.description}</div>
   `;
+  detail.dataset.upgradeId = upgrade.id;
+  detail.dataset.sourceId = target.dataset.id || upgrade.id;
   detail.classList.remove('hidden');
   const rect = target.getBoundingClientRect();
   const popupRect = detail.getBoundingClientRect();
@@ -2953,6 +3081,8 @@ function showSkillDetail(target, upgrade) {
 
 function hideSkillDetail() {
   if (UI.skillDetailPopup) {
+    delete UI.skillDetailPopup.dataset.upgradeId;
+    delete UI.skillDetailPopup.dataset.sourceId;
     UI.skillDetailPopup.classList.add('hidden');
   }
 }
@@ -2991,11 +3121,8 @@ function renderUpgrades(filter) {
     track.className = 'branch-track';
     const connectorLayer = document.createElement('div');
     connectorLayer.className = 'connector-layer';
-    const columnMax = nodes.reduce((max, node) => Math.max(max, node.column || 0), 0);
-    const columnCount = Math.min(MAX_BRANCH_COLUMNS, Math.max(1, columnMax + 1));
-    track.style.gridTemplateColumns = `repeat(${columnCount}, minmax(180px, 1fr))`;
     const elementMap = new Map();
-    nodes.forEach(({ upgrade, level, column, row }) => {
+    nodes.forEach(({ upgrade, level }) => {
       const nodeEl = document.createElement('button');
       nodeEl.type = 'button';
       nodeEl.className = 'skill-node';
@@ -3004,28 +3131,37 @@ function renderUpgrades(filter) {
       }
       nodeEl.dataset.id = upgrade.id;
       nodeEl.dataset.category = upgrade.category;
-      nodeEl.style.gridColumn = (column % columnCount) + 1;
-      nodeEl.style.gridRow = row + 1;
       const displayName = getUpgradeDisplayName(upgrade, level);
+      const cost = getUpgradeCost(upgrade, level);
       const lockedByReq = !meetsRequirements(upgrade);
       const previousMet = !upgrade.previousId || (state.upgrades[upgrade.previousId] || 0) > 0;
+      const affordable = level < upgrade.maxLevel && state[upgrade.currency] >= cost;
+      const statusLabel =
+        level >= upgrade.maxLevel
+          ? 'Fully synced'
+          : lockedByReq || !previousMet
+          ? getUpgradeLockLabel(upgrade)
+          : getUpgradeAffordabilityLabel(upgrade, cost);
       nodeEl.innerHTML = `
           <div class="title">${displayName}</div>
           <div class="desc">${upgrade.description}</div>
           <div class="level">Level ${level} / ${upgrade.maxLevel}</div>
-          <div class="cost">Cost: <span>${formatCost(upgrade, level)}</span> ${upgrade.currency}</div>
+          <div class="cost">Cost: <span>${formatCost(upgrade, level)}</span> ${formatCurrencyLabel(upgrade.currency)}</div>
+          <div class="meta">${statusLabel}</div>
         `;
       if (level >= upgrade.maxLevel) {
         nodeEl.classList.add('purchased');
-      } else if (!lockedByReq && previousMet) {
+      } else if (!lockedByReq && previousMet && affordable) {
         nodeEl.classList.add('available');
       }
       if (lockedByReq || !previousMet) {
         nodeEl.classList.add('locked');
+      } else if (!affordable) {
+        nodeEl.classList.add('unaffordable');
       }
       nodeEl.addEventListener('click', (event) => {
         showSkillDetail(nodeEl, upgrade);
-        attemptPurchase(upgrade);
+        attemptPurchase(upgrade, nodeEl);
         event.stopPropagation();
       });
       nodeEl.addEventListener('mousemove', (event) => showUpgradeTooltip(event, upgrade));
@@ -3052,6 +3188,63 @@ function renderUpgrades(filter) {
   if (UI.upgradeTotal) {
     UI.upgradeTotal.textContent = upgrades.length;
   }
+}
+
+function refreshVisibleUpgradeStates() {
+  if (!UI.skillTree) return;
+  const skillNodes = UI.skillTree.querySelectorAll('.skill-node[data-id]');
+  if (!skillNodes.length) return;
+  skillNodes.forEach((nodeEl) => {
+    const upgradeId = nodeEl.dataset.id;
+    const upgrade = upgradeLookup.get(upgradeId);
+    if (!upgrade) return;
+    const level = state.upgrades[upgrade.id] || 0;
+    const cost = getUpgradeCost(upgrade, level);
+    const lockedByReq = !meetsRequirements(upgrade);
+    const previousMet = !upgrade.previousId || (state.upgrades[upgrade.previousId] || 0) > 0;
+    const affordable = level < upgrade.maxLevel && state[upgrade.currency] >= cost;
+    const statusLabel =
+      level >= upgrade.maxLevel
+        ? 'Fully synced'
+        : lockedByReq || !previousMet
+        ? getUpgradeLockLabel(upgrade)
+        : getUpgradeAffordabilityLabel(upgrade, cost);
+    const displayName = getUpgradeDisplayName(upgrade, level);
+
+    const titleEl = nodeEl.querySelector('.title');
+    const levelEl = nodeEl.querySelector('.level');
+    const costEl = nodeEl.querySelector('.cost');
+    const costValueEl = nodeEl.querySelector('.cost span');
+    const metaEl = nodeEl.querySelector('.meta');
+
+    if (titleEl) titleEl.textContent = displayName;
+    if (levelEl) levelEl.textContent = `Level ${level} / ${upgrade.maxLevel}`;
+    if (costValueEl) costValueEl.textContent = formatCost(upgrade, level);
+    if (costEl) {
+      costEl.innerHTML = `Cost: <span>${formatCost(upgrade, level)}</span> ${formatCurrencyLabel(upgrade.currency)}`;
+    }
+    if (metaEl) metaEl.textContent = statusLabel;
+
+    nodeEl.classList.toggle('purchased', level >= upgrade.maxLevel);
+    nodeEl.classList.toggle('available', level < upgrade.maxLevel && !lockedByReq && previousMet && affordable);
+    nodeEl.classList.toggle('locked', level < upgrade.maxLevel && (lockedByReq || !previousMet));
+    nodeEl.classList.toggle('unaffordable', level < upgrade.maxLevel && !lockedByReq && previousMet && !affordable);
+  });
+  refreshVisibleSkillDetail();
+}
+
+function refreshVisibleSkillDetail() {
+  if (!UI.skillDetailPopup || UI.skillDetailPopup.classList.contains('hidden')) return;
+  const upgradeId = UI.skillDetailPopup.dataset.upgradeId;
+  const sourceId = UI.skillDetailPopup.dataset.sourceId;
+  if (!upgradeId || !sourceId) return;
+  const sourceEl = UI.skillTree?.querySelector(`.skill-node[data-id="${sourceId}"]`);
+  const upgrade = upgradeLookup.get(upgradeId);
+  if (!sourceEl || !upgrade) {
+    hideSkillDetail();
+    return;
+  }
+  showSkillDetail(sourceEl, upgrade);
 }
 
 
@@ -3097,28 +3290,82 @@ function formatCost(upgrade, level) {
   return cost.toLocaleString();
 }
 
-function attemptPurchase(upgrade) {
+function formatCurrencyLabel(currency) {
+  switch (currency) {
+    case 'bits':
+      return 'Bits';
+    case 'prestige':
+      return 'Prestige';
+    case 'cryptcoins':
+      return 'CC';
+    case 'lp':
+      return 'LP';
+    default:
+      return currency ? `${currency.charAt(0).toUpperCase()}${currency.slice(1)}` : '';
+  }
+}
+
+function getUpgradeLockLabel(upgrade) {
+  if (!upgrade) return 'Locked';
+  if (upgrade.previousId && (state.upgrades[upgrade.previousId] || 0) <= 0) {
+    const previous = upgradeLookup.get(upgrade.previousId);
+    const previousLevel = previous ? state.upgrades[previous.id] || 0 : 0;
+    return previous ? `Requires ${getUpgradeDisplayName(previous, previousLevel)}` : 'Requires previous node';
+  }
+  if (upgrade.requirements?.prestige && state.prestige < upgrade.requirements.prestige) {
+    return `Requires ${formatNumberShort(upgrade.requirements.prestige)} Prestige`;
+  }
+  if (upgrade.requirements?.lp && state.lp < upgrade.requirements.lp) {
+    return `Requires ${formatNumberShort(upgrade.requirements.lp)} LP`;
+  }
+  return 'Locked';
+}
+
+function getUpgradeAffordabilityLabel(upgrade, cost) {
+  if (!upgrade) return '';
+  const resource = Math.max(0, Number(state[upgrade.currency]) || 0);
+  const shortfall = Math.max(0, cost - resource);
+  if (shortfall <= 0) {
+    return 'Ready to purchase';
+  }
+  return `Need ${formatNumberShort(shortfall)} more ${formatCurrencyLabel(upgrade.currency)}`;
+}
+
+function attemptPurchase(upgrade, sourceEl = null) {
   const level = state.upgrades[upgrade.id] || 0;
   if (level >= upgrade.maxLevel) {
     return;
   }
+  if (upgrade.previousId && (state.upgrades[upgrade.previousId] || 0) <= 0) {
+    if (sourceEl) {
+      createFloatText(sourceEl, getUpgradeLockLabel(upgrade), '#ff6ea8', { variant: 'requirement', priority: 'high' });
+    }
+    return;
+  }
   if (!meetsRequirements(upgrade)) {
+    if (sourceEl) {
+      createFloatText(sourceEl, getUpgradeLockLabel(upgrade), '#ff6ea8', { variant: 'requirement', priority: 'high' });
+    }
     return;
   }
   const cost = getUpgradeCost(upgrade, level);
-  if (state[upgrade.currency] >= cost) {
-    state[upgrade.currency] -= cost;
-    state.upgrades[upgrade.id] = level + 1;
-    updateStats();
-    updateResources();
-    const activeFilter =
-      document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
-    renderUpgrades(activeFilter);
-    renderMilestones();
-    handleTutorialUpgradePurchase(upgrade);
-    maybeStartSkillCheck(upgrade, cost, level);
-    queueSave();
+  if (state[upgrade.currency] < cost) {
+    if (sourceEl) {
+      createFloatText(sourceEl, getUpgradeAffordabilityLabel(upgrade, cost), '#ff6ea8', { variant: 'requirement', priority: 'high' });
+    }
+    return;
   }
+  state[upgrade.currency] -= cost;
+  state.upgrades[upgrade.id] = level + 1;
+  updateStats();
+  updateResources();
+  const activeFilter =
+    document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
+  renderUpgrades(activeFilter);
+  renderMilestones();
+  handleTutorialUpgradePurchase(upgrade);
+  maybeStartSkillCheck(upgrade, cost, level);
+  queueSave();
 }
 
 function maybeStartSkillCheck(upgrade, cost, previousLevel) {
@@ -3138,7 +3385,7 @@ function maybeStartSkillCheck(upgrade, cost, previousLevel) {
     reward: () => {
       state.bits += rewardBits;
       gainXP(rewardXP);
-      createFloatText(UI.customCursor || document.body, `+${rewardBits} bits`, '#ffd166');
+      createFloatText(UI.customCursor || document.body, `+${rewardBits} bits`, '#ffd166', { variant: 'currency' });
       updateResources();
     },
     onFail: () => {
@@ -3150,7 +3397,7 @@ function maybeStartSkillCheck(upgrade, cost, previousLevel) {
         document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
       renderUpgrades(activeFilter);
       renderMilestones();
-      createFloatText(UI.customCursor || document.body, `-${cost + penalty} ${upgrade.currency}`, '#ff6ea8');
+      createFloatText(UI.customCursor || document.body, `-${cost + penalty} ${upgrade.currency}`, '#ff6ea8', { variant: 'requirement' });
       queueSave();
     },
   });
@@ -3546,11 +3793,13 @@ function buildMilestoneElement(milestone, progress, variant) {
     const percent = Math.min(100, (progress.current / progress.goal) * 100);
     const progressText = `${formatMilestoneValue(milestone, progress.current)} / ${formatMilestoneValue(milestone, milestone.goal)}`;
     card.innerHTML = `
+      <div class="card-kicker">Milestone</div>
       <div class="card-header">
         <strong>${milestone.label}</strong>
         <span class="${statusClass}">${progress.claimed ? 'Claimed' : progress.ready ? 'Reward ready' : 'In progress'}</span>
       </div>
       <div class="card-body">${describeMilestone(milestone)}</div>
+      <div class="reward-line">Reward milestone ready for claim</div>
       <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
       <div class="card-metrics">${progressText}</div>
     `;
@@ -3691,6 +3940,17 @@ function formatDurationShort(seconds) {
     return `${minutes}m ${secs}s`;
   }
   return `${secs}s`;
+}
+
+function formatClockShort(seconds) {
+  const totalSeconds = Math.max(0, Math.ceil(Number(seconds) || 0));
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, '0');
+  const secs = Math.floor(totalSeconds % 60)
+    .toString()
+    .padStart(2, '0');
+  return `${minutes}:${secs}`;
 }
 
 function getClaimableAchievementCount() {
@@ -3861,7 +4121,7 @@ function generateAchievements() {
     createAchievement({
       id: 'level-5',
       label: 'Escalation',
-      description: 'Reach level 5.',
+      description: 'Reach Rank 5.',
       goal: 5,
       difficulty: 'standard',
       stat: () => state.level,
@@ -3869,7 +4129,7 @@ function generateAchievements() {
     createAchievement({
       id: 'level-15',
       label: 'Unending Ascent',
-      description: 'Reach level 15.',
+      description: 'Reach Rank 15.',
       goal: 15,
       difficulty: 'hard',
       stat: () => state.level,
@@ -3883,7 +4143,7 @@ function generateAchievements() {
       stat: () => state.paletteChangeCount || 0,
     }),
     createAchievement({
-      id: 'palette-swaps',
+      id: 'palette-swaps-10',
       label: 'Palette Veteran',
       description: 'Swap your palette ten times.',
       goal: 10,
@@ -3989,7 +4249,7 @@ function generateAchievements() {
     createAchievement({
       id: 'level-1000',
       label: 'Layered Reality',
-      description: 'Reach level 1,000.',
+      description: 'Reach Rank 1,000.',
       goal: 1000,
       difficulty: 'hard',
       stat: () => state.level,
@@ -3997,7 +4257,7 @@ function generateAchievements() {
     createAchievement({
       id: 'level-10000',
       label: 'Ten-Thousandth Gate',
-      description: 'Reach level 10,000.',
+      description: 'Reach Rank 10,000.',
       goal: 10000,
       difficulty: 'legendary',
       stat: () => state.level,
@@ -4005,7 +4265,7 @@ function generateAchievements() {
     createAchievement({
       id: 'level-50000',
       label: 'Ascension Stack',
-      description: 'Reach level 50,000.',
+      description: 'Reach Rank 50,000.',
       goal: 50000,
       difficulty: 'legendary',
       stat: () => state.level,
@@ -4013,7 +4273,7 @@ function generateAchievements() {
     createAchievement({
       id: 'level-200000',
       label: 'Beyond Simulation',
-      description: 'Reach level 200,000.',
+      description: 'Reach Rank 200,000.',
       goal: 200000,
       difficulty: 'legendary',
       stat: () => state.level,
@@ -4071,6 +4331,7 @@ function renderAchievements() {
   UI.achievementGrid.innerHTML = '';
   achievements.forEach((achievement) => {
     const progress = getAchievementProgress(achievement);
+    const difficultyLabel = `${achievement.difficulty}`.toUpperCase();
     const card = document.createElement('div');
     card.className = 'progress-card achievement';
     card.setAttribute('role', 'listitem');
@@ -4097,6 +4358,7 @@ function renderAchievements() {
       ? 'Reward ready'
       : `${Math.floor(progress.percent)}%`;
     card.innerHTML = `
+      <div class="card-kicker">${difficultyLabel} Achievement</div>
       <div class="card-header">
         <strong>${achievement.label}</strong>
         <span class="${statusClass}">${statusText}</span>
@@ -4134,17 +4396,7 @@ function setupCryptoControls() {
       document.getElementById('custom-deposit').value = '';
     }
   });
-  document.getElementById('withdraw-crypto').addEventListener('click', () => {
-    if (state.crypto.deposit > 0) {
-      state.bits += state.crypto.deposit;
-      state.crypto.deposit = 0;
-      state.crypto.rate = 0;
-      state.crypto.timeRemaining = 0;
-      updateCryptoUI();
-      updateResources();
-      queueSave();
-    }
-  });
+  UI.withdrawCrypto?.addEventListener('click', () => settleCryptoRun({ early: true }));
   renderCryptoSpeedUpgrades();
 }
 
@@ -4153,8 +4405,10 @@ function depositToCrypto(amount) {
   if (state.bits >= amount) {
     state.bits -= amount;
     state.crypto.deposit += amount;
+    const duration = Math.max(10, Math.log(state.crypto.deposit + 1) * 30);
+    state.crypto.duration = duration;
+    state.crypto.timeRemaining = duration;
     recalculateCryptoRate();
-    state.crypto.timeRemaining = Math.max(10, Math.log(state.crypto.deposit + 1) * 30);
     updateCryptoUI();
     updateResources();
     queueSave();
@@ -4177,6 +4431,32 @@ function recalculateCryptoRate() {
   state.crypto.rate = baseRate + getCryptoSpeedBonus();
 }
 
+function resetCryptoRun() {
+  state.crypto.deposit = 0;
+  state.crypto.rate = 0;
+  state.crypto.mined = 0;
+  state.crypto.duration = 0;
+  state.crypto.timeRemaining = 0;
+}
+
+function settleCryptoRun({ early = false } = {}) {
+  const hasActiveRun = state.crypto.deposit > 0 || state.crypto.mined > 0;
+  if (!hasActiveRun) return;
+  const mined = Math.max(0, state.crypto.mined || 0);
+  const payout = early ? Math.floor(mined * 0.7) : mined;
+  if (payout > 0) {
+    state.cryptcoins += payout;
+    createFloatText(UI.cryptoMineVisual || UI.nodeArea || document.body, `+${formatNumberShort(payout)} CC`, '#ffd166', {
+      variant: 'currency',
+      priority: 'high',
+    });
+  }
+  resetCryptoRun();
+  updateCryptoUI();
+  updateResources();
+  queueSave();
+}
+
 function renderCryptoSpeedUpgrades() {
   if (!UI.cryptoSpeedUpgrades) return;
   UI.cryptoSpeedUpgrades.innerHTML = '';
@@ -4186,6 +4466,7 @@ function renderCryptoSpeedUpgrades() {
     button.className = 'pill';
     const purchased = Boolean(state.crypto.speedUpgrades[tier.id]);
     const affordable = state.cryptcoins >= tier.cost;
+    button.classList.toggle('unaffordable', !purchased && !affordable);
     button.disabled = purchased || !affordable;
     button.textContent = purchased
       ? `${tier.label}: +${tier.bonus}/s (owned)`
@@ -4208,16 +4489,41 @@ function purchaseCryptoSpeedUpgrade(tier) {
 }
 
 function updateCryptoUI() {
+  if (!UI.cryptoDeposited || !UI.cryptoReturns || !UI.cryptoTimer) return;
   UI.cryptoDeposited.textContent = formatNumberShort(state.crypto.deposit);
   UI.cryptoReturns.textContent = `${formatNumberShort(state.crypto.rate)} / sec`;
-  const time = Math.max(0, state.crypto.timeRemaining);
-  const minutes = Math.floor(time / 60)
-    .toString()
-    .padStart(2, '0');
-  const seconds = Math.floor(time % 60)
-    .toString()
-    .padStart(2, '0');
-  UI.cryptoTimer.textContent = `${minutes}:${seconds}`;
+  UI.cryptoTimer.textContent = formatClockShort(state.crypto.timeRemaining);
+  if (UI.cryptoMined) {
+    UI.cryptoMined.textContent = `${formatNumberShort(state.crypto.mined || 0)} CC`;
+  }
+  if (UI.cryptoEarlyWithdraw) {
+    UI.cryptoEarlyWithdraw.textContent = `${formatNumberShort(Math.floor((state.crypto.mined || 0) * 0.7))} CC`;
+  }
+  if (UI.cryptoStatus) {
+    UI.cryptoStatus.textContent =
+      state.crypto.deposit > 0
+        ? state.crypto.timeRemaining > 0
+          ? 'Mining'
+          : 'Ready'
+        : 'Idle';
+  }
+  if (UI.cryptoProgressFill) {
+    const duration = Math.max(1, state.crypto.duration || 0);
+    const progress =
+      state.crypto.deposit > 0 && duration > 0
+        ? Math.max(0, Math.min(1, 1 - state.crypto.timeRemaining / duration))
+        : 0;
+    UI.cryptoProgressFill.style.width = `${progress * 100}%`;
+  }
+  if (UI.withdrawCrypto) {
+    const payout = Math.floor((state.crypto.mined || 0) * 0.7);
+    UI.withdrawCrypto.textContent =
+      state.crypto.deposit > 0
+        ? `Withdraw early (70%) ${payout > 0 ? `- ${formatNumberShort(payout)} CC` : ''}`
+        : 'Withdraw early (70%)';
+    UI.withdrawCrypto.disabled = state.crypto.deposit <= 0 || payout <= 0;
+  }
+  UI.cryptoMineVisual?.classList.toggle('active', state.crypto.deposit > 0);
 }
 
 function setupLabControls() {
@@ -4316,7 +4622,7 @@ function refreshLevelOptions() {
   for (let i = 1; i <= maxLevel; i += 1) {
     const option = document.createElement('option');
     option.value = `${i}`;
-    option.textContent = `Level ${i}`;
+    option.textContent = `Stage ${i}`;
     UI.levelSelect.appendChild(option);
   }
   UI.levelSelect.value = `${state.currentLevel.index}`;
@@ -4425,9 +4731,13 @@ function updateBGMVolume() {
   bgmAudio.volume = volume;
 }
 
-function spawnCursorPulse(x, y) {
+function spawnCursorPulse(x, y, options = {}) {
   const pulse = document.createElement('div');
   pulse.className = 'cursor-pulse';
+  if (options.hit) pulse.classList.add('hit');
+  if (options.kill) pulse.classList.add('kill');
+  if (options.critical) pulse.classList.add('critical');
+  if (options.boss) pulse.classList.add('boss');
   pulse.style.left = `${x}px`;
   pulse.style.top = `${y}px`;
   pulse.style.imageRendering = 'pixelated';
@@ -4436,18 +4746,23 @@ function spawnCursorPulse(x, y) {
   pulse.addEventListener('animationend', () => pulse.remove());
 }
 
-function triggerCursorClickAnimation(x, y) {
+function triggerCursorClickAnimation(x, y, options = {}) {
   if (!UI.customCursor) return;
   UI.customCursor.classList.add('active');
+  UI.customCursor.classList.toggle('impact', !!options.hit);
+  UI.customCursor.classList.toggle('kill-shot', !!options.kill);
+  UI.customCursor.classList.toggle('critical-shot', !!options.critical);
+  UI.customCursor.classList.toggle('boss-target', !!options.boss);
   if (cursorClickTimeout) {
     clearTimeout(cursorClickTimeout);
   }
   cursorClickTimeout = setTimeout(() => {
     if (UI.customCursor) {
       UI.customCursor.classList.remove('active');
+      UI.customCursor.classList.remove('impact', 'kill-shot', 'critical-shot', 'boss-target');
     }
-  }, 140);
-  spawnCursorPulse(x, y);
+  }, options.kill || options.critical || options.boss ? 180 : 140);
+  spawnCursorPulse(x, y, options);
 }
 
 function setupSkillCheck() {
@@ -4670,7 +4985,7 @@ function resolveSkillCheck(success) {
     if (typeof skillCheckState.onFail === 'function') {
       skillCheckState.onFail();
     } else {
-      createFloatText(document.body, 'Skill check failed', '#ff6ea8');
+      createFloatText(document.body, 'Skill check failed', '#ff6ea8', { variant: 'requirement', priority: 'high' });
     }
   }
   handleTutorialSkillCheckResult(success);
@@ -4766,7 +5081,7 @@ function startGameLoop() {
   updateStats();
   let last = performance.now();
   function loop(now) {
-    const delta = (now - last) / 1000;
+    const delta = Math.min(0.05, (now - last) / 1000);
     last = now;
     markFrameStart();
     tick(delta);
@@ -4801,25 +5116,71 @@ const activeNodes = new Map();
 let activeBoss = null;
 let autoClickTimer = 0;
 let cursorClickTimeout;
+let lastBossImpactEffectAt = 0;
+
+function isHighDensityMode() {
+  return activeNodes.size >= HIGH_DENSITY_EFFECT_THRESHOLD;
+}
+
+function syncNodeDensityState() {
+  if (!UI.nodeArea) return;
+  UI.nodeArea.classList.toggle('high-density', activeNodes.size >= HIGH_DENSITY_NODE_THRESHOLD);
+}
+
+function removeNodeFromArena(node) {
+  if (!node) return;
+  if (node.shakeTimeout) clearTimeout(node.shakeTimeout);
+  if (node.hitTimeout) clearTimeout(node.hitTimeout);
+  if (node.critTimeout) clearTimeout(node.critTimeout);
+  node.el?.remove();
+  activeNodes.delete(node.id);
+  syncNodeDensityState();
+}
+
+function getNodeCenterInArea(node) {
+  return {
+    x: node.position.x + NODE_SIZE / 2,
+    y: node.position.y + NODE_SIZE / 2,
+  };
+}
+
+function getNodeCenterOnScreen(node) {
+  const areaRect = getNodeAreaRect();
+  if (!areaRect) return null;
+  const center = getNodeCenterInArea(node);
+  return {
+    x: areaRect.left + center.x,
+    y: areaRect.top + center.y,
+  };
+}
 
 function updateNodes(delta) {
   if (!UI.nodeArea) return;
   if (!state.currentLevel.active) return;
   nodeSpawnTimer -= delta;
   const maxNodes = getActiveNodeCap();
-  if (nodeSpawnTimer <= 0 && activeNodes.size < maxNodes) {
+  const spawnDelay = Math.max(0.02, stats.nodeSpawnDelay);
+  let spawnCount = 0;
+  while (nodeSpawnTimer <= 0 && activeNodes.size < maxNodes && spawnCount < MAX_SPAWNS_PER_FRAME) {
     spawnNode();
-    nodeSpawnTimer = Math.max(0.15, stats.nodeSpawnDelay);
+    nodeSpawnTimer += spawnDelay;
+    spawnCount += 1;
+  }
+  if (activeNodes.size >= maxNodes) {
+    nodeSpawnTimer = Math.max(nodeSpawnTimer, 0);
   }
   const areaRect = getNodeAreaRect();
   if (!areaRect) return;
   const { width, height } = areaRect;
   activeNodes.forEach((node) => {
-    tickNodeBehavior(node, delta);
+    const healthChanged = tickNodeBehavior(node, delta);
     node.position.x += node.velocity.x * delta;
     node.position.y += node.velocity.y * delta;
     node.rotation += node.rotationSpeed * delta;
     applyNodeTransform(node);
+    if (healthChanged) {
+      updateNodeElement(node);
+    }
     const bounds = node.bounds;
     if (
       node.position.x < -bounds ||
@@ -4827,10 +5188,10 @@ function updateNodes(delta) {
       node.position.y < -bounds ||
       node.position.y > height + bounds
     ) {
-      node.el?.remove();
-      activeNodes.delete(node.id);
+      removeNodeFromArena(node);
     }
   });
+  syncNodeDensityState();
 }
 
 function updateGreenMomentum(delta) {
@@ -4971,76 +5332,28 @@ function isNodeAreaInteractive(pointerX, pointerY) {
   return element === UI.nodeArea || UI.nodeArea.contains(element);
 }
 
-function getPointerPolygon(rect) {
-  return [
-    { x: rect.left, y: rect.top },
-    { x: rect.right, y: rect.top },
-    { x: rect.right, y: rect.bottom },
-    { x: rect.left, y: rect.bottom },
-  ];
-}
-
-function getNodePolygon(node, areaRect) {
-  const size = (node.el && node.el.offsetWidth) || NODE_SIZE;
+function getPointerRectInArea(areaRect, pointerX = cursorPosition.x, pointerY = cursorPosition.y) {
+  const size = getPointerSize();
   const half = size / 2;
-  let centerX = areaRect.left + node.position.x + half;
-  let centerY = areaRect.top + node.position.y + half;
-  if (node.el) {
-    const rect = node.el.getBoundingClientRect();
-    centerX = rect.left + rect.width / 2;
-    centerY = rect.top + rect.height / 2;
-  }
-  const angle = ((node.rotation || 0) * Math.PI) / 180;
-  const sin = Math.sin(angle);
-  const cos = Math.cos(angle);
-  const corners = [
-    { x: -half, y: -half },
-    { x: half, y: -half },
-    { x: half, y: half },
-    { x: -half, y: half },
-  ];
-  return corners.map((corner) => ({
-    x: centerX + corner.x * cos - corner.y * sin,
-    y: centerY + corner.x * sin + corner.y * cos,
-  }));
+  return {
+    left: pointerX - areaRect.left - half,
+    right: pointerX - areaRect.left + half,
+    top: pointerY - areaRect.top - half,
+    bottom: pointerY - areaRect.top + half,
+  };
 }
 
-function getPolygonAxes(polygon) {
-  const axes = [];
-  for (let i = 0; i < polygon.length; i += 1) {
-    const current = polygon[i];
-    const next = polygon[(i + 1) % polygon.length];
-    const edgeX = next.x - current.x;
-    const edgeY = next.y - current.y;
-    const axis = { x: -edgeY, y: edgeX };
-    const length = Math.hypot(axis.x, axis.y);
-    if (length === 0) continue;
-    axes.push({ x: axis.x / length, y: axis.y / length });
-  }
-  return axes;
-}
-
-function projectPolygon(axis, polygon) {
-  let min = Infinity;
-  let max = -Infinity;
-  polygon.forEach((point) => {
-    const projection = point.x * axis.x + point.y * axis.y;
-    if (projection < min) min = projection;
-    if (projection > max) max = projection;
-  });
-  return { min, max };
-}
-
-function polygonsIntersect(polygonA, polygonB) {
-  const axes = [...getPolygonAxes(polygonA), ...getPolygonAxes(polygonB)];
-  for (const axis of axes) {
-    const projectionA = projectPolygon(axis, polygonA);
-    const projectionB = projectPolygon(axis, polygonB);
-    if (projectionA.max < projectionB.min || projectionB.max < projectionA.min) {
-      return false;
-    }
-  }
-  return true;
+function pointerIntersectsNode(pointerRect, node, padding = 6) {
+  const left = node.position.x - padding;
+  const right = node.position.x + NODE_SIZE + padding;
+  const top = node.position.y - padding;
+  const bottom = node.position.y + NODE_SIZE + padding;
+  return (
+    pointerRect.left <= right &&
+    pointerRect.right >= left &&
+    pointerRect.top <= bottom &&
+    pointerRect.bottom >= top
+  );
 }
 
 function performAutoClick() {
@@ -5053,22 +5366,30 @@ function performAutoClick() {
   const pointerY = cursorPosition.y;
   if (!isNodeAreaInteractive(pointerX, pointerY)) return;
   playSFX('pointerAtk');
-  triggerCursorClickAnimation(pointerX, pointerY);
-  const pointerRect = getPointerRect(pointerX, pointerY);
-  const pointerPolygon = getPointerPolygon(pointerRect);
+  const pointerRect = getPointerRectInArea(areaRect, pointerX, pointerY);
   let hitSomething = false;
+  let destroyedNode = false;
+  let critHit = false;
   const nodesHit = [];
   activeNodes.forEach((node) => {
-    if (!node.el) return;
-    const nodePolygon = getNodePolygon(node, areaRect);
-    if (polygonsIntersect(pointerPolygon, nodePolygon)) {
+    if (pointerIntersectsNode(pointerRect, node)) {
       nodesHit.push(node);
     }
   });
   if (nodesHit.length > 0) {
-    nodesHit.forEach((node) => strikeNode(node));
+    nodesHit.forEach((node) => {
+      const result = strikeNode(node);
+      destroyedNode = destroyedNode || !!result?.destroyed;
+      critHit = critHit || !!result?.crit;
+    });
     hitSomething = true;
   }
+  triggerCursorClickAnimation(pointerX, pointerY, {
+    hit: hitSomething,
+    kill: destroyedNode,
+    critical: critHit,
+    boss: hitSomething && state.currentLevel.bossActive,
+  });
   if (hitSomething) {
     playPointerHitSFX();
   }
@@ -5147,7 +5468,7 @@ function spawnNode() {
     node.behaviorState = { drain: 0 };
   }
   const el = document.createElement('div');
-  el.className = `node ${type.color} skin-${state.skins.active}`;
+  el.className = `node ${type.color}`;
   const visual = document.createElement('div');
   visual.className = 'node-visual';
   const healthRing = document.createElement('div');
@@ -5160,7 +5481,6 @@ function spawnNode() {
   const hpLabel = document.createElement('div');
   hpLabel.className = 'hp';
   el.append(visual, hpLabel);
-  el.style.transition = 'none';
   node.el = el;
   node.visualEl = visual;
   node.fillEl = fill;
@@ -5171,12 +5491,12 @@ function spawnNode() {
   }
   applyNodeTransform(node);
   UI.nodeArea.appendChild(el);
-  requestAnimationFrame(() => {
-    el.style.transition = '';
-    el.classList.add('pulse');
-  });
-  setTimeout(() => el.classList.remove('pulse'), 600);
   activeNodes.set(node.id, node);
+  syncNodeDensityState();
+  if (!state.settings.reducedAnimation && !isHighDensityMode()) {
+    requestAnimationFrame(() => el.classList.add('pulse'));
+    setTimeout(() => el.classList.remove('pulse'), 420);
+  }
   updateNodeElement(node);
 }
 
@@ -5204,7 +5524,14 @@ function applyPrismaticHue(node, hue) {
 }
 
 function tickNodeBehavior(node, delta) {
-  if (!node?.type) return;
+  if (!node?.type) return false;
+  const previousHP = Number(node.hp) || 0;
+  if (node.hp < node.maxHP) {
+    const passiveRegen = Math.max(0, node.maxHP * NODE_PASSIVE_REGEN_RATE * delta);
+    if (passiveRegen > 0) {
+      node.hp = Math.min(node.maxHP, node.hp + passiveRegen);
+    }
+  }
   if (node.type.id === 'void') {
     const drain = Math.max(0, node.type.behavior?.drainPerSecond || 0);
     if (drain > 0) {
@@ -5213,7 +5540,6 @@ function tickNodeBehavior(node, delta) {
       const healFactor = Math.max(0, node.type.behavior?.healOnDrain || 0);
       if (healFactor > 0 && node.hp < node.maxHP) {
         node.hp = Math.min(node.maxHP, node.hp + damage * healFactor);
-        updateNodeElement(node);
       }
     }
   }
@@ -5228,6 +5554,7 @@ function tickNodeBehavior(node, delta) {
       applyPrismaticHue(node, pickPrismaticHue(node.type));
     }
   }
+  return Math.abs(node.hp - previousHP) > 0.0001;
 }
 
 function weightedNodeType() {
@@ -5243,6 +5570,7 @@ function weightedNodeType() {
 let arenaFlashTimeout;
 function triggerArenaFlash(type) {
   if (!type || !UI.nodeArea || !UI.nodeArenaBackdrop) return;
+  if (isHighDensityMode()) return;
   const rare = type.id === 'gold' || type.id === 'void' || type.id === 'prismatic';
   if (!rare) return;
   const highlight =
@@ -5273,45 +5601,92 @@ function calculateCursorDamage(options = {}) {
 function strikeNode(node) {
   const { damage, crit } = calculateCursorDamage();
   if (crit) {
-    createFloatText(node.el, 'CRIT!', '#ff6ea8', { variant: 'critical' });
+    createNodeFloatText(node, 'CRIT!', '#ff6ea8', { variant: 'critical', priority: 'high' });
   }
   node.hp -= damage;
-  triggerNodeDamageEffect(node);
-  createFloatText(node.el, `-${Math.round(damage)}`);
-  if (node.hp <= 0) {
-    destroyNode(node);
+  const destroyed = node.hp <= 0;
+  triggerNodeDamageEffect(node, { crit });
+  if (!isHighDensityMode() || crit) {
+    createNodeFloatText(node, `-${Math.round(damage)}`, 'var(--accent-strong)', { variant: 'damage' });
+  }
+  if (destroyed) {
+    destroyNode(node, { crit });
   } else {
     updateNodeElement(node);
   }
+  return { damage, crit, destroyed };
 }
 
-function triggerNodeDamageEffect(node) {
-  if (!node || !node.el || state.settings.reducedAnimation) return;
+function triggerNodeDamageEffect(node, options = {}) {
+  if (!node || !node.el || state.settings.reducedAnimation || isHighDensityMode()) return;
   node.el.classList.remove('shaking');
   node.el.classList.remove('hit');
+  node.el.classList.remove('critical-hit');
   // force reflow so the animation can restart even during rapid hits
   void node.el.offsetWidth;
   node.el.classList.add('shaking', 'hit');
+  if (options.crit) {
+    node.el.classList.add('critical-hit');
+  }
   if (node.shakeTimeout) clearTimeout(node.shakeTimeout);
   if (node.hitTimeout) clearTimeout(node.hitTimeout);
+  if (node.critTimeout) clearTimeout(node.critTimeout);
   node.shakeTimeout = setTimeout(() => node.el && node.el.classList.remove('shaking'), 240);
   node.hitTimeout = setTimeout(() => node.el && node.el.classList.remove('hit'), 220);
+  if (options.crit) {
+    node.critTimeout = setTimeout(() => node.el && node.el.classList.remove('critical-hit'), 280);
+  }
+}
+
+function createFloatTextAt(x, y, text, color = 'var(--accent-strong)', options = {}) {
+  const priority = options.priority || 'normal';
+  if (priority !== 'high' && activeFloatTextCount >= MAX_FLOAT_TEXTS) {
+    return;
+  }
+  const variant = options.variant || 'default';
+  const laneCount = options.laneCount || (variant === 'damage' ? 4 : variant === 'currency' ? 3 : 2);
+  const anchorKey = options.anchorKey || `${Math.round(x / 48)}:${Math.round(y / 48)}`;
+  const laneKey = `${variant}:${anchorKey}`;
+  const laneIndex = floatTextLaneState.get(laneKey) || 0;
+  floatTextLaneState.set(laneKey, (laneIndex + 1) % laneCount);
+  const laneCenter = (laneCount - 1) / 2;
+  const laneOffsetX = (laneIndex - laneCenter) * (options.laneSpacingX || 18) + (options.offsetX || 0);
+  const laneOffsetY = (options.offsetY || 0) - laneIndex * (options.laneSpacingY || 10);
+  const rise = options.rise || (variant === 'requirement' ? 136 : 108);
+  const float = document.createElement('div');
+  activeFloatTextCount += 1;
+  float.className = 'float-text';
+  float.classList.add(`float-${variant}`);
+  if (variant === 'critical') {
+    float.classList.add('critical');
+  }
+  float.style.left = `${x}px`;
+  float.style.top = `${y}px`;
+  float.style.color = color;
+  float.style.setProperty('--float-offset-x', `${laneOffsetX}px`);
+  float.style.setProperty('--float-offset-y', `${laneOffsetY}px`);
+  float.style.setProperty('--float-rise', `${rise}px`);
+  float.textContent = text;
+  document.body.appendChild(float);
+  const lifespan =
+    options.lifespan || (variant === 'critical' ? 2100 : variant === 'requirement' ? 1850 : variant === 'currency' ? 1750 : 1600);
+  setTimeout(() => {
+    activeFloatTextCount = Math.max(0, activeFloatTextCount - 1);
+    floatTextLaneState.delete(laneKey);
+    float.remove();
+  }, lifespan);
 }
 
 function createFloatText(target, text, color = 'var(--accent-strong)', options = {}) {
+  if (!target) return;
   const rect = target.getBoundingClientRect();
-  const float = document.createElement('div');
-  float.className = 'float-text';
-  if (options.variant === 'critical') {
-    float.classList.add('critical');
-  }
-  float.style.left = `${rect.left + rect.width / 2}px`;
-  float.style.top = `${rect.top + rect.height / 2}px`;
-  float.style.color = color;
-  float.textContent = text;
-  document.body.appendChild(float);
-  const lifespan = options.variant === 'critical' ? 2100 : 1600;
-  setTimeout(() => float.remove(), lifespan);
+  createFloatTextAt(rect.left + rect.width / 2, rect.top + rect.height / 2, text, color, options);
+}
+
+function createNodeFloatText(node, text, color = 'var(--accent-strong)', options = {}) {
+  const center = getNodeCenterOnScreen(node);
+  if (!center) return;
+  createFloatTextAt(center.x, center.y, text, color, options);
 }
 
 function randomInRange(min, max) {
@@ -5340,13 +5715,40 @@ function getBossDamageFromNodeType(typeId) {
   return 0;
 }
 
-function destroyNode(node) {
+function rollRareCryptoDrop(node) {
+  const typeId = node?.type?.id || 'red';
+  const chances = {
+    red: 0.00025,
+    blue: 0.0004,
+    green: 0.00055,
+    gold: 0.0011,
+    void: 0.0008,
+    prismatic: 0.0014,
+  };
+  const rewardRanges = {
+    red: [1, 2],
+    blue: [1, 3],
+    green: [2, 4],
+    gold: [3, 6],
+    void: [3, 5],
+    prismatic: [4, 8],
+  };
+  const chance = chances[typeId] || 0;
+  if (Math.random() >= chance) {
+    return 0;
+  }
+  const [minReward, maxReward] = rewardRanges[typeId] || [1, 2];
+  const levelBonus = Math.min(4, Math.floor(Math.log10(Math.max(10, state.currentLevel.index + 9))));
+  return Math.max(1, Math.round(randomInRange(minReward, maxReward + levelBonus)));
+}
+
+function destroyNode(node, options = {}) {
   const rewardsGranted = dropRewards(node);
   playSFX('nodeDie');
   const key = node.type.id;
   state.nodesDestroyed[key] = (state.nodesDestroyed[key] || 0) + 1;
   registerTutorialNodeKill(node.type?.id);
-  createNodeExplosion(node);
+  createNodeExplosion(node, options);
   if (node.type?.id === 'green') {
     applyGreenNodeMomentum(node);
   }
@@ -5357,17 +5759,14 @@ function destroyNode(node) {
     const restored = Math.min(state.maxHealth - state.health, Math.ceil(node.maxHP * 0.04));
     if (restored > 0) {
       state.health += restored;
-      createFloatText(node.el, `+${restored} HP`, '#b38bff');
+      createNodeFloatText(node, `+${restored} HP`, '#b38bff', { variant: 'status' });
     }
   }
   if (node.type?.id === 'prismatic' && node.currentHue) {
-    createFloatText(node.el, node.currentHue.toUpperCase(), '#cde7ff');
+    createNodeFloatText(node, node.currentHue.toUpperCase(), '#cde7ff', { variant: 'status' });
   }
   spawnBitTokens(node, rewardsGranted?.bits || 0);
-  if (node.shakeTimeout) clearTimeout(node.shakeTimeout);
-  if (node.hitTimeout) clearTimeout(node.hitTimeout);
-  node.el.remove();
-  activeNodes.delete(node.id);
+  removeNodeFromArena(node);
   renderMilestones();
 }
 
@@ -5393,9 +5792,18 @@ function dropRewards(node) {
   }
   if (rewards.cryptcoins) {
     state.cryptcoins += rewards.cryptcoins;
+    createNodeFloatText(node, `+${formatNumberShort(rewards.cryptcoins)} CC`, '#7ef6ff', { variant: 'currency' });
   }
   if (rewards.prestige) {
     state.prestige += rewards.prestige;
+  }
+  const rareCryptoDrop = rollRareCryptoDrop(node);
+  if (rareCryptoDrop > 0) {
+    state.cryptcoins += rareCryptoDrop;
+    createNodeFloatText(node, `Lucky CC +${formatNumberShort(rareCryptoDrop)}`, '#9efcff', {
+      variant: 'currency',
+      priority: 'high',
+    });
   }
   updateResources();
   queueSave(2000);
@@ -5406,27 +5814,25 @@ function applyGreenNodeMomentum(node) {
   greenMomentumTimer = GREEN_MOMENTUM_DURATION;
   greenMomentumStacks = Math.min(GREEN_MOMENTUM_MAX_STACKS, greenMomentumStacks + 1);
   if (node?.el) {
-    createFloatText(node.el, 'Momentum!', '#7fffd6');
+    createNodeFloatText(node, 'Momentum!', '#7fffd6', { variant: 'status', priority: 'high' });
   }
+}
+
+function formatNodeHPValue(value) {
+  return formatNumberShort(Math.max(0, Math.ceil(value))).replace(/\s+/gu, '');
 }
 
 function updateNodeElement(node) {
   if (!node.el) return;
   const hpEl = node.hpEl || node.el.querySelector('.hp');
   if (hpEl) {
-    hpEl.textContent = `${Math.max(0, Math.ceil(node.hp))}`;
+    hpEl.textContent = formatNodeHPValue(node.hp);
+    hpEl.title = `${Math.max(0, Math.ceil(node.hp)).toLocaleString()} HP`;
     node.hpEl = hpEl;
   }
   const fillEl = node.fillEl || node.el.querySelector('.fill');
   if (fillEl) {
     const ratio = Math.max(0, Math.min(1, node.hp / node.maxHP));
-    const healthColor = ratio > 0.66 ? 'rgba(127, 255, 214, 0.95)' : ratio > 0.33 ? '#ffd166' : '#ff6ea8';
-    node.el.style.setProperty('--hp-ratio', ratio);
-    node.el.style.setProperty('--hp-color', healthColor);
-    if (node.healthRingEl) {
-      node.healthRingEl.style.setProperty('--hp-ratio', ratio);
-      node.healthRingEl.style.setProperty('--hp-color', healthColor);
-    }
     fillEl.style.transform = `scaleY(${ratio})`;
     node.fillEl = fillEl;
   }
@@ -5434,34 +5840,45 @@ function updateNodeElement(node) {
 
 function applyNodeTransform(node) {
   if (!node.el) return;
-  node.el.style.setProperty('--node-x', `${node.position.x}px`);
-  node.el.style.setProperty('--node-y', `${node.position.y}px`);
-  node.el.style.setProperty('--node-rotation', `${node.rotation}deg`);
   node.el.style.transform = `translate3d(${node.position.x}px, ${node.position.y}px, 0) rotate(${node.rotation}deg)`;
 }
 
-function createNodeExplosion(node) {
+function getNodeEffectRGB(node) {
+  if (!node?.el || typeof getComputedStyle !== 'function') return '127, 255, 214';
+  const rgb = getComputedStyle(node.el).getPropertyValue('--node-color-rgb').trim();
+  return rgb || '127, 255, 214';
+}
+
+function createNodeExplosion(node, options = {}) {
   if (!UI.particleLayer || !node.el) return;
-  if (state.settings.reducedAnimation) return;
-  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
-  const nodeRect = node.el.getBoundingClientRect();
-  const x = nodeRect.left - areaRect.left + nodeRect.width / 2;
-  const y = nodeRect.top - areaRect.top + nodeRect.height / 2;
+  if (state.settings.reducedAnimation || isHighDensityMode()) return;
+  const { x, y } = getNodeCenterInArea(node);
   const explosion = document.createElement('div');
   explosion.className = 'explosion';
+  if (options.crit) {
+    explosion.classList.add('critical');
+  }
+  explosion.style.setProperty('--burst-rgb', getNodeEffectRGB(node));
   explosion.style.left = `${x}px`;
   explosion.style.top = `${y}px`;
   explosion.style.transform = 'translate(-50%, -50%)';
+  const shardCount = options.crit ? 8 : 5;
+  const spread = options.crit ? 68 : 50;
+  for (let i = 0; i < shardCount; i += 1) {
+    const shard = document.createElement('span');
+    shard.style.setProperty('--tx', `${(Math.random() - 0.5) * spread * 2}px`);
+    shard.style.setProperty('--ty', `${(Math.random() - 0.5) * spread * 2}px`);
+    shard.style.setProperty('--rot', `${(Math.random() - 0.5) * 180}deg`);
+    shard.style.animationDelay = `${Math.random() * 40}ms`;
+    explosion.appendChild(shard);
+  }
   UI.particleLayer.appendChild(explosion);
-  explosion.addEventListener('animationend', () => explosion.remove());
+  setTimeout(() => explosion.remove(), options.crit ? 620 : 520);
 }
 
 function createGoldenBitBurst(node) {
-  if (!UI.particleLayer || !node.el || state.settings.reducedAnimation) return;
-  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
-  const nodeRect = node.el.getBoundingClientRect();
-  const x = nodeRect.left - areaRect.left + nodeRect.width / 2;
-  const y = nodeRect.top - areaRect.top + nodeRect.height / 2;
+  if (!UI.particleLayer || !node.el || state.settings.reducedAnimation || isHighDensityMode()) return;
+  const { x, y } = getNodeCenterInArea(node);
   const burst = document.createElement('div');
   burst.className = 'golden-bit-burst';
   burst.style.left = `${x}px`;
@@ -5482,14 +5899,12 @@ function createGoldenBitBurst(node) {
 
 function spawnBitTokens(node, rewardBits = 0) {
   if (!UI.bitLayer || !node.el) return;
-  const areaRect = getNodeAreaRect() || UI.nodeArea.getBoundingClientRect();
-  const nodeRect = node.el.getBoundingClientRect();
-  const centerX = nodeRect.left - areaRect.left + nodeRect.width / 2;
-  const centerY = nodeRect.top - areaRect.top + nodeRect.height / 2;
+  const { x: centerX, y: centerY } = getNodeCenterInArea(node);
   const baseCount = 3 + Math.floor(Math.random() * 3);
-  const requestedTokenCount = state.settings.reducedAnimation ? Math.max(1, Math.floor(baseCount / 2)) : baseCount;
+  const requestedTokenCount =
+    state.settings.reducedAnimation || isHighDensityMode() ? Math.max(1, Math.floor(baseCount / 2)) : baseCount;
   const existingTokens = UI.bitLayer.childElementCount || 0;
-  const maxTokens = 80;
+  const maxTokens = isHighDensityMode() ? 40 : 80;
   const availableSlots = Math.max(0, maxTokens - existingTokens);
   const tokenCount = Math.max(1, Math.min(requestedTokenCount, availableSlots || 1));
   const valueBase = Math.max(1, Math.round(4 + state.currentLevel.index * 1.2));
@@ -5566,7 +5981,7 @@ function collectBitToken(token) {
   updateResources();
   queueSave(2000);
   animateTokenToCursor(token, areaRect, clampedX, clampedY, () => {
-    createFloatText(UI.customCursor || document.body, `+${value} bits`, '#ffd166');
+    createFloatText(UI.customCursor || document.body, `+${value} bits`, '#ffd166', { variant: 'currency' });
     token.remove();
   });
 }
@@ -5619,6 +6034,66 @@ function animateTokenToCursor(token, areaRect, fallbackX, fallbackY, onComplete)
   token.__animationFrame = requestAnimationFrame(step);
 }
 
+function getBossCenterInArea(bossObj = activeBoss) {
+  if (!bossObj) return null;
+  return {
+    x: bossObj.position.x + bossObj.size / 2,
+    y: bossObj.position.y + bossObj.size / 2,
+  };
+}
+
+function createBossImpactBurst(options = {}) {
+  if (!UI.particleLayer || !activeBoss?.el || state.settings.reducedAnimation) return;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const minInterval = options.defeat ? 0 : options.critical ? 70 : 120;
+  if (!options.defeat && now - lastBossImpactEffectAt < minInterval) return;
+  lastBossImpactEffectAt = now;
+  const center = getBossCenterInArea(activeBoss);
+  if (!center) return;
+  const burst = document.createElement('div');
+  burst.className = 'boss-impact-burst';
+  if (options.critical) {
+    burst.classList.add('critical');
+  }
+  if (options.defeat) {
+    burst.classList.add('defeat');
+  }
+  burst.style.left = `${center.x}px`;
+  burst.style.top = `${center.y}px`;
+  burst.style.transform = 'translate(-50%, -50%)';
+  const shardCount = options.defeat ? 16 : options.critical ? 10 : 7;
+  const spread = options.defeat ? 128 : options.critical ? 92 : 72;
+  for (let i = 0; i < shardCount; i += 1) {
+    const shard = document.createElement('span');
+    shard.style.setProperty('--tx', `${(Math.random() - 0.5) * spread * 2}px`);
+    shard.style.setProperty('--ty', `${(Math.random() - 0.5) * spread * 2}px`);
+    shard.style.setProperty('--rot', `${(Math.random() - 0.5) * 220}deg`);
+    shard.style.animationDelay = `${Math.random() * 55}ms`;
+    burst.appendChild(shard);
+  }
+  UI.particleLayer.appendChild(burst);
+  setTimeout(() => burst.remove(), options.defeat ? 820 : 460);
+}
+
+function triggerBossDamageEffect(options = {}) {
+  if (!activeBoss?.el || state.settings.reducedAnimation) return;
+  const bossEl = activeBoss.el;
+  bossEl.classList.remove('hit');
+  bossEl.classList.remove('critical-hit');
+  void bossEl.offsetWidth;
+  bossEl.classList.add('hit');
+  if (options.critical) {
+    bossEl.classList.add('critical-hit');
+  }
+  if (activeBoss.hitTimeout) clearTimeout(activeBoss.hitTimeout);
+  if (activeBoss.critTimeout) clearTimeout(activeBoss.critTimeout);
+  activeBoss.hitTimeout = setTimeout(() => bossEl.isConnected && bossEl.classList.remove('hit'), 220);
+  if (options.critical) {
+    activeBoss.critTimeout = setTimeout(() => bossEl.isConnected && bossEl.classList.remove('critical-hit'), 340);
+  }
+  createBossImpactBurst(options);
+}
+
 function configureBossPath(bossObj, initial = false) {
   if (!bossObj || !UI.nodeArea) return;
   const width = UI.nodeArea.clientWidth || UI.nodeArea.getBoundingClientRect().width;
@@ -5658,6 +6133,7 @@ function updateLevel(delta) {
 function clearActiveEntities() {
   activeNodes.forEach((node) => node.el?.remove());
   activeNodes.clear();
+  syncNodeDensityState();
   if (activeBoss?.el) {
     activeBoss.el.remove();
   }
@@ -5787,11 +6263,13 @@ function applyBossDamage(amount, sourceEl = activeBoss?.el) {
   if (damage <= 0) return;
   const ramp = 1 + state.bossKills * (stats.bossKillDamageRamp || 0);
   const effectiveDamage = Math.max(0, damage * ramp);
+  const criticalImpact = effectiveDamage >= 180;
   state.currentLevel.bossHP -= effectiveDamage;
   state.currentLevel.bossDamageDealt = Math.max(0, (state.currentLevel.bossDamageDealt || 0) + effectiveDamage);
   if (activeBoss?.el) {
-    createFloatText(activeBoss.el, `-${Math.round(effectiveDamage)}`, 'var(--accent)');
-    showBossDamageNumber(effectiveDamage);
+    createFloatText(activeBoss.el, `-${Math.round(effectiveDamage)}`, 'var(--accent)', { variant: 'damage' });
+    showBossDamageNumber(effectiveDamage, { critical: criticalImpact });
+    triggerBossDamageEffect({ critical: criticalImpact });
   }
   updateBossDamageCounter();
   updateBossBar();
@@ -5800,10 +6278,13 @@ function applyBossDamage(amount, sourceEl = activeBoss?.el) {
   }
 }
 
-function showBossDamageNumber(damage) {
+function showBossDamageNumber(damage, options = {}) {
   if (!activeBoss?.el) return;
   const number = document.createElement('div');
   number.className = 'boss-damage-number';
+  if (options.critical) {
+    number.classList.add('critical');
+  }
   number.textContent = `-${Math.round(damage)}`;
   activeBoss.el.appendChild(number);
   requestAnimationFrame(() => number.classList.add('visible'));
@@ -5860,15 +6341,17 @@ function updateBossBar() {
 
 function playBossDefeatAnimation(bossEl) {
   if (!bossEl || state.settings.reducedAnimation) return Promise.resolve();
+  createBossImpactBurst({ critical: true, defeat: true });
   const baseTransform = bossEl.style.transform || '';
   return new Promise((resolve) => {
     const animation = bossEl.animate(
       [
         { transform: `${baseTransform} scale(1)`, opacity: 1, filter: 'drop-shadow(0 0 0 rgba(255, 209, 127, 0.5))' },
-        { transform: `${baseTransform} scale(1.08) rotate(2deg)`, opacity: 1, filter: 'drop-shadow(0 0 24px rgba(255, 209, 127, 0.75))' },
-        { transform: `${baseTransform} scale(0.15) rotate(-12deg)`, opacity: 0, filter: 'drop-shadow(0 0 32px rgba(255, 243, 191, 0.9))' },
+        { transform: `${baseTransform} scale(1.12) rotate(4deg)`, opacity: 1, filter: 'drop-shadow(0 0 28px rgba(255, 209, 127, 0.8))' },
+        { transform: `${baseTransform} scale(1.22) rotate(-8deg)`, opacity: 0.95, filter: 'drop-shadow(0 0 42px rgba(255, 243, 191, 0.95))' },
+        { transform: `${baseTransform} scale(0.08) rotate(18deg)`, opacity: 0, filter: 'drop-shadow(0 0 52px rgba(255, 243, 191, 1))' },
       ],
-      { duration: 640, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' },
+      { duration: 720, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' },
     );
     animation.addEventListener('finish', () => resolve());
     animation.addEventListener('cancel', () => resolve());
@@ -5895,6 +6378,7 @@ function defeatBoss() {
     grantPrestige(prestige);
     activeNodes.forEach((node) => node.el.remove());
     activeNodes.clear();
+    syncNodeDensityState();
     if (defeatedBossEl?.isConnected) {
       defeatedBossEl.remove();
     }
@@ -5927,17 +6411,17 @@ function updateStats() {
   stats.bitCollectRadius = 0;
   stats.xpGain = 1;
   stats.prestigeGain = 1;
-  stats.nodeSpawnDelay = 2;
-  stats.maxNodes = 4;
+  stats.nodeSpawnDelay = 1.8;
+  stats.maxNodes = 6;
   stats.nodeHPFactor = 1 + state.currentLevel.index * 0.03;
   stats.bossHPFactor = 1;
   stats.nodeCountDamageBonus = 0;
   stats.bossKillDamageRamp = 0;
   stats.maxHealth = 100 + state.level * 5;
   const levelPressure = Math.max(0, state.currentLevel.index - 1);
-  const spawnAcceleration = Math.min(1.2, levelPressure * 0.04);
-  stats.nodeSpawnDelay = Math.max(0.6, stats.nodeSpawnDelay - spawnAcceleration);
-  stats.maxNodes += Math.floor(levelPressure / 5);
+  const spawnAcceleration = Math.min(1.35, levelPressure * 0.045);
+  stats.nodeSpawnDelay = Math.max(0.45, stats.nodeSpawnDelay - spawnAcceleration);
+  stats.maxNodes += Math.floor(levelPressure * 1.5);
   stats.bossHPFactor = 1 + levelPressure * 0.05;
   Object.entries(state.upgrades).forEach(([id, level]) => {
     const upgrade = upgrades.find((u) => u.id === id);
@@ -5949,7 +6433,9 @@ function updateStats() {
   applyCollectUpgrades(stats);
   applySpawnUpgrades(stats);
   applySpeedUpgrades(stats);
-  stats.nodeSpawnDelay = Math.max(0.05, stats.nodeSpawnDelay);
+  stats.critChance = Math.min(0.7, Math.max(0, stats.critChance));
+  stats.maxNodes = Math.max(6, Math.floor(stats.maxNodes));
+  stats.nodeSpawnDelay = Math.max(0.02, stats.nodeSpawnDelay);
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
   applyCursorSize();
@@ -5961,7 +6447,7 @@ function updateStats() {
 function updateQuickStats() {
   if (!UI.quickStatDamage) return;
   UI.quickStatDamage.textContent = `${Math.round(stats.damage).toLocaleString()}`;
-  UI.quickStatCrit.textContent = `${(stats.critChance * 100).toFixed(1)}% x${stats.critMultiplier.toFixed(2)}`;
+  UI.quickStatCrit.textContent = `${(stats.critChance * 100).toFixed(1)}% / 70% cap x${stats.critMultiplier.toFixed(2)}`;
   UI.quickStatAuto.textContent = `${stats.autoInterval.toFixed(2)}s`;
   UI.quickStatSpawn.textContent = `${stats.nodeSpawnDelay.toFixed(2)}s / ${stats.maxNodes}`;
   const bossHp = Math.round(getBossBaseHP(state.currentLevel.index) * stats.bossHPFactor);
@@ -5970,21 +6456,46 @@ function updateQuickStats() {
 
 function updateBossPhaseBar() {
   if (!UI.bossPhaseFill || !UI.bossPhasePhase) return;
-  const max = Math.max(1, state.currentLevel.bossMaxHP || getBossBaseHP(state.currentLevel.index));
-  const ratio = state.currentLevel.bossActive ? Math.max(0, state.currentLevel.bossHP) / max : 0;
-  UI.bossPhaseFill.style.transform = `scaleX(${ratio})`;
-  const phase = ratio > 0.66 ? 1 : ratio > 0.33 ? 2 : ratio > 0 ? 3 : '-';
-  UI.bossPhasePhase.textContent = state.currentLevel.bossActive ? `Phase ${phase}` : 'Idle';
+  if (state.currentLevel.bossActive) {
+    const max = Math.max(1, state.currentLevel.bossMaxHP || getBossBaseHP(state.currentLevel.index));
+    const ratio = Math.max(0, state.currentLevel.bossHP) / max;
+    const phase = ratio > 0.66 ? 1 : ratio > 0.33 ? 2 : ratio > 0 ? 3 : '-';
+    UI.bossPhaseFill.style.transform = `scaleX(${ratio})`;
+    UI.bossPhaseFill.style.background = 'linear-gradient(90deg, rgba(255, 110, 168, 0.85), rgba(255, 209, 102, 0.88))';
+    UI.bossPhasePhase.textContent = `Phase ${phase}`;
+    if (UI.bossPhaseMeta) {
+      UI.bossPhaseMeta.textContent = `${formatNumberShort(Math.max(0, state.currentLevel.bossHP))} / ${formatNumberShort(max)} HP`;
+    }
+    return;
+  }
+  const duration = Math.max(1, getLevelDuration(state.currentLevel.index));
+  const remaining = Math.max(0, state.currentLevel.timer || 0);
+  const progress = Math.max(0, Math.min(1, 1 - remaining / duration));
+  UI.bossPhaseFill.style.transform = `scaleX(${progress})`;
+  UI.bossPhaseFill.style.background = 'linear-gradient(90deg, rgba(118, 244, 198, 0.78), rgba(126, 246, 255, 0.82))';
+  UI.bossPhasePhase.textContent = `Boss in ${formatClockShort(remaining)}`;
+  if (UI.bossPhaseMeta) {
+    UI.bossPhaseMeta.textContent = `Stage ${state.currentLevel.index} countdown`;
+  }
 }
 
 function updateResources() {
   UI.bits.textContent = formatNumberShort(Math.floor(state.bits));
   UI.cryptcoins.textContent = formatNumberShort(Math.floor(state.cryptcoins));
   UI.prestige.textContent = formatNumberShort(Math.floor(state.prestige));
-  UI.xp.textContent = `${formatNumberShort(Math.floor(state.xp))} (${formatNumberShort(
-    Math.floor(state.levelXP),
-  )}/${formatNumberShort(Math.floor(state.xpForNext))})`;
-  UI.level.textContent = formatNumberShort(state.level);
+  UI.xp.textContent = formatNumberShort(Math.floor(state.xp));
+  if (UI.rank) {
+    UI.rank.textContent = formatNumberShort(state.level);
+  }
+  if (UI.rankProgressLabel) {
+    UI.rankProgressLabel.textContent = `${formatNumberShort(Math.floor(state.levelXP))} / ${formatNumberShort(
+      Math.floor(state.xpForNext),
+    )} XP`;
+  }
+  if (UI.rankProgressFill) {
+    const ratio = Math.max(0, Math.min(1, (state.levelXP || 0) / Math.max(1, state.xpForNext || 1)));
+    UI.rankProgressFill.style.transform = `scaleX(${ratio})`;
+  }
   UI.lp.textContent = formatNumberShort(state.lp);
   UI.currentLevel.textContent = state.currentLevel.index;
   updateCryptoUI();
@@ -5994,6 +6505,7 @@ function updateResources() {
   renderCollectUpgrades();
   renderSpawnUpgrades();
   renderSpeedUpgrades();
+  refreshVisibleUpgradeStates();
   updateTabAvailability();
   updateUpgradeTabAvailability();
   updateQuickStats();
@@ -6037,11 +6549,10 @@ function updateCrypto(delta) {
   if (!state.cryptoUnlocked || state.crypto.deposit <= 0 || state.crypto.rate <= 0) return;
   state.crypto.timeRemaining = Math.max(0, state.crypto.timeRemaining - delta);
   const generated = state.crypto.rate * delta;
-  state.cryptcoins += generated;
+  state.crypto.mined += generated;
   if (state.crypto.timeRemaining <= 0) {
-    state.crypto.deposit = 0;
-    state.crypto.rate = 0;
-    queueSave();
+    settleCryptoRun();
+    return;
   }
   updateCryptoUI();
 }
