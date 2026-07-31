@@ -9,7 +9,8 @@
     "stage:game": "node build/stage-game.mjs",
     "build": "npm run stage:game && vinext build",
     "dev": "npm run stage:game && vinext dev",
-    "start": "vinext start"
+    "start": "vinext start",
+    "publish:snapshot": "node build/publish-snapshot.mjs"
   },
   "dependencies": {
     "next": "16.2.6",
