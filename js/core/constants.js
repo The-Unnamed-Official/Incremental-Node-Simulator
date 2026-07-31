@@ -4,9 +4,41 @@ const LEVEL_DURATION_INCREMENT = 7;
 const BASE_BOSS_HP = 180;
 const BOSS_HP_INCREMENT = 2.42;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v2.000';
+const GAME_VERSION = 'v2.100';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v2.100',
+    title: 'NodeShift v2.1 // Breach Deck',
+    description:
+      'A complete stability recovery and visual systems rebuild: the full runtime is active again, every control is wired, and the interface now reads like a responsive neon breach console.',
+    changes: [
+      {
+        text: 'Runtime restored',
+        sub: [
+          'Repaired the bootstrap fault that prevented the game loop, upgrades, controls, nodes, and cursor from initialising.',
+          'Added early boot fault capture so a future startup problem cannot fail as a silent, dead interface.',
+          'Resolved the duplicate upgrade-name routine exposed by the repaired bootstrap path.',
+        ],
+      },
+      {
+        text: 'Breach Deck interface',
+        sub: [
+          'Rebuilt every major surface around a sharper neon-pixel command deck with stronger hierarchy, contrast, focus states, responsive stacking, and clearer live status.',
+          'Reworked the battlefield, boss tracker, telemetry, resource cards, module bay, upgrade cards, progress archive, dialogs, settings, music, and stat docks as one coherent visual system.',
+          'The native pointer is now suppressed across the entire game while the high-visibility pixel reticle remains active globally.',
+        ],
+      },
+      {
+        text: 'Interaction polish',
+        sub: [
+          'Buttons now have consistent hover, pressed, focus, affordable, locked, and selected states.',
+          'Dense panels use contained scrolling and sticky controls without hiding upgrades or breaking the combat viewport.',
+          'Reduced-motion mode keeps the hierarchy and cursor while disabling nonessential scanning sweeps.',
+        ],
+      },
+    ],
+  },
   {
     version: 'v2.000',
     title: 'NodeShift v2 // Continuum',
@@ -594,7 +626,7 @@ const bossNames = [
 ];
 
 const SKILL_CHECK_DIFFICULTIES = {
-  easy: { duration: 5.2, baseSpeed: 0.5, window: 0.34, minWindow: 0.2 },
-  normal: { duration: 4.8, baseSpeed: 0.68, window: 0.27, minWindow: 0.15 },
-  hard: { duration: 4.4, baseSpeed: 0.82, window: 0.22, minWindow: 0.12 },
+  easy: { duration: 6.6, baseSpeed: 0.46, window: 0.36, minWindow: 0.22 },
+  normal: { duration: 6, baseSpeed: 0.62, window: 0.29, minWindow: 0.17 },
+  hard: { duration: 5.4, baseSpeed: 0.76, window: 0.24, minWindow: 0.14 },
 };

@@ -6,6 +6,19 @@
   <title>NodeShift v2 — Breach. Build. Overclock.</title>
   <meta name="description" content="NodeShift v2 is a neon pixel incremental game about breaching nodes, building an upgrade network, mining Cryptcoin, and pushing an endless Continuum." />
   <meta name="theme-color" content="#05070d" />
+  <script>
+    window.__nodeshiftBootErrors = [];
+    window.addEventListener('error', function (event) {
+      var detail = [event.message, event.filename, event.lineno, event.colno].filter(Boolean).join(' | ');
+      window.__nodeshiftBootErrors.push(detail);
+      document.documentElement.setAttribute('data-boot-error', detail);
+    });
+    window.addEventListener('unhandledrejection', function (event) {
+      var detail = 'Promise rejection: ' + String(event.reason && (event.reason.stack || event.reason.message) || event.reason);
+      window.__nodeshiftBootErrors.push(detail);
+      document.documentElement.setAttribute('data-boot-error', detail);
+    });
+  </script>
   <meta property="og:type" content="website" />
   <meta property="og:title" content="NodeShift v2 — Breach. Build. Overclock." />
   <meta property="og:description" content="A neon pixel incremental game with fair skill checks, deep upgrade networks, and an endless Continuum." />
@@ -14,7 +27,7 @@
   <meta property="og:image:height" content="945" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="/og.png" />
-  <link rel="stylesheet" href="style.css?v=2.000" />
+  <link rel="stylesheet" href="style.css?v=2.100" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="icon" type="image/png" sizes="16x16" href="files/icons/favicons/favicon-16.png">
@@ -29,7 +42,7 @@
     rel="stylesheet"
   />
   <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="v2.css?v=2.000" />
+  <link rel="stylesheet" href="v2.css?v=2.100" />
 </head>
 <body class="vhs">
   <div id="crt-overlay"></div>
@@ -605,11 +618,11 @@
     </div>
   </div>
   <audio id="bgm" src="files/music/bg_music.mp3" preload="metadata"></audio>
-  <script src="js/core/constants.js?v=2.000" defer></script>
-  <script src="js/core/state.js?v=2.000" defer></script>
-  <script src="js/core/audio.js?v=2.000" defer></script>
-  <script src="js/ui/quick-stats-panel.js?v=2.000" defer></script>
-  <script src="js/ui/music-player.js?v=2.000" defer></script>
-  <script src="js/main.js?v=2.000" defer></script>
+  <script src="js/core/constants.js?v=2.100" defer></script>
+  <script src="js/core/state.js?v=2.100" defer></script>
+  <script src="js/core/audio.js?v=2.100" defer></script>
+  <script src="js/ui/quick-stats-panel.js?v=2.100" defer></script>
+  <script src="js/ui/music-player.js?v=2.100" defer></script>
+  <script src="js/main.js?v=2.100" defer></script>
 </body>
 </html>

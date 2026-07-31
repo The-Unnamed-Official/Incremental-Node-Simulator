@@ -893,8 +893,8 @@ function saveGame(options = {}) {
         return false;
       }
 
-      /* Legacy unreachable fallback removed in v2. The active path above either
-         stores the compact snapshot in session storage or returns a clear error.
+      /* Legacy fallback retained for older save snapshots. The active path above
+         stores the compact snapshot in session storage or returns a clear error. */
       // Legacy fallback retained for old browsers; no unrelated storage is touched.
       try {
         // Retry the compact save once.
@@ -1442,7 +1442,7 @@ function renderUpdateLogs() {
     tab.id = `update-log-tab-${safeId}`;
     tab.setAttribute('role', 'tab');
     tab.innerHTML = `
-      <span>${log.version}${log.isLatest ? ' (Latest Update)' : ''}</span>
+      <span>${log.version}</span>
       ${log.isLatest ? '<span class="tag">(Latest Update)</span>' : ''}
     `;
     tab.addEventListener('click', () => selectUpdateLog(log.version));
@@ -2853,6 +2853,10 @@ function applyCollectUpgrades(statsObj) {
 }
 
 function getUpgradeDisplayName(upgrade, level = 0) {
+  if (upgrade?.id === 'PHASE_HALO') {
+    const version = Math.min(4, Math.max(1, Math.ceil(Math.max(level, 0) / 3) || 1));
+    return `${upgrade.name} ${romanNumeral(version)}`;
+  }
   if (Array.isArray(upgrade?.tierNames) && upgrade.tierNames.length > 0) {
     const index = Math.min(Math.max(0, level), upgrade.tierNames.length - 1);
     return upgrade.tierNames[index];
@@ -3192,14 +3196,6 @@ function getVisibleUpgradeSet(activeFilter, categorySequences) {
     });
   });
   return visible;
-}
-
-function getUpgradeDisplayName(upgrade, level) {
-  if (upgrade.id === 'PHASE_HALO') {
-    const version = Math.min(4, Math.max(1, Math.ceil(Math.max(level, 0) / 3) || 1));
-    return `${upgrade.name} ${romanNumeral(version)}`;
-  }
-  return upgrade.name;
 }
 
 function buildSkillBranchLayout(activeFilter) {
@@ -5824,7 +5820,6 @@ function tickNodeBehavior(node, delta) {
       if (healFactor > 0 && node.hp < node.maxHP) {
         node.hp = Math.min(node.maxHP, node.hp + damage * healFactor);
       }
-      */
     }
   }
   if (node.type.id === 'prismatic') {

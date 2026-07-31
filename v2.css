@@ -1,10 +1,15 @@
 /* NodeShift v2 command-deck skin. Loaded after the legacy sheet on purpose. */
 :root {
-  --v2-ink: #05070d;
-  --v2-surface: #090e18;
-  --v2-raised: #101725;
-  --v2-line: color-mix(in srgb, var(--accent) 32%, transparent);
+  --v2-ink: #02040a;
+  --v2-surface: #070d18;
+  --v2-raised: #0d1727;
+  --v2-line: color-mix(in srgb, var(--accent) 38%, transparent);
   --v2-dim: color-mix(in srgb, var(--text) 58%, transparent);
+  --v2-cyan: #6effe0;
+  --v2-blue: #65b8ff;
+  --v2-violet: #b786ff;
+  --v2-pink: #ff6dac;
+  --v2-gold: #ffd166;
   --v2-pixel: 2px;
   --v2-cut: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px));
   --stack-gap: 12px;
@@ -14,7 +19,19 @@
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--accent-slighty) var(--v2-ink);
-  cursor: auto !important;
+  cursor: none !important;
+}
+
+html,
+body,
+button,
+select,
+input,
+textarea,
+a,
+label,
+[role='button'] {
+  cursor: none !important;
 }
 
 body {
@@ -27,14 +44,6 @@ body {
     linear-gradient(90deg, var(--v2-line) 1px, transparent 1px),
     repeating-linear-gradient(135deg, transparent 0 18px, rgba(255,255,255,.012) 18px 20px);
   background-size: 48px 48px, 48px 48px, auto;
-}
-
-button,
-select,
-input,
-a,
-label {
-  cursor: pointer !important;
 }
 
 #node-area,
@@ -1045,10 +1054,877 @@ kbd {
 }
 
 @media (hover: none), (pointer: coarse) {
+  *,
   #node-area,
-  #node-area * { cursor: auto !important; }
+  #node-area * { cursor: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
+}
+
+/* --------------------------------------------------------------------------
+   v2.1 // BREACH DECK
+   A full visual hierarchy pass layered over the legacy-compatible structure.
+   -------------------------------------------------------------------------- */
+
+html {
+  color-scheme: dark;
+  background: #010208;
+}
+
+body {
+  min-width: 320px;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 16% 8%, color-mix(in srgb, var(--accent) 14%, transparent) 0, transparent 28rem),
+    radial-gradient(circle at 92% 34%, rgba(183, 134, 255, .11) 0, transparent 32rem),
+    linear-gradient(155deg, #02040a 0%, #060b15 48%, #02050b 100%);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--accent) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(to bottom, #000, transparent 86%);
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 999998;
+  pointer-events: none;
+  opacity: .22;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen;
+}
+
+html[data-boot-error] body::before {
+  content: 'SYSTEM FAULT // RELOAD NODESHIFT';
+  z-index: 1000001;
+  inset: 12px 12px auto;
+  padding: 12px 16px;
+  color: #fff;
+  border: 2px solid var(--v2-pink);
+  background: #1a0610;
+  mask-image: none;
+  font: 10px/1.4 'Press Start 2P', monospace;
+  letter-spacing: .08em;
+  box-shadow: 6px 6px 0 #000, 0 0 24px rgba(255, 109, 172, .35);
+}
+
+::selection {
+  color: #03100d;
+  background: var(--accent);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #fff !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px #000, 0 0 20px var(--accent) !important;
+}
+
+#app {
+  width: min(1760px, calc(100vw - 24px));
+  padding: 12px 0 34px;
+  gap: 14px;
+}
+
+.top-bar,
+.gameplay,
+.side-panel,
+.progress-dock {
+  position: relative;
+  clip-path: var(--v2-cut);
+}
+
+.top-bar::before,
+.gameplay::before,
+.side-panel::before,
+.progress-dock::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--accent), transparent 22%) top left / 100% 2px no-repeat,
+    linear-gradient(180deg, var(--accent), transparent 34%) top left / 2px 100% no-repeat;
+  opacity: .8;
+}
+
+.top-bar > *,
+.gameplay > *,
+.side-panel > *,
+.progress-dock > * {
+  position: relative;
+  z-index: 1;
+}
+
+.top-bar {
+  position: sticky;
+  top: 6px;
+  min-height: 78px;
+  padding: 8px 10px;
+  border-color: color-mix(in srgb, var(--accent) 62%, #26344d);
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--accent) 8%, #050914) 0 22%, rgba(4, 8, 16, .98) 48%),
+    #050914;
+  box-shadow: 7px 7px 0 rgba(0, 0, 0, .9), 0 0 28px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 0 1px rgba(255, 255, 255, .035);
+}
+
+.top-bar::after {
+  left: 12px;
+  right: 12px;
+  bottom: 4px;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--accent) 0 18px, transparent 18px 27px);
+  opacity: .48;
+}
+
+.top-bar-left {
+  min-width: 318px;
+  gap: 10px;
+}
+
+.title {
+  max-width: 340px;
+}
+
+.title-heading {
+  position: relative;
+  padding-left: 12px;
+}
+
+.title-heading::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.brand-kicker::before {
+  content: '● ';
+  color: var(--v2-gold);
+  text-shadow: 0 0 7px var(--v2-gold);
+}
+
+.title h1 {
+  color: #f4fff9;
+  text-shadow: 3px 3px 0 #091510, 0 0 16px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.version-tag {
+  position: relative;
+  overflow: hidden;
+  color: var(--accent);
+  border-color: var(--accent-slight);
+  background: #07120f;
+}
+
+.version-tag::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-110%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+  animation: v2-sweep 5s steps(8) infinite;
+}
+
+@keyframes v2-sweep {
+  0%, 70% { transform: translateX(-110%); }
+  90%, 100% { transform: translateX(110%); }
+}
+
+.top-bar-settings {
+  border-color: color-mix(in srgb, var(--accent) 55%, #27334a);
+  background: linear-gradient(145deg, #101b29, #07101b);
+  box-shadow: 3px 3px 0 #000, inset 0 0 0 1px rgba(255,255,255,.05);
+}
+
+.top-bar-settings:hover {
+  color: #07110e;
+  background: var(--accent);
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 #000, 0 0 18px var(--accent-slight);
+}
+
+.resource-bar,
+.top-bar.is-sticky .resource-bar {
+  grid-template-columns: repeat(4, minmax(88px, .8fr)) minmax(186px, 1.35fr) minmax(76px, .65fr);
+  gap: 7px;
+}
+
+.resource {
+  position: relative;
+  min-height: 56px;
+  padding: 7px 9px 8px;
+  border-color: #22324a;
+  border-left-color: var(--accent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 50%),
+    #070d18;
+  box-shadow: 3px 3px 0 #000, inset 0 0 0 1px rgba(255,255,255,.025);
+}
+
+.resource::before {
+  height: 2px;
+  opacity: .7;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.resource:hover {
+  border-color: color-mix(in srgb, var(--accent) 68%, #26344a);
+  background-color: #0b1421;
+}
+
+.resource-value {
+  font-size: 12px !important;
+  text-shadow: 0 0 9px color-mix(in srgb, var(--accent) 55%, transparent) !important;
+}
+
+.resource-hint {
+  opacity: .72;
+}
+
+.resource-progress-track,
+.boss-phase-track,
+.progress-track,
+.progress-bar {
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 4px, transparent 4px 8px),
+    #02050a;
+}
+
+.main-layout {
+  grid-template-columns: minmax(0, 1.7fr) minmax(408px, .78fr);
+  gap: 14px;
+}
+
+.gameplay,
+.side-panel,
+.progress-dock {
+  border-color: color-mix(in srgb, var(--accent) 48%, #26344a);
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--accent) 4%, transparent), transparent 38%),
+    rgba(4, 8, 16, .97);
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, .88), 0 0 24px rgba(0, 0, 0, .65), inset 0 0 0 1px rgba(255,255,255,.025);
+}
+
+.gameplay {
+  position: relative;
+  top: auto;
+  padding: 11px;
+  gap: 8px;
+}
+
+.arena-command-row {
+  grid-template-columns: minmax(260px, .78fr) minmax(340px, 1.22fr);
+  gap: 8px;
+}
+
+.level-readout,
+.boss-phase {
+  min-height: 64px;
+  border-color: color-mix(in srgb, var(--accent) 32%, #233149);
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 52%),
+    #060b14;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025);
+}
+
+.stage-kicker,
+.boss-phase-label,
+.telemetry-label,
+.branch-title,
+.area-kicker,
+.progress-kicker {
+  color: color-mix(in srgb, var(--accent) 82%, #c7d8e9);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.stage-identity strong {
+  color: #f4fff9;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+.stage-jump input,
+input[type='number'] {
+  border-color: #25344b;
+  background: #02050b;
+  box-shadow: inset 2px 2px 0 rgba(0,0,0,.7);
+}
+
+.custom-dropdown__button,
+.pill,
+.tab-button,
+.upgrade-tab,
+.filter-chip,
+.progress-tab {
+  position: relative;
+  overflow: hidden;
+  transition: transform .12s steps(2), border-color .12s, background-color .12s, color .12s, box-shadow .12s;
+}
+
+.custom-dropdown__button:hover,
+.pill:hover,
+.tab-button:hover,
+.upgrade-tab:hover,
+.filter-chip:hover,
+.progress-tab:hover {
+  border-color: var(--accent);
+  box-shadow: 4px 4px 0 #000, 0 0 12px color-mix(in srgb, var(--accent) 23%, transparent);
+}
+
+.pill:active,
+.tab-button:active,
+.upgrade-tab:active,
+.filter-chip:active,
+.progress-tab:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 #000;
+}
+
+.boss-phase-header {
+  padding-inline: 2px;
+}
+
+.boss-phase-meta {
+  color: var(--accent);
+}
+
+.boss-phase-track {
+  height: 17px;
+  border-color: #25344b;
+  box-shadow: inset 0 0 12px rgba(0,0,0,.9);
+}
+
+.boss-phase-fill,
+.resource-progress-fill,
+.progress-fill,
+.skill-check-timer-fill {
+  box-shadow: 0 0 12px var(--accent-slight), inset 0 1px 0 rgba(255,255,255,.34);
+}
+
+.arena-telemetry {
+  border-color: #223149;
+  background: #040811;
+  box-shadow: inset 0 0 16px rgba(0,0,0,.4);
+}
+
+.telemetry-item {
+  position: relative;
+}
+
+.telemetry-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  background: color-mix(in srgb, var(--accent) 62%, transparent);
+}
+
+.telemetry-item strong {
+  color: #effff9;
+}
+
+.telemetry-objective {
+  background: linear-gradient(90deg, rgba(255, 209, 102, .045), transparent);
+}
+
+.telemetry-objective::before {
+  background: var(--v2-gold);
+}
+
+.node-area,
+.gameplay .node-area {
+  height: clamp(440px, calc(100vh - 245px), 720px);
+  min-height: 440px;
+  border-color: color-mix(in srgb, var(--accent) 76%, #496175);
+  background:
+    radial-gradient(circle at 50% 44%, rgba(183, 134, 255, .16), transparent 35%),
+    radial-gradient(circle at 10% 85%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 24%),
+    linear-gradient(rgba(110, 255, 224, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 255, 224, .045) 1px, transparent 1px),
+    #02050c;
+  background-size: auto, auto, 28px 28px, 28px 28px, auto;
+  box-shadow:
+    inset 0 0 0 5px #040812,
+    inset 0 0 0 6px color-mix(in srgb, var(--accent) 34%, transparent),
+    inset 0 0 70px rgba(83, 61, 157, .22),
+    0 0 18px color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.node-area::before {
+  content: 'LIVE // BREACH FIELD';
+  position: absolute;
+  z-index: 9;
+  top: 13px;
+  right: 14px;
+  padding: 4px 6px;
+  color: color-mix(in srgb, var(--accent) 75%, #fff);
+  border-right: 2px solid var(--accent);
+  background: rgba(2, 6, 12, .7);
+  font: 8px/1 'Press Start 2P', monospace;
+  letter-spacing: .08em;
+  pointer-events: none;
+}
+
+.node-area::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0 46%, color-mix(in srgb, var(--accent) 10%, transparent) 49%, transparent 52%);
+  animation: field-scan 7s linear infinite;
+}
+
+@keyframes field-scan {
+  from { transform: translateY(-55%); }
+  to { transform: translateY(55%); }
+}
+
+.node-arena-backdrop {
+  opacity: .75;
+  background:
+    linear-gradient(90deg, transparent 49.8%, color-mix(in srgb, var(--accent) 9%, transparent) 50%, transparent 50.2%),
+    linear-gradient(transparent 49.8%, color-mix(in srgb, var(--accent) 9%, transparent) 50%, transparent 50.2%),
+    radial-gradient(circle at center, transparent 0 24%, rgba(183,134,255,.05) 24.5% 25%, transparent 25.5%);
+}
+
+.arena-corner {
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+.node {
+  border-color: currentColor;
+  box-shadow: 4px 4px 0 rgba(0,0,0,.88), inset 0 0 0 1px rgba(255,255,255,.12), 0 0 16px color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.side-panel {
+  position: sticky;
+  top: 98px;
+  height: calc(100vh - 110px);
+  min-height: 620px;
+  max-height: 790px;
+  padding: 9px;
+}
+
+.side-panel::after {
+  content: 'MODULE BAY // ONLINE';
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  bottom: 5px;
+  color: color-mix(in srgb, var(--accent) 48%, transparent);
+  font-size: 7px;
+  letter-spacing: .14em;
+  pointer-events: none;
+}
+
+.tabs {
+  gap: 5px;
+  padding: 4px;
+  border-color: #233249;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 8px, rgba(255,255,255,.018) 8px 10px),
+    #02050b;
+}
+
+.tab-button {
+  min-height: 48px;
+  border-color: #26344a;
+  background: linear-gradient(145deg, #111b2b, #080e18);
+}
+
+.tab-button.active,
+.upgrade-tab.active,
+.filter-chip.active,
+.progress-tab.active {
+  color: #02100c;
+  text-shadow: none;
+  background: linear-gradient(135deg, #d9fff4, var(--accent) 58%, color-mix(in srgb, var(--accent) 65%, #06100d));
+  box-shadow: 3px 3px 0 #000, inset 0 0 0 2px rgba(255,255,255,.24), 0 0 15px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.tab-button[disabled],
+.upgrade-tab[disabled] {
+  filter: grayscale(.85) brightness(.58);
+}
+
+.tab-content.active {
+  padding: 3px 6px 18px 2px;
+}
+
+.upgrade-tabs {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.upgrade-tab {
+  min-height: 48px;
+  padding: 6px 3px;
+  border-color: #26344a;
+  background: #0a111d;
+  font-size: 8px;
+}
+
+.tab-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding-block: 3px;
+  background: rgba(4, 8, 16, .96);
+  backdrop-filter: blur(8px);
+}
+
+.tab-filter-row {
+  gap: 3px;
+}
+
+.tab-filter-row .filter-chip {
+  min-height: 30px;
+  border-color: #27344a;
+  background: #0a111c;
+}
+
+.upgrade-summary {
+  position: relative;
+  padding: 7px 9px 7px 14px;
+  border: 1px solid #233148;
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent), #060b13;
+}
+
+.skill-branch {
+  position: relative;
+  padding: 10px;
+  border-color: #233149;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 48%),
+    #060b14;
+}
+
+.skill-branch::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 10px;
+  width: 16px;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.skill-node,
+.area-upgrade,
+.progress-card {
+  position: relative;
+  overflow: hidden;
+  border-color: #29384f;
+  background:
+    linear-gradient(110deg, rgba(255,255,255,.025), transparent 32%),
+    #080e19 !important;
+}
+
+.skill-node::after,
+.area-upgrade::after,
+.progress-card::after {
+  content: '';
+  position: absolute;
+  right: -18px;
+  bottom: -18px;
+  width: 44px;
+  height: 44px;
+  transform: rotate(45deg);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  pointer-events: none;
+}
+
+.skill-node.available,
+.area-upgrade.available {
+  border-color: var(--accent);
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--accent) 15%, transparent), transparent 62%),
+    #07131a !important;
+  box-shadow: 4px 4px 0 #000, inset 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent), 0 0 14px color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.skill-node.available:hover,
+.area-upgrade.available:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #000, 0 0 18px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.skill-node.purchased,
+.area-upgrade.purchased {
+  border-left-color: var(--v2-violet);
+}
+
+.skill-node.unaffordable,
+.area-upgrade.unaffordable {
+  opacity: .68;
+  filter: saturate(.32) brightness(.8);
+}
+
+.skill-node .cost,
+.area-upgrade .cost {
+  color: var(--accent);
+}
+
+.area-header {
+  border: 1px solid #26344b;
+  border-left: 4px solid var(--accent);
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 64%),
+    #070d18;
+}
+
+.crypto-mine-visual,
+.field,
+.setting,
+.save-controls,
+.crypto-upgrade-panel,
+.lab-progress,
+.lab-controls {
+  border-color: #26344b;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--accent) 4%, transparent), transparent 40%),
+    #070d18;
+}
+
+.crypto-mine-visual {
+  box-shadow: inset 0 0 34px rgba(101, 184, 255, .06);
+}
+
+.crypto-mine-core {
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+
+.progress-dock {
+  padding: 14px 16px 18px;
+}
+
+.progress-dock-header {
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #25334a;
+}
+
+.progress-dock-header h2 {
+  color: #f0fff9;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.progress-dock-panels {
+  max-height: 560px;
+}
+
+.achievement-grid,
+.milestone-dock {
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 9px;
+}
+
+.progress-card {
+  min-height: 186px;
+  border-left-color: var(--v2-violet);
+}
+
+.progress-card.claimable {
+  border-color: var(--v2-gold);
+  box-shadow: 4px 4px 0 #000, 0 0 17px rgba(255, 209, 102, .12);
+}
+
+.quick-stats-panel,
+.music-player {
+  border-color: color-mix(in srgb, var(--accent) 52%, #26344b);
+  background:
+    linear-gradient(140deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 44%),
+    rgba(4, 8, 15, .98);
+  box-shadow: 6px 6px 0 #000, 0 0 22px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.03);
+  clip-path: none;
+  overflow: visible;
+}
+
+.quick-stats-toggle,
+.music-player .player-toggle {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: #060d16;
+}
+
+.quick-stat {
+  border-color: #25344a;
+  background: rgba(7, 13, 23, .82);
+}
+
+.quick-stat .value {
+  color: var(--accent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+.skill-check-panel {
+  width: min(660px, 94vw);
+  max-width: 660px;
+  border-color: var(--accent);
+  background:
+    radial-gradient(circle at 50% 0, color-mix(in srgb, var(--accent) 13%, transparent), transparent 42%),
+    #050a13;
+  box-shadow: 10px 10px 0 #000, 0 0 48px color-mix(in srgb, var(--accent) 18%, transparent), inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+.skill-check-banner {
+  border-left: 4px solid var(--v2-gold);
+  background: linear-gradient(90deg, rgba(255,209,102,.1), transparent), #08101b;
+}
+
+.skill-check-track,
+.skill-check-vertical-track,
+.skill-check-cross {
+  border-color: #34455d;
+  background:
+    linear-gradient(rgba(110,255,224,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110,255,224,.04) 1px, transparent 1px),
+    #02050b;
+  background-size: 16px 16px, 16px 16px, auto;
+}
+
+.skill-check-target,
+.skill-check-vertical-target,
+.skill-check-cross-target {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 26%, transparent), inset 0 0 8px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.level-dialog-panel,
+.new-game-panel,
+.update-log-shell,
+.tutorial-panel {
+  border-color: color-mix(in srgb, var(--accent) 70%, #43566f);
+  background:
+    linear-gradient(140deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 46%),
+    #050a13;
+  box-shadow: 10px 10px 0 #000, 0 0 40px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+#custom-cursor {
+  --cursor-size: 34px;
+  display: grid !important;
+  opacity: 1 !important;
+  z-index: 1000002;
+  filter: drop-shadow(0 0 5px var(--accent));
+  mix-blend-mode: screen;
+}
+
+#custom-cursor::before,
+#custom-cursor::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: color-mix(in srgb, var(--accent) 78%, #fff);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+#custom-cursor::before {
+  width: calc(var(--cursor-size) + 10px);
+  height: 1px;
+  transform: translate(-50%, -50%);
+}
+
+#custom-cursor::after {
+  width: 1px;
+  height: calc(var(--cursor-size) + 10px);
+  transform: translate(-50%, -50%);
+}
+
+#custom-cursor .cursor-square {
+  width: 18px;
+  height: 18px;
+  transform: rotate(45deg);
+  border: 2px solid color-mix(in srgb, var(--accent) 82%, #fff);
+  background: rgba(1, 5, 10, .44);
+  box-shadow: 0 0 0 2px rgba(0,0,0,.7), 0 0 10px var(--accent);
+}
+
+#custom-cursor .cursor-dot {
+  width: 4px;
+  height: 4px;
+  transform: rotate(-45deg);
+  border: 0;
+  background: #fff;
+  box-shadow: 0 0 8px #fff;
+}
+
+#custom-cursor.active .cursor-square {
+  transform: rotate(45deg) scale(.78);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+#custom-cursor.impact .cursor-square {
+  transform: rotate(135deg) scale(1.12);
+}
+
+@media (max-width: 1480px) {
+  .top-bar-left { min-width: 286px; }
+  .main-layout { grid-template-columns: minmax(0, 1.55fr) minmax(390px, .78fr); }
+  .achievement-grid, .milestone-dock { grid-template-columns: repeat(3, minmax(220px, 1fr)); }
+}
+
+@media (max-width: 1240px) {
+  .top-bar-left { min-width: 230px; }
+  .resource-bar { grid-template-columns: repeat(3, minmax(100px, 1fr)); }
+  .main-layout { grid-template-columns: minmax(0, 1.28fr) minmax(360px, .82fr); }
+  .upgrade-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .node-area, .gameplay .node-area { height: clamp(430px, calc(100vh - 295px), 670px); }
+}
+
+@media (max-width: 960px) {
+  #app { width: calc(100% - 12px); }
+  .top-bar { position: relative; top: 0; }
+  .main-layout { grid-template-columns: 1fr; }
+  .side-panel { position: static; top: auto; height: auto; min-height: 0; max-height: none; }
+  .tab-content.active { max-height: 680px; }
+  .achievement-grid, .milestone-dock { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  #app { width: calc(100% - 6px); padding-top: 3px; }
+  .top-bar, .gameplay, .side-panel, .progress-dock { clip-path: none; }
+  .top-bar-left { min-width: 0; }
+  .title-heading { padding-left: 9px; }
+  .title h1 { font-size: 16px; }
+  .resource { flex-basis: 136px; }
+  .arena-command-row { grid-template-columns: 1fr; }
+  .node-area, .gameplay .node-area { height: 56vh; min-height: 350px; }
+  .upgrade-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .achievement-grid, .milestone-dock { grid-template-columns: 1fr; }
+  .progress-card { min-height: 0; }
+  #custom-cursor { --cursor-size: 28px; }
+}
+
+body.reduced-motion .node-area::after,
+body.reduced-motion .version-tag::after {
+  animation: none !important;
 }
