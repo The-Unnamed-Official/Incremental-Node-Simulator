@@ -1,12 +1,52 @@
 const TICK_RATE = 1000 / 60;
-const BASE_LEVEL_DURATION = 60;
-const LEVEL_DURATION_INCREMENT = 10;
-const BASE_BOSS_HP = 200;
-const BOSS_HP_INCREMENT = 100;
+const BASE_LEVEL_DURATION = 42;
+const LEVEL_DURATION_INCREMENT = 7;
+const BASE_BOSS_HP = 180;
+const BOSS_HP_INCREMENT = 2.42;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v1.700';
+const GAME_VERSION = 'v2.000';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v2.000',
+    title: 'NodeShift v2 // Continuum',
+    description:
+      'A complete command-deck UI rebuild, repaired progression curve, fair bonus skill checks, safer saves, compact records, and a repeatable Continuum endgame.',
+    changes: [
+      {
+        text: 'New command deck',
+        sub: [
+          'The arena, stage controls, boss state, resources, live telemetry, and next objective now fit together in one readable combat viewport.',
+          'Upgrade paths and permanent records use compact scroll regions instead of stretching the entire page or leaving cards off-screen.',
+          'Music and combat-stat modules start docked, stay available, and no longer cover the battlefield by default.',
+        ],
+      },
+      {
+        text: 'Progression rebuilt',
+        sub: [
+          'Node and boss health now scale alongside rewards instead of jumping by 100x between early stages.',
+          'Rank XP, stage timers, spawn pressure, boss rewards, the Lab, and the Crypto Mine now remain useful deeper into a run.',
+          'The repeatable Continuum Core adds four long-run upgrade routes for damage, yield, cadence, and boss output.',
+        ],
+      },
+      {
+        text: 'Fair calibration checks',
+        sub: [
+          'A failed check never removes the purchased upgrade and never charges the price twice.',
+          'Failure builds calibration assistance, widening the next target until the player succeeds.',
+          'Axis Weave no longer lasts a full minute and every check clearly advertises its fail-safe behavior.',
+        ],
+      },
+      {
+        text: 'Reliability pass',
+        sub: [
+          'Save timestamps are stored correctly, fallback saves preserve advanced systems, and unrelated browser storage is never deleted.',
+          'Long idle gaps advance active research and mining safely without simulating thousands of missed animation frames.',
+          'Duplicate IDs, a broken default music path, malformed labels, and several number-format overflow cases are repaired.',
+        ],
+      },
+    ],
+  },
   {
     version: 'v1.700',
     title: 'Total Rework & Bugfix',
@@ -422,7 +462,7 @@ const CRYPTO_SPEED_UPGRADES = [
 ];
 
 const UPGRADE_LEVEL_GROWTH = 1.1;
-const UPGRADE_TIER_GROWTH = 1.5;
+const UPGRADE_TIER_GROWTH = 1.22;
 
 const TAB_UNLOCK_RULES = {
   crypto: { label: 'Crypto Mine', stateKey: 'cryptoUnlocked', cost: { currency: 'bits', amount: 100000, label: '100k Bits' } },
@@ -450,7 +490,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 15 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 15 * Math.pow(2.08, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -462,7 +502,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 30 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 30 * Math.pow(2.1, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -481,7 +521,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 30 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 38 * Math.pow(2.12, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -493,7 +533,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 115 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 110 * Math.pow(2.18, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -503,7 +543,7 @@ const nodeTypes = [
     speedMultiplier: 0.65,
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 220 * Math.pow(110, Math.max(0, safeLevel - 1));
+      return 220 * Math.pow(2.22, Math.max(0, safeLevel - 1));
     },
     reward(level) {
       const safeLevel = Math.max(1, Math.floor(level));
@@ -536,7 +576,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 95 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 95 * Math.pow(2.16, Math.max(0, safeLevel - 1));
     },
     hues: ['azure', 'emerald', 'crimson', 'auric', 'void'],
   },
@@ -554,7 +594,7 @@ const bossNames = [
 ];
 
 const SKILL_CHECK_DIFFICULTIES = {
-  easy: { duration: 4.5, baseSpeed: 0.6, window: 0.3, minWindow: 0.16 },
-  normal: { duration: 3.8, baseSpeed: 0.85, window: 0.22, minWindow: 0.1 },
-  hard: { duration: 3.2, baseSpeed: 1.05, window: 0.16, minWindow: 0.075 },
+  easy: { duration: 5.2, baseSpeed: 0.5, window: 0.34, minWindow: 0.2 },
+  normal: { duration: 4.8, baseSpeed: 0.68, window: 0.27, minWindow: 0.15 },
+  hard: { duration: 4.4, baseSpeed: 0.82, window: 0.22, minWindow: 0.12 },
 };

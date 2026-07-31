@@ -35,15 +35,14 @@
 
   const syncPlayIcon = (button) => {
     if (!button || typeof bgmAudio === 'undefined' || !bgmAudio) return;
-    button.innerHTML = bgmAudio.paused
-      ? '<i class="fa-solid fa-play" style="color: var(--accent);"></i>'
-      : '<i class="fa-solid fa-pause" style="color: var(--accent);"></i>';
+    button.textContent = bgmAudio.paused ? '▶' : 'Ⅱ';
     button.classList.toggle('is-playing', !bgmAudio.paused);
   };
 
   document.addEventListener('DOMContentLoaded', () => {
     const shell = document.getElementById('music-player');
     if (!shell) return;
+    shell.classList.add('collapsed');
 
     const toggle = document.getElementById('music-player-toggle');
     const titleEl = document.getElementById('music-title');
@@ -143,9 +142,8 @@
     const setToggleIcon = () => {
       if (!toggle) return;
       const collapsed = shell.classList.contains('collapsed');
-      toggle.innerHTML = collapsed
-        ? '<i class="fa-solid fa-arrow-right-from-bracket fa-flip-horizontal" style="color: var(--accent);"></i>'
-        : '<i class="fa-solid fa-arrow-right-to-bracket" style="color: var(--accent);"></i>';
+      toggle.textContent = collapsed ? '«' : '»';
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     };
 
     const updateTrackDetails = () => {

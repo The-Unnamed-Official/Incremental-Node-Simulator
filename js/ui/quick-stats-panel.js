@@ -4,6 +4,7 @@
     if (!panel) return;
 
     const toggle = document.getElementById('quick-stats-toggle');
+    panel.classList.add('collapsed');
     const MIN_VERTICAL_MARGIN = 24;
     let isDragging = false;
     let pointerId = null;
@@ -37,9 +38,8 @@
     const setToggleIcon = () => {
       if (!toggle) return;
       const collapsed = panel.classList.contains('collapsed');
-      toggle.innerHTML = collapsed
-        ? '<i class="fa-solid fa-arrow-right-to-bracket" style="color: var(--accent);"></i>'
-        : '<i class="fa-solid fa-arrow-right-from-bracket fa-flip-horizontal" style="color: var(--accent);"></i>';
+      toggle.textContent = collapsed ? '»' : '«';
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     };
 
     const startDrag = (event) => {
