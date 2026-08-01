@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NodeShift v2 — Breach. Build. Overclock.</title>
+  <meta name="description" content="NodeShift v2 is a neon pixel incremental game about breaching nodes, building an upgrade network, mining Cryptcoin, and pushing an endless Continuum." />
+  <meta name="theme-color" content="#05070d" />
+  <script>
+    window.__nodeshiftBootErrors = [];
+    window.addEventListener('error', function (event) {
+      var detail = [event.message, event.filename, event.lineno, event.colno].filter(Boolean).join(' | ');
+      window.__nodeshiftBootErrors.push(detail);
+      document.documentElement.setAttribute('data-boot-error', detail);
+    });
+    window.addEventListener('unhandledrejection', function (event) {
+      var detail = 'Promise rejection: ' + String(event.reason && (event.reason.stack || event.reason.message) || event.reason);
+      window.__nodeshiftBootErrors.push(detail);
+      document.documentElement.setAttribute('data-boot-error', detail);
+    });
+  </script>
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="NodeShift v2 — Breach. Build. Overclock." />
+  <meta property="og:description" content="A neon pixel incremental game with fair skill checks, deep upgrade networks, and an endless Continuum." />
+  <meta property="og:image" content="/og.png" />
+  <meta property="og:image:width" content="1680" />
+  <meta property="og:image:height" content="945" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="/og.png" />
+  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="icon" type="image/png" sizes="16x16" href="files/icons/favicons/favicon-16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="files/icons/favicons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="files/icons/favicons/favicon-48.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="files/icons/favicons/favicon-64.png">
+  <link rel="icon" type="image/png" sizes="128x128" href="files/icons/favicons/favicon-128.png">
+  <link rel="icon" type="image/png" sizes="256x256" href="files/icons/favicons/favicon-256.png">
+  <link rel="icon" type="image/png" sizes="500x500" href="files/icons/favicons/favicon-500.png">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet"
+  />
+  <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="v2.css?v=2" />
+</head>
+<body class="vhs">
+  <div id="crt-overlay"></div>
+  <div id="app">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <div class="title">
+            <div class="title-heading">
+              <span class="brand-kicker">INCREMENTAL BREACH SYSTEM</span>
+              <h1><a class="capital">N</a>ode<a class="capital">S</a>hift</h1>
+              <p class="developer-title">By <a class="developer-title-link" href="https://github.com/The-Unnamed-Official/Incremental-Node-Simulator/tree/published" target="_blank">The Unnamed</a></p>
+              <button id="version-display" class="version-tag" type="button"></button>
+            </div>
+          </div>
+        <button
+          class="top-bar-settings setting-button"
+          data-tab="settings"
+          type="button"
+          aria-label="Settings">
+          <span class="gear-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="-5.0 -10.0 110.0 135.0">
+              <path d="m43.266 92.754v-3.3008h-6.6016v-6.6016h-6.6016v6.6016h-13.195v-6.6016h-6.6016v-13.195h6.6016v-6.6016h-6.6016v-6.6016h-6.6016v-13.195h6.6016v-6.6016h6.6016v-6.6016h-6.6016l0.007813-6.582v-6.5977h6.6016v-6.5977h13.195v6.6016h6.6016l-0.003906-3.3047v-3.2969h6.6016l-0.003906-3.3008v-3.2969h13.195v6.6016h6.6016v6.6016h6.6016l-0.003906-3.3086v-3.2969h13.195v6.6016h6.6016v13.195h-6.6016v6.6016h6.6016v6.6016h6.6016v13.195h-6.6016v6.6016h-6.6016v6.6016h6.6016v13.195h-6.6016v6.6016h-13.195v-6.6016h-6.6016v6.6016h-6.6016v6.6016h-13.195zm13.195-9.8984v-6.5977h13.195v6.6016h13.195v-13.195h-6.6016v-13.195h13.195v-13.195h-13.195v-13.195h6.6016l0.003907-6.6055v-6.5977h-13.195v6.6016h-13.195v-13.199h-13.195v13.195h-13.195l-0.003907-3.2969v-3.3008h-13.195v13.195h6.6016v13.195h-13.195v13.195h13.195v13.195h-6.6016v13.195h13.195v-6.6016h13.195v13.195h13.195zm-13.195-16.496v-3.3008h-6.6016v-6.6016h-6.6016v-13.195h6.6016v-6.6016h6.6016v-6.6016h13.195v6.6016h6.6016v6.6016h6.6016v13.195h-6.6016v6.6016h-6.6016v6.6016h-13.195zm13.195-6.5977v-3.3008h6.6016v-13.195h-6.6016v-6.6016h-13.195v6.6016h-6.6016v13.195h6.6016v6.6016h13.195z"
+              fill="currentColor"
+              />
+            </svg>
+          </span>
+          <span class="sr-only"></span>
+        </button>
+      </div>
+      <div class="resource-bar">
+        <div class="resource" data-resource="bits">
+          <span class="resource-label">Bits</span>
+          <span class="resource-value" id="bits-display">0</span>
+          <span class="resource-hint">PRIMARY</span>
+        </div>
+        <div class="resource" data-resource="cc">
+          <span class="resource-label">CC</span>
+          <span class="resource-value" id="cryptcoin-display">0</span>
+          <span class="resource-hint">QUANTUM</span>
+        </div>
+        <div class="resource" data-resource="prestige">
+          <span class="resource-label">Prestige</span>
+          <span class="resource-value" id="prestige-display">0</span>
+          <span class="resource-hint">CORE</span>
+        </div>
+        <div class="resource" data-resource="xp">
+          <span class="resource-label">XP</span>
+          <span class="resource-value" id="xp-display">0</span>
+          <span class="resource-hint">LIFETIME</span>
+        </div>
+        <div class="resource resource-progress rank-resource">
+          <span class="resource-label">Operator Rank</span>
+          <div class="resource-progress-header">
+            <span class="resource-value" id="rank-display">1</span>
+            <span class="resource-subvalue" id="rank-progress-label">0 / 100 XP</span>
+          </div>
+          <div class="resource-progress-track">
+            <div id="rank-progress-fill" class="resource-progress-fill"></div>
+          </div>
+        </div>
+        <div class="resource" data-resource="lp">
+          <span class="resource-label">LP</span>
+          <span class="resource-value" id="lp-display">0</span>
+          <span class="resource-hint">LEGACY</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <section class="gameplay">
+        <div class="arena-command-row">
+        <div class="level-readout">
+          <div class="stage-identity"><span class="stage-kicker">ACTIVE BREACH</span><strong>Stage <span id="current-level">1</span></strong></div>
+          <label class="level-select" for="level-select">
+            <span class="label">Select stage</span>
+            <div class="select-shell">
+              <select id="level-select" class="native-select"></select>
+            </div>
+          </label>
+          <div class="stage-jump" aria-label="Jump to an unlocked stage">
+            <input id="stage-jump-input" type="number" min="1" value="1" aria-label="Stage number" />
+            <button id="stage-jump-button" class="pill" type="button">GO</button>
+          </div>
+        </div>
+        <div class="boss-phase" aria-live="polite">
+          <div class="boss-phase-header">
+            <div class="boss-phase-label">Boss Tracker</div>
+            <div id="boss-phase-meta" class="boss-phase-meta">Boss in 01:00</div>
+          </div>
+          <div class="boss-phase-track">
+            <div id="boss-phase-fill" class="boss-phase-fill"></div>
+            <div id="boss-phase-phase" class="boss-phase-phase">Phase 1</div>
+          </div>
+        </div>
+        </div>
+        <div class="arena-telemetry" aria-live="polite">
+          <div class="telemetry-item"><span class="telemetry-label">Nodes breached</span><strong id="nodes-destroyed-display">0</strong></div>
+          <div class="telemetry-item"><span class="telemetry-label">Field density</span><strong id="field-density-display">0 / 6</strong></div>
+          <div class="telemetry-item"><span class="telemetry-label">Bit yield</span><strong id="bit-yield-display">x1.00</strong></div>
+          <div class="telemetry-item telemetry-objective"><span class="telemetry-label">Next objective</span><strong id="next-objective-display">Destroy a node</strong></div>
+        </div>
+        <div class="node-area" id="node-area">
+          <div class="arena-corner arena-corner--tl" aria-hidden="true"></div>
+          <div class="arena-corner arena-corner--br" aria-hidden="true"></div>
+          <div id="node-arena-backdrop" class="node-arena-backdrop" aria-hidden="true"></div>
+          <div id="particle-layer" aria-hidden="true"></div>
+          <div id="bit-layer" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <aside class="side-panel">
+        <nav class="tabs">
+          <button class="tab-button active" data-tab="upgrades" data-label="Upgrades">Upgrades</button>
+          <button class="tab-button" data-tab="crypto" data-label="Crypto Mine">Crypto Mine</button>
+          <button class="tab-button" data-tab="lab" data-label="Lab">Lab</button>
+        </nav>
+
+        <section id="tab-upgrades" class="tab-content active">
+          <div class="upgrade-tabs" role="tablist">
+            <button class="upgrade-tab active" type="button" data-upgrade-tab="skill-tree" data-label="Skill Tree">
+              Skill Tree
+            </button>
+            <button class="upgrade-tab" type="button" data-upgrade-tab="point-magnet" data-label="P-Magnet">
+              P-Magnet
+            </button>
+            <button class="upgrade-tab" type="button" data-upgrade-tab="faster-nodes" data-label="N-Speed">
+              N-Speed
+            </button>
+            <button class="upgrade-tab" type="button" data-upgrade-tab="point-speed" data-label="P-Speed">
+              P-Speed
+            </button>
+            <button class="upgrade-tab" type="button" data-upgrade-tab="overclock" data-label="∞ Core">
+              ∞ Core
+            </button>
+          </div>
+
+          <div id="upgrade-panel-skill-tree" class="upgrade-panel active">
+            <div class="tab-toolbar">
+              <div class="pill-group tab-filter-row">
+                <button class="filter-chip filter active" data-filter="damage" aria-pressed="true">Damage</button>
+                <button class="filter-chip filter" data-filter="crit" aria-pressed="false">Crit</button>
+                <button class="filter-chip filter" data-filter="economy" aria-pressed="false">Economy</button>
+                <button class="filter-chip filter" data-filter="control" aria-pressed="false">Control</button>
+                <button class="filter-chip filter" data-filter="point-area" aria-pressed="false">Point Area</button>
+              </div>
+              <div class="upgrade-summary">
+                <span>Purchased <span id="upgrade-count">0</span> / <span id="upgrade-total">0</span></span>
+              </div>
+            </div>
+            <div id="skill-tree" class="skill-tree" role="list"></div>
+          </div>
+
+          <div id="upgrade-panel-point-magnet" class="upgrade-panel">
+            <div class="area-header">
+              <h2>Point Magnet</h2>
+              <p>Stretch a dedicated magnetic envelope around your cursor to vacuum nearby bit shards.</p>
+              <p class="system-note">Unlocked at level 5 once Phase Halo I is fully synced.</p>
+            </div>
+            <div id="collect-upgrade-grid" class="area-upgrade-grid" role="list"></div>
+          </div>
+
+          <div id="upgrade-panel-faster-nodes" class="upgrade-panel">
+            <div class="area-header">
+              <h2>Faster Nodes</h2>
+              <p>Refine the conduit that feeds new nodes into the field, amplifying spawn cadence and density.</p>
+              <p class="system-note">Each matrix tier now calls out its version, with Prestige powering bigger spawn surges.</p>
+            </div>
+            <div id="spawn-upgrade-grid" class="area-upgrade-grid" role="list"></div>
+          </div>
+
+          <div id="upgrade-panel-point-speed" class="upgrade-panel">
+            <div class="area-header">
+              <h2>Point Speed</h2>
+              <p>Accelerate your autonomous firing routines to chew through nodes faster.</p>
+              <p class="system-note">Stack interval cuts to keep the cursor striking at max tempo.</p>
+            </div>
+            <div id="speed-upgrade-grid" class="area-upgrade-grid" role="list"></div>
+          </div>
+
+          <div id="upgrade-panel-overclock" class="upgrade-panel">
+            <div class="area-header overclock-header">
+              <span class="area-kicker">POST-BREACH PROTOCOL</span>
+              <h2>Continuum Core</h2>
+              <p>Repeatable long-run upgrades that keep scaling after the main skill paths. Unlock by neutralising three bosses.</p>
+              <p id="overclock-status" class="system-note">Core locked • 0 / 3 bosses</p>
+            </div>
+            <div id="overclock-grid" class="area-upgrade-grid overclock-grid" role="list"></div>
+          </div>
+        </section>
+
+        <section id="tab-crypto" class="tab-content">
+          <h2>Crypto Mine</h2>
+          <p>Invest Bits into the quantum miners to produce CC. You can cash out early at any point for 70% of what the miners have produced so far.</p>
+          <div class="crypto-panel">
+            <label>Deposit amount</label>
+            <div class="pill-group">
+              <button class="pill deposit" data-amount="100">+100</button>
+              <button class="pill deposit" data-amount="1000">+1k</button>
+              <button class="pill deposit" data-amount="10000">+10k</button>
+              <button class="pill deposit" data-amount="100000">+100k</button>
+            </div>
+            <div class="field">
+              <input type="number" id="custom-deposit" min="0" placeholder="custom bits" />
+              <button id="confirm-deposit" class="pill">deposit</button>
+            </div>
+            <div id="crypto-mine-visual" class="crypto-mine-visual" aria-live="polite">
+              <div class="crypto-mine-core" aria-hidden="true">
+                <div class="crypto-mine-core-ring"></div>
+                <div class="crypto-mine-core-center"></div>
+                <div class="crypto-mine-scan"></div>
+              </div>
+              <div class="crypto-mine-status">
+                <div class="crypto-visual-header">
+                  <span class="crypto-badge">Quantum Drill</span>
+                  <span id="crypto-status" class="crypto-status">Idle</span>
+                </div>
+                <div class="crypto-yield-line">
+                  <span>Mined so far</span>
+                  <strong id="crypto-mined">0 CC</strong>
+                </div>
+                <div class="crypto-yield-line">
+                  <span>Withdraw now (70%)</span>
+                  <strong id="crypto-early-withdraw">0 CC</strong>
+                </div>
+                <div class="progress-bar crypto-progress">
+                  <div id="crypto-progress-fill" class="progress-fill"></div>
+                </div>
+                <p class="system-note crypto-note">Full timer pays 100%. Early withdrawal ends the run and pays 70% of mined CC.</p>
+              </div>
+            </div>
+            <div class="field">
+              <label>Deposited</label>
+              <span id="crypto-deposited">0</span>
+            </div>
+            <div class="field">
+              <label>Cryptcoin returns</label>
+              <span id="crypto-returns">0 / sec</span>
+            </div>
+            <div class="field">
+              <label>Time remaining</label>
+              <span id="crypto-timer"></span>
+            </div>
+            <button id="withdraw-crypto" class="pill">Withdraw early (70%)</button>
+            <div class="crypto-upgrade-panel">
+              <h3>Conversion accelerator</h3>
+              <p class="system-note">Invest cryptcoins to raise your base conversion speed.</p>
+              <div id="crypto-speed-upgrades" class="crypto-speed-upgrades"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-lab" class="tab-content">
+          <div id="lab-locked">
+            <h2>???</h2>
+            <p>The lab interface is assembling from broken realities. Progress further to stabilise it.</p>
+          </div>
+          <div id="lab-panel" class="hidden">
+            <h2>godvirus research lab</h2>
+            <p>Invest Cryptcoin into developing the godvirus.</p>
+            <div class="lab-progress">
+              <label>Research progress</label>
+              <div class="progress-bar">
+                <div id="lab-progress-fill" class="progress-fill"></div>
+              </div>
+              <div class="field">
+                <span id="lab-progress-text">0.000 / 1000.000</span>
+              </div>
+            </div>
+            <div class="lab-controls">
+              <div class="field">
+                <label>Deposit</label>
+                <input type="number" id="lab-deposit" min="0" placeholder="cryptcoins" />
+                <button id="lab-confirm" class="pill">fund</button>
+              </div>
+              <div class="field">
+                <label>Speed</label>
+                <span id="lab-speed">0 / sec</span>
+              </div>
+            </div>
+            <button id="breach-lab" class="pill">Breach cycle</button>
+          </div>
+        </section>
+
+        <section id="tab-settings" class="tab-content">
+          <h2>Settings</h2>
+          <div class="settings-grid">
+            <label class="setting">
+              <span>Screen shake</span>
+              <input type="range" id="screen-shake" min="0" max="100" value="50" />
+            </label>
+            <label class="setting">
+              <span>SFX volume</span>
+              <input type="range" id="sfx-volume" min="0" max="100" value="70" />
+            </label>
+            <label class="setting setting-toggle">
+              <span>CRT effect</span>
+              <input type="checkbox" id="crt-toggle" class="switch-input" checked />
+            </label>
+            <label class="setting setting-toggle">
+              <span>Reduce animation</span>
+              <input type="checkbox" id="reduce-animation" class="switch-input" />
+            </label>
+            <label class="setting setting-toggle">
+              <span>Show tips occasionally</span>
+              <input type="checkbox" id="tips-toggle" class="switch-input" checked />
+            </label>
+            <div class="setting setting-inline">
+              <div class="setting-label">Tutorial controls</div>
+              <div class="setting-actions">
+                <button id="replay-tutorial" class="pill">Replay tutorial</button>
+              </div>
+            </div>
+            <label class="setting">
+              <span>Theme</span>
+              <div class="select-shell">
+                <select id="palette-select" class="native-select">
+                  <option value="default">default</option>
+                  <option value="violet">violet</option>
+                  <option value="gold">gold</option>
+                  <option value="diamond">diamond</option>
+                  <option value="emerald">emerald</option>
+                  <option value="pinky">pinky</option>
+                  <option value="ruby">ruby</option>
+                  <option value="nebula">nebula</option>
+                  <option value="sunset">sunset</option>
+                  <option value="obsidian">obsidian</option>
+                  <option value="ocean">ocean</option>
+                  <option value="storm">storm</option>
+                  <option value="terminal">terminal</option>
+                </select>
+              </div>
+              <div id="palette-preview-row" class="palette-preview-row" aria-hidden="true"></div>
+            </label>
+          </div>
+          <div class="save-controls">
+            <h3>Progress</h3>
+            <div class="save-actions">
+              <button id="save-game" class="pill">Save Game</button>
+              <button id="new-game" class="pill danger">New Game</button>
+            </div>
+            <div id="save-status" class="save-status" aria-live="polite"></div>
+            <div class="save-timestamp">Last saved: <span id="save-timestamp">never</span></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <section class="progress-dock" aria-labelledby="progress-heading">
+      <div class="progress-dock-header">
+        <div>
+          <span class="progress-kicker">PERMANENT RECORD</span>
+          <h2 id="progress-heading">Progress Chronicle</h2>
+          <p id="progress-summary" class="progress-summary">0 records complete</p>
+        </div>
+        <div class="progress-dock-tabs" role="tablist">
+          <button
+            class="progress-tab active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="progress-achievements"
+            data-progress-tab="achievements"
+          >
+            <span>Achievements</span>
+            <span class="notification-dot" data-dot="achievements" aria-hidden="true"></span>
+          </button>
+          <button
+            class="progress-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="progress-milestones"
+            data-progress-tab="milestones"
+          >
+            <span>Milestones</span>
+            <span class="notification-dot" data-dot="milestones" aria-hidden="true"></span>
+          </button>
+          <button id="claim-all-progress" class="pill claim-all" type="button">Claim all</button>
+        </div>
+      </div>
+      <div class="progress-dock-panels">
+        <div id="progress-achievements" class="progress-panel active" role="tabpanel">
+          <div id="achievement-grid" class="achievement-grid" role="list"></div>
+        </div>
+        <div id="progress-milestones" class="progress-panel" role="tabpanel" aria-hidden="true">
+          <div id="milestone-dock" class="milestone-dock" role="list"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div id="skill-check" class="skill-check hidden" role="dialog" aria-modal="true" aria-live="assertive">
+    <div class="skill-check-panel">
+      <div class="skill-check-banner">
+        <div class="banner-title">Bonus Calibration</div>
+        <div class="banner-meta">
+          <span id="skill-check-upgrade" class="meta-item"></span>
+          <span id="skill-check-tier" class="meta-item"></span>
+          <span id="skill-check-reward" class="meta-item"></span>
+          <span id="skill-check-penalty" class="meta-item"></span>
+        </div>
+      </div>
+      <h2 id="skill-check-title">Skill Check!</h2>
+      <p id="skill-check-description">Stabilise the upgrade stream before it collapses.</p>
+      <div class="skill-check-variant-grid">
+        <div class="skill-check-meter skill-check-meter--linear active" data-skill-variant="linear">
+          <div class="skill-check-track">
+            <div id="skill-check-target" class="skill-check-target"></div>
+            <div id="skill-check-slider" class="skill-check-slider"></div>
+          </div>
+          <div class="skill-check-meter-note">Pulse the beam when the bar is inside the mint band.</div>
+        </div>
+        <div class="skill-check-meter skill-check-meter--cross" data-skill-variant="cross">
+          <div class="skill-check-cross">
+            <div class="skill-check-cross-backdrop"></div>
+            <div id="skill-check-cross-target" class="skill-check-cross-target"></div>
+            <div id="skill-check-cross-h" class="skill-check-cross-slider skill-check-cross-slider--h"></div>
+            <div id="skill-check-cross-v" class="skill-check-cross-slider skill-check-cross-slider--v"></div>
+          </div>
+          <div class="skill-check-meter-note">Sync the rising lift and sweeping beam inside the same mint aperture.</div>
+        </div>
+        <div class="skill-check-meter skill-check-meter--vertical" data-skill-variant="vertical">
+          <div class="skill-check-vertical-track">
+            <div id="skill-check-vertical-target" class="skill-check-vertical-target"></div>
+            <div id="skill-check-vertical-slider" class="skill-check-vertical-slider"></div>
+          </div>
+          <div class="skill-check-meter-note">Ride the carrier beam between the rails.</div>
+        </div>
+      </div>
+      <div class="skill-check-timer">
+        <div id="skill-check-progress" class="skill-check-timer-fill"></div>
+      </div>
+      <div class="skill-check-footer">
+        <span id="skill-check-streak" class="skill-check-streak">CALIBRATION 0 • FAIL-SAFE ACTIVE</span>
+        <button id="skill-check-action" class="pill">Resolve <kbd>SPACE</kbd></button>
+      </div>
+    </div>
+  </div>
+  <div id="skill-detail-popup" class="skill-detail-popup hidden" role="dialog" aria-live="polite"></div>
+  <div id="level-dialog" class="level-dialog hidden" role="dialog" aria-modal="true" aria-live="assertive">
+    <div class="level-dialog-panel">
+      <h2>Boss neutralised</h2>
+      <p id="level-dialog-summary">Loot tallied.</p>
+      <div class="level-dialog-actions">
+        <button id="level-replay" class="pill">Re-run breach</button>
+        <button id="level-continue" class="pill accent">Advance</button>
+      </div>
+    </div>
+  </div>
+  <div id="new-game-dialog" class="new-game-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="new-game-title">
+    <div class="new-game-panel">
+      <h2 id="new-game-title">Launch a fresh simulation?</h2>
+      <p id="new-game-warning">
+        Launching a new simulation will purge your nodes, upgrades, crypto, and prestige. This wipe is permanent.
+      </p>
+      <div class="new-game-actions">
+        <button id="cancel-new-game" class="pill">Return</button>
+        <button id="confirm-new-game" class="pill danger">Confirm reset</button>
+      </div>
+    </div>
+  </div>
+  <div id="quick-stats-panel" class="quick-stats-panel utility-card" role="region" aria-labelledby="quick-stats-title">
+    <button id="quick-stats-toggle" class="quick-stats-toggle utility-toggle" type="button" aria-label="Open live stats" aria-controls="quick-stats-content" aria-expanded="false">
+      <span class="utility-toggle-icon" aria-hidden="true">Σ</span>
+      <span class="utility-toggle-copy"><strong>STATS</strong><small id="stats-toggle-summary">DMG 0</small></span>
+    </button>
+    <div id="quick-stats-content" class="quick-stats-shell utility-card-content">
+      <header class="utility-card-header">
+        <div>
+          <span class="utility-kicker">LIVE SYSTEM</span>
+          <strong id="quick-stats-title">Combat stats</strong>
+        </div>
+        <button id="quick-stats-close" class="utility-close" type="button" aria-label="Close live stats">×</button>
+      </header>
+      <div class="quick-stats" aria-live="polite" aria-atomic="true">
+        <div class="quick-stat" data-stat="damage">
+          <span class="label">Damage / hit</span>
+          <span class="value" id="stat-damage">0</span>
+        </div>
+        <div class="quick-stat" data-stat="crit">
+          <span class="label">Critical</span>
+          <span class="value" id="stat-crit">0%</span>
+        </div>
+        <div class="quick-stat" data-stat="auto">
+          <span class="label">Auto hit</span>
+          <span class="value" id="stat-auto">0s</span>
+        </div>
+        <div class="quick-stat" data-stat="spawn">
+          <span class="label">Node spawn</span>
+          <span class="value" id="stat-spawn">0s</span>
+        </div>
+        <div class="quick-stat" data-stat="hp">
+          <span class="label">Boss HP</span>
+          <span class="value" id="stat-boss">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="update-log" class="update-log hidden" role="dialog" aria-modal="true" aria-labelledby="update-log-title">
+    <div class="update-log-shell">
+      <div id="update-log-tabs" class="update-log-tabs" role="tablist"></div>
+      <div class="update-log-panel">
+        <div class="update-log-header">
+          <h2 id="update-log-title">Update Logs</h2>
+          <button id="update-log-close" class="pill">Close</button>
+        </div>
+        <div id="update-log-body" class="update-log-body" role="tabpanel" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+  <div id="custom-cursor" aria-hidden="true">
+    <div class="cursor-square">
+      <div class="cursor-dot"></div>
+    </div>
+  </div>
+  <div id="music-player" class="music-player utility-card" role="region" aria-labelledby="music-player-title-label">
+    <button id="music-player-toggle" class="player-toggle utility-toggle" type="button" aria-label="Open music player" aria-controls="music-player-content" aria-expanded="false">
+      <span class="utility-toggle-icon" aria-hidden="true">♫</span>
+      <span class="utility-toggle-copy"><strong>MUSIC</strong><small id="music-toggle-summary">READY</small></span>
+    </button>
+    <div id="music-player-content" class="player-inner utility-card-content">
+      <header class="utility-card-header">
+        <div>
+          <span class="utility-kicker">AUDIO LINK</span>
+          <strong id="music-player-title-label">Music player</strong>
+        </div>
+        <button id="music-player-close" class="utility-close" type="button" aria-label="Close music player">×</button>
+      </header>
+      <div class="player-cover-shell">
+        <div class="cover-outer-glow" aria-hidden="true"></div>
+        <div class="player-cover" id="music-cover" role="img" aria-label="Album art">
+        </div>
+      </div>
+      <div class="player-meta">
+        <p class="player-title" id="music-title"></p>
+        <a
+          id="music-artist"
+          class="player-artist-link"
+          href="https://open.spotify.com/artist/3SnvJY2XpNIRX3YgsU7Xld"
+          target="_blank"
+          rel="noopener noreferrer">
+        </a>
+      </div>
+      <div class="player-progress">
+        <div class="progress-times">
+          <span id="music-current"></span>
+          <span id="music-duration"></span>
+        </div>
+        <input
+          type="range"
+          id="music-progress"
+          min="0"
+          max="100"
+          value="0"
+          step="0.1"
+          aria-label="Music progress"
+        />
+      </div>
+      <div class="player-controls">
+        <button class="player-btn" id="music-player-prev" type="button" aria-label="Previous track">
+          <span aria-hidden="true">|&lt;</span>
+        </button>
+        <button class="player-btn play-btn" id="music-player-play" type="button" aria-label="Play or pause"><span aria-hidden="true">▶</span></button>
+        <button class="player-btn" id="music-player-next" type="button" aria-label="Next track">
+          <span aria-hidden="true">&gt;|</span>
+        </button>
+        <label class="setting">
+          <span>BGM volume</span>
+          <input type="range" id="bgm-volume" min="0" max="100" value="50" />
+        </label>
+      </div>
+    </div>
+  </div>
+  <div id="tutorial-overlay" class="tutorial-overlay hidden" aria-live="polite">
+    <div class="tutorial-backdrop"></div>
+    <div id="tutorial-highlight" class="tutorial-highlight" aria-hidden="true"></div>
+    <div class="tutorial-panel" role="dialog" aria-modal="false">
+      <div class="tutorial-header">
+        <div>
+          <div id="tutorial-step-title" class="tutorial-title">Welcome to NodeShift</div>
+          <div id="tutorial-step-progress" class="tutorial-progress"></div>
+        </div>
+        <button id="tutorial-skip" class="pill subtle" type="button">Skip tutorial</button>
+      </div>
+      <p id="tutorial-step-body" class="tutorial-body"></p>
+      <div id="tutorial-step-goal" class="tutorial-goal" aria-live="polite"></div>
+      <div class="tutorial-actions">
+        <button id="tutorial-next" class="pill" type="button">Next</button>
+      </div>
+    </div>
+  </div>
+  <audio id="bgm" src="files/music/bg_music.mp3" preload="metadata"></audio>
+  <script src="js/core/constants.js?v=2" defer></script>
+  <script src="js/core/state.js?v=2" defer></script>
+  <script src="js/core/audio.js?v=2" defer></script>
+  <script src="js/ui/quick-stats-panel.js?v=2" defer></script>
+  <script src="js/ui/music-player.js?v=2" defer></script>
+  <script src="js/main.js?v=2" defer></script>
+</body>
+</html>
