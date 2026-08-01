@@ -229,6 +229,7 @@ function cacheElements() {
   UI.quickStatAuto = document.getElementById('stat-auto');
   UI.quickStatSpawn = document.getElementById('stat-spawn');
   UI.quickStatBoss = document.getElementById('stat-boss');
+  UI.statsToggleSummary = document.getElementById('stats-toggle-summary');
   UI.bossPhaseFill = document.getElementById('boss-phase-fill');
   UI.bossPhasePhase = document.getElementById('boss-phase-phase');
   UI.bossPhaseMeta = document.getElementById('boss-phase-meta');
@@ -4911,13 +4912,22 @@ function setupCursor() {
   if (!UI.customCursor) return;
   const cursor = UI.customCursor;
   applyCursorSize();
+  let cursorFrame = 0;
+  let pendingX = cursorPosition.x;
+  let pendingY = cursorPosition.y;
+  const flushCursorPosition = () => {
+    cursorFrame = 0;
+    cursor.style.setProperty('--cursor-x', `${pendingX}px`);
+    cursor.style.setProperty('--cursor-y', `${pendingY}px`);
+    updateCursorAreaState(isNodeAreaInteractive(pendingX, pendingY));
+    requestBitTokenSweep();
+  };
   const updateCursorPosition = (x, y) => {
     cursorPosition.x = x;
     cursorPosition.y = y;
-    cursor.style.left = `${x}px`;
-    cursor.style.top = `${y}px`;
-    updateCursorAreaState(isNodeAreaInteractive(x, y));
-    requestBitTokenSweep();
+    pendingX = x;
+    pendingY = y;
+    if (!cursorFrame) cursorFrame = requestAnimationFrame(flushCursorPosition);
   };
   updateCursorPosition(cursorPosition.x, cursorPosition.y);
   const syncTouchPosition = (event) => {
@@ -6737,6 +6747,9 @@ function updateQuickStats() {
   UI.quickStatSpawn.textContent = `${stats.nodeSpawnDelay.toFixed(2)}s / ${stats.maxNodes}`;
   const bossHp = Math.round(getBossBaseHP(state.currentLevel.index) * stats.bossHPFactor);
   UI.quickStatBoss.textContent = formatNumberShort(bossHp);
+  if (UI.statsToggleSummary) {
+    UI.statsToggleSummary.textContent = `DMG ${formatNumberShort(stats.damage)}`;
+  }
 }
 
 function updateBossPhaseBar() {

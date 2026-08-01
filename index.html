@@ -27,7 +27,7 @@
   <meta property="og:image:height" content="945" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="/og.png" />
-  <link rel="stylesheet" href="style.css?v=2.100" />
+  <link rel="stylesheet" href="style.css?v=2" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="icon" type="image/png" sizes="16x16" href="files/icons/favicons/favicon-16.png">
@@ -42,7 +42,7 @@
     rel="stylesheet"
   />
   <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="v2.css?v=2.100" />
+  <link rel="stylesheet" href="v2.css?v=2" />
 </head>
 <body class="vhs">
   <div id="crt-overlay"></div>
@@ -503,26 +503,34 @@
       </div>
     </div>
   </div>
-  <div id="quick-stats-panel" class="quick-stats-panel" aria-live="polite">
-    <button id="quick-stats-toggle" class="quick-stats-toggle" type="button" aria-label="Toggle quick stats panel">
-      <span aria-hidden="true">»</span>
+  <div id="quick-stats-panel" class="quick-stats-panel utility-card" role="region" aria-labelledby="quick-stats-title">
+    <button id="quick-stats-toggle" class="quick-stats-toggle utility-toggle" type="button" aria-label="Open live stats" aria-controls="quick-stats-content" aria-expanded="false">
+      <span class="utility-toggle-icon" aria-hidden="true">Σ</span>
+      <span class="utility-toggle-copy"><strong>STATS</strong><small id="stats-toggle-summary">DMG 0</small></span>
     </button>
-    <div class="quick-stats-shell">
-      <div class="quick-stats" aria-live="polite">
+    <div id="quick-stats-content" class="quick-stats-shell utility-card-content">
+      <header class="utility-card-header">
+        <div>
+          <span class="utility-kicker">LIVE SYSTEM</span>
+          <strong id="quick-stats-title">Combat stats</strong>
+        </div>
+        <button id="quick-stats-close" class="utility-close" type="button" aria-label="Close live stats">×</button>
+      </header>
+      <div class="quick-stats" aria-live="polite" aria-atomic="true">
         <div class="quick-stat" data-stat="damage">
-          <span class="label">Damage</span>
+          <span class="label">Damage / hit</span>
           <span class="value" id="stat-damage">0</span>
         </div>
         <div class="quick-stat" data-stat="crit">
-          <span class="label">Crit</span>
+          <span class="label">Critical</span>
           <span class="value" id="stat-crit">0%</span>
         </div>
         <div class="quick-stat" data-stat="auto">
-          <span class="label">Auto</span>
+          <span class="label">Auto hit</span>
           <span class="value" id="stat-auto">0s</span>
         </div>
         <div class="quick-stat" data-stat="spawn">
-          <span class="label">Spawn</span>
+          <span class="label">Node spawn</span>
           <span class="value" id="stat-spawn">0s</span>
         </div>
         <div class="quick-stat" data-stat="hp">
@@ -549,11 +557,19 @@
       <div class="cursor-dot"></div>
     </div>
   </div>
-  <div id="music-player" class="music-player">
-    <button id="music-player-toggle" class="player-toggle" type="button" aria-label="Toggle music player">
-      <span aria-hidden="true">«</span>
+  <div id="music-player" class="music-player utility-card" role="region" aria-labelledby="music-player-title-label">
+    <button id="music-player-toggle" class="player-toggle utility-toggle" type="button" aria-label="Open music player" aria-controls="music-player-content" aria-expanded="false">
+      <span class="utility-toggle-icon" aria-hidden="true">♫</span>
+      <span class="utility-toggle-copy"><strong>MUSIC</strong><small id="music-toggle-summary">READY</small></span>
     </button>
-    <div class="player-inner">
+    <div id="music-player-content" class="player-inner utility-card-content">
+      <header class="utility-card-header">
+        <div>
+          <span class="utility-kicker">AUDIO LINK</span>
+          <strong id="music-player-title-label">Music player</strong>
+        </div>
+        <button id="music-player-close" class="utility-close" type="button" aria-label="Close music player">×</button>
+      </header>
       <div class="player-cover-shell">
         <div class="cover-outer-glow" aria-hidden="true"></div>
         <div class="player-cover" id="music-cover" role="img" aria-label="Album art">
@@ -618,11 +634,11 @@
     </div>
   </div>
   <audio id="bgm" src="files/music/bg_music.mp3" preload="metadata"></audio>
-  <script src="js/core/constants.js?v=2.100" defer></script>
-  <script src="js/core/state.js?v=2.100" defer></script>
-  <script src="js/core/audio.js?v=2.100" defer></script>
-  <script src="js/ui/quick-stats-panel.js?v=2.100" defer></script>
-  <script src="js/ui/music-player.js?v=2.100" defer></script>
-  <script src="js/main.js?v=2.100" defer></script>
+  <script src="js/core/constants.js?v=2" defer></script>
+  <script src="js/core/state.js?v=2" defer></script>
+  <script src="js/core/audio.js?v=2" defer></script>
+  <script src="js/ui/quick-stats-panel.js?v=2" defer></script>
+  <script src="js/ui/music-player.js?v=2" defer></script>
+  <script src="js/main.js?v=2" defer></script>
 </body>
 </html>

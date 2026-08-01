@@ -4,12 +4,12 @@ const LEVEL_DURATION_INCREMENT = 7;
 const BASE_BOSS_HP = 180;
 const BOSS_HP_INCREMENT = 2.42;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v2.100';
+const GAME_VERSION = 'v2';
 
 const UPDATE_LOGS = [
   {
-    version: 'v2.100',
-    title: 'NodeShift v2.1 // Breach Deck',
+    version: 'v2',
+    title: 'NodeShift v2 // Breach Deck',
     description:
       'A complete stability recovery and visual systems rebuild: the full runtime is active again, every control is wired, and the interface now reads like a responsive neon breach console.',
     changes: [
