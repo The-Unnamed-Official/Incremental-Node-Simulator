@@ -3,9 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NodeShift</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://kit.fontawesome.com/f34561342c.js" crossorigin="anonymous"></script>
+  <title>NodeShift v2 — Breach. Build. Overclock.</title>
+  <meta name="description" content="NodeShift v2 is a pixel-constellation incremental game about breaching nodes, building an upgrade network, mining Cryptcoin, and pushing an endless Continuum." />
+  <meta name="theme-color" content="#090b18" />
+  <script>
+    window.__nodeshiftBootErrors = [];
+    window.addEventListener('error', function (event) {
+      var detail = [event.message, event.filename, event.lineno, event.colno].filter(Boolean).join(' | ');
+      window.__nodeshiftBootErrors.push(detail);
+      document.documentElement.setAttribute('data-boot-error', detail);
+    });
+    window.addEventListener('unhandledrejection', function (event) {
+      var detail = 'Promise rejection: ' + String(event.reason && (event.reason.stack || event.reason.message) || event.reason);
+      window.__nodeshiftBootErrors.push(detail);
+      document.documentElement.setAttribute('data-boot-error', detail);
+    });
+  </script>
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="NodeShift v2 — Breach. Build. Overclock." />
+  <meta property="og:description" content="A pixel-constellation incremental game with fair skill checks, deep upgrade networks, and an endless Continuum." />
+  <meta property="og:image" content="/og-v2.png" />
+  <meta property="og:image:width" content="1672" />
+  <meta property="og:image:height" content="941" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="/og-v2.png" />
+  <link rel="stylesheet" href="style.css?v=2" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="icon" type="image/png" sizes="16x16" href="files/icons/favicons/favicon-16.png">
@@ -20,6 +42,7 @@
     rel="stylesheet"
   />
   <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="v2.css?v=2" />
 </head>
 <body class="vhs">
   <div id="crt-overlay"></div>
@@ -28,6 +51,7 @@
       <div class="top-bar-left">
         <div class="title">
             <div class="title-heading">
+              <span class="brand-kicker">INCREMENTAL BREACH SYSTEM</span>
               <h1><a class="capital">N</a>ode<a class="capital">S</a>hift</h1>
               <p class="developer-title">By <a class="developer-title-link" href="https://github.com/The-Unnamed-Official/Incremental-Node-Simulator/tree/published" target="_blank">The Unnamed</a></p>
               <button id="version-display" class="version-tag" type="button"></button>
@@ -49,21 +73,25 @@
         </button>
       </div>
       <div class="resource-bar">
-        <div class="resource">
+        <div class="resource" data-resource="bits">
           <span class="resource-label">Bits</span>
           <span class="resource-value" id="bits-display">0</span>
+          <span class="resource-hint">PRIMARY</span>
         </div>
-        <div class="resource">
+        <div class="resource" data-resource="cc">
           <span class="resource-label">CC</span>
           <span class="resource-value" id="cryptcoin-display">0</span>
+          <span class="resource-hint">QUANTUM</span>
         </div>
-        <div class="resource">
+        <div class="resource" data-resource="prestige">
           <span class="resource-label">Prestige</span>
           <span class="resource-value" id="prestige-display">0</span>
+          <span class="resource-hint">CORE</span>
         </div>
-        <div class="resource">
+        <div class="resource" data-resource="xp">
           <span class="resource-label">XP</span>
           <span class="resource-value" id="xp-display">0</span>
+          <span class="resource-hint">LIFETIME</span>
         </div>
         <div class="resource resource-progress rank-resource">
           <span class="resource-label">Operator Rank</span>
@@ -75,23 +103,29 @@
             <div id="rank-progress-fill" class="resource-progress-fill"></div>
           </div>
         </div>
-        <div class="resource">
+        <div class="resource" data-resource="lp">
           <span class="resource-label">LP</span>
           <span class="resource-value" id="lp-display">0</span>
+          <span class="resource-hint">LEGACY</span>
         </div>
       </div>
     </header>
 
     <main class="main-layout">
       <section class="gameplay">
+        <div class="arena-command-row">
         <div class="level-readout">
-          <div>Stage <span id="current-level">1</span></div>
+          <div class="stage-identity"><span class="stage-kicker">ACTIVE BREACH</span><strong>Stage <span id="current-level">1</span></strong></div>
           <label class="level-select" for="level-select">
             <span class="label">Select stage</span>
             <div class="select-shell">
               <select id="level-select" class="native-select"></select>
             </div>
           </label>
+          <div class="stage-jump" aria-label="Jump to an unlocked stage">
+            <input id="stage-jump-input" type="number" min="1" value="1" aria-label="Stage number" />
+            <button id="stage-jump-button" class="pill" type="button">GO</button>
+          </div>
         </div>
         <div class="boss-phase" aria-live="polite">
           <div class="boss-phase-header">
@@ -103,7 +137,16 @@
             <div id="boss-phase-phase" class="boss-phase-phase">Phase 1</div>
           </div>
         </div>
+        </div>
+        <div class="arena-telemetry" aria-live="polite">
+          <div class="telemetry-item"><span class="telemetry-label">Nodes breached</span><strong id="nodes-destroyed-display">0</strong></div>
+          <div class="telemetry-item"><span class="telemetry-label">Field density</span><strong id="field-density-display">0 / 6</strong></div>
+          <div class="telemetry-item"><span class="telemetry-label">Bit yield</span><strong id="bit-yield-display">x1.00</strong></div>
+          <div class="telemetry-item telemetry-objective"><span class="telemetry-label">Next objective</span><strong id="next-objective-display">Destroy a node</strong></div>
+        </div>
         <div class="node-area" id="node-area">
+          <div class="arena-corner arena-corner--tl" aria-hidden="true"></div>
+          <div class="arena-corner arena-corner--br" aria-hidden="true"></div>
           <div id="node-arena-backdrop" class="node-arena-backdrop" aria-hidden="true"></div>
           <div id="particle-layer" aria-hidden="true"></div>
           <div id="bit-layer" aria-live="polite"></div>
@@ -130,6 +173,9 @@
             </button>
             <button class="upgrade-tab" type="button" data-upgrade-tab="point-speed" data-label="P-Speed">
               P-Speed
+            </button>
+            <button class="upgrade-tab" type="button" data-upgrade-tab="overclock" data-label="∞ Core">
+              ∞ Core
             </button>
           </div>
 
@@ -174,6 +220,16 @@
               <p class="system-note">Stack interval cuts to keep the cursor striking at max tempo.</p>
             </div>
             <div id="speed-upgrade-grid" class="area-upgrade-grid" role="list"></div>
+          </div>
+
+          <div id="upgrade-panel-overclock" class="upgrade-panel">
+            <div class="area-header overclock-header">
+              <span class="area-kicker">POST-BREACH PROTOCOL</span>
+              <h2>Continuum Core</h2>
+              <p>Repeatable long-run upgrades that keep scaling after the main skill paths. Unlock by neutralising three bosses.</p>
+              <p id="overclock-status" class="system-note">Core locked • 0 / 3 bosses</p>
+            </div>
+            <div id="overclock-grid" class="area-upgrade-grid overclock-grid" role="list"></div>
           </div>
         </section>
 
@@ -258,7 +314,7 @@
             <div class="lab-controls">
               <div class="field">
                 <label>Deposit</label>
-                <input type="number" id="lab-deposit" min="0" placeholder="cryptconis" />
+                <input type="number" id="lab-deposit" min="0" placeholder="cryptcoins" />
                 <button id="lab-confirm" class="pill">fund</button>
               </div>
               <div class="field">
@@ -266,7 +322,7 @@
                 <span id="lab-speed">0 / sec</span>
               </div>
             </div>
-            <button id="breach-lab" class="pill">Breach</button>
+            <button id="breach-lab" class="pill">Breach cycle</button>
           </div>
         </section>
 
@@ -334,9 +390,26 @@
       </aside>
     </main>
 
-    <section class="progress-dock" aria-labelledby="progress-heading">
+    <button id="progress-hub-toggle" class="progress-hub-toggle" type="button" aria-controls="progress-hub" aria-expanded="false">
+      <span class="progress-hub-glyph" aria-hidden="true">◇</span>
+      <span><strong>ARCHIVE</strong><small id="progress-beacon-summary">0 / 0</small></span>
+    </button>
+    <div id="progress-hub-scrim" class="progress-hub-scrim hidden" aria-hidden="true"></div>
+    <section id="progress-hub" class="progress-dock progress-hub" role="dialog" aria-modal="true" aria-labelledby="progress-heading" aria-hidden="true">
       <div class="progress-dock-header">
-        <h2 id="progress-heading">Progress Chronicle</h2>
+        <div>
+          <span class="progress-kicker">CONSTELLATION ARCHIVE</span>
+          <h2 id="progress-heading">Operator Records</h2>
+          <p id="progress-summary" class="progress-summary">0 records complete</p>
+        </div>
+        <button id="progress-hub-close" class="progress-hub-close" type="button" aria-label="Close operator records">×</button>
+      </div>
+      <div class="progress-overview" aria-live="polite">
+        <div><span>Completed</span><strong id="progress-completed-count">0</strong></div>
+        <div><span>Rewards ready</span><strong id="progress-ready-count">0</strong></div>
+        <div><span>Visible records</span><strong id="progress-visible-count">0</strong></div>
+      </div>
+      <div class="progress-command-bar">
         <div class="progress-dock-tabs" role="tablist">
           <button
             class="progress-tab active"
@@ -362,6 +435,16 @@
           </button>
           <button id="claim-all-progress" class="pill claim-all" type="button">Claim all</button>
         </div>
+        <label class="progress-search" for="progress-search">
+          <span>Search records</span>
+          <input id="progress-search" type="search" placeholder="Name, goal, reward…" autocomplete="off" />
+        </label>
+        <div class="progress-filters" role="group" aria-label="Filter progress records">
+          <button class="progress-filter active" type="button" data-progress-filter="all" aria-pressed="true">All</button>
+          <button class="progress-filter" type="button" data-progress-filter="ready" aria-pressed="false">Ready</button>
+          <button class="progress-filter" type="button" data-progress-filter="active" aria-pressed="false">In progress</button>
+          <button class="progress-filter" type="button" data-progress-filter="claimed" aria-pressed="false">Claimed</button>
+        </div>
       </div>
       <div class="progress-dock-panels">
         <div id="progress-achievements" class="progress-panel active" role="tabpanel">
@@ -376,7 +459,7 @@
   <div id="skill-check" class="skill-check hidden" role="dialog" aria-modal="true" aria-live="assertive">
     <div class="skill-check-panel">
       <div class="skill-check-banner">
-        <div class="banner-title">Skill Check Incoming</div>
+        <div class="banner-title">Bonus Calibration</div>
         <div class="banner-meta">
           <span id="skill-check-upgrade" class="meta-item"></span>
           <span id="skill-check-tier" class="meta-item"></span>
@@ -414,17 +497,31 @@
       <div class="skill-check-timer">
         <div id="skill-check-progress" class="skill-check-timer-fill"></div>
       </div>
-      <button id="skill-check-action" class="pill">Resolve</button>
+      <div class="skill-check-footer">
+        <span id="skill-check-streak" class="skill-check-streak">CALIBRATION 0 • FAIL-SAFE ACTIVE</span>
+        <button id="skill-check-action" class="pill">Resolve <kbd>SPACE</kbd></button>
+      </div>
     </div>
   </div>
   <div id="skill-detail-popup" class="skill-detail-popup hidden" role="dialog" aria-live="polite"></div>
   <div id="level-dialog" class="level-dialog hidden" role="dialog" aria-modal="true" aria-live="assertive">
     <div class="level-dialog-panel">
-      <h2>Boss neutralised</h2>
+      <div class="level-complete-signal" aria-hidden="true"><span></span></div>
+      <span class="level-complete-kicker">TRANSMISSION SECURED</span>
+      <h2>Stage <span id="level-dialog-stage">1</span> complete</h2>
       <p id="level-dialog-summary">Loot tallied.</p>
+      <div class="level-reward-grid" aria-label="Stage rewards">
+        <div><span>Bits recovered</span><strong id="level-reward-bits">0</strong></div>
+        <div><span>Rank XP</span><strong id="level-reward-xp">0</strong></div>
+        <div><span>Prestige</span><strong id="level-reward-prestige">0</strong></div>
+      </div>
+      <div class="level-next-route">
+        <span>Next route</span>
+        <strong>Stage <span id="level-dialog-next-stage">2</span> // threat recalibrated</strong>
+      </div>
       <div class="level-dialog-actions">
-        <button id="level-replay" class="pill">Re-run breach</button>
-        <button id="level-continue" class="pill accent">Advance</button>
+        <button id="level-replay" class="pill">Replay stage</button>
+        <button id="level-continue" class="pill accent">Enter next stage</button>
       </div>
     </div>
   </div>
@@ -440,26 +537,34 @@
       </div>
     </div>
   </div>
-  <div id="quick-stats-panel" class="quick-stats-panel" aria-live="polite">
-    <button id="quick-stats-toggle" class="quick-stats-toggle" type="button" aria-label="Toggle quick stats panel">
-      <i class="fa-solid fa-arrow-left-long" style="color: #63E6BE;"></i>
+  <div id="quick-stats-panel" class="quick-stats-panel utility-card" role="region" aria-labelledby="quick-stats-title">
+    <button id="quick-stats-toggle" class="quick-stats-toggle utility-toggle" type="button" aria-label="Open live stats" aria-controls="quick-stats-content" aria-expanded="false">
+      <span class="utility-toggle-icon" aria-hidden="true">Σ</span>
+      <span class="utility-toggle-copy"><strong>STATS</strong><small id="stats-toggle-summary">DMG 0</small></span>
     </button>
-    <div class="quick-stats-shell">
-      <div class="quick-stats" aria-live="polite">
+    <div id="quick-stats-content" class="quick-stats-shell utility-card-content">
+      <header class="utility-card-header">
+        <div>
+          <span class="utility-kicker">LIVE SYSTEM</span>
+          <strong id="quick-stats-title">Combat stats</strong>
+        </div>
+        <button id="quick-stats-close" class="utility-close" type="button" aria-label="Close live stats">×</button>
+      </header>
+      <div class="quick-stats" aria-live="polite" aria-atomic="true">
         <div class="quick-stat" data-stat="damage">
-          <span class="label">Damage</span>
+          <span class="label">Damage / hit</span>
           <span class="value" id="stat-damage">0</span>
         </div>
         <div class="quick-stat" data-stat="crit">
-          <span class="label">Crit</span>
+          <span class="label">Critical</span>
           <span class="value" id="stat-crit">0%</span>
         </div>
         <div class="quick-stat" data-stat="auto">
-          <span class="label">Auto</span>
+          <span class="label">Auto hit</span>
           <span class="value" id="stat-auto">0s</span>
         </div>
         <div class="quick-stat" data-stat="spawn">
-          <span class="label">Spawn</span>
+          <span class="label">Node spawn</span>
           <span class="value" id="stat-spawn">0s</span>
         </div>
         <div class="quick-stat" data-stat="hp">
@@ -486,20 +591,28 @@
       <div class="cursor-dot"></div>
     </div>
   </div>
-  <div id="music-player" class="music-player">
-    <button id="music-player-toggle" class="player-toggle" type="button" aria-label="Toggle music player">
-      <i class="fa-solid fa-arrow-right-to-bracket" style="color: #63E6BE;"></i>
+  <div id="music-player" class="music-player utility-card" role="region" aria-labelledby="music-player-title-label">
+    <button id="music-player-toggle" class="player-toggle utility-toggle" type="button" aria-label="Open music player" aria-controls="music-player-content" aria-expanded="false">
+      <span class="utility-toggle-icon" aria-hidden="true">♫</span>
+      <span class="utility-toggle-copy"><strong>MUSIC</strong><small id="music-toggle-summary">READY</small></span>
     </button>
-    <div class="player-inner">
+    <div id="music-player-content" class="player-inner utility-card-content">
+      <header class="utility-card-header">
+        <div>
+          <span class="utility-kicker">AUDIO LINK</span>
+          <strong id="music-player-title-label">Music player</strong>
+        </div>
+        <button id="music-player-close" class="utility-close" type="button" aria-label="Close music player">×</button>
+      </header>
       <div class="player-cover-shell">
         <div class="cover-outer-glow" aria-hidden="true"></div>
         <div class="player-cover" id="music-cover" role="img" aria-label="Album art">
         </div>
       </div>
       <div class="player-meta">
+        <span class="player-track-kicker">NOW PLAYING</span>
         <p class="player-title" id="music-title"></p>
         <a
-          class="player-artist"
           id="music-artist"
           class="player-artist-link"
           href="https://open.spotify.com/artist/3SnvJY2XpNIRX3YgsU7Xld"
@@ -524,11 +637,11 @@
       </div>
       <div class="player-controls">
         <button class="player-btn" id="music-player-prev" type="button" aria-label="Previous track">
-          <i class="fa-solid fa-backward" style="color: var(--accent);"></i>
+          <span aria-hidden="true">|&lt;</span>
         </button>
-        <button class="player-btn play-btn" id="music-player-play" type="button" aria-label="Play or pause"><i class="fa-solid fa-play" style="color: #63E6BE;"></i></button>
+        <button class="player-btn play-btn" id="music-player-play" type="button" aria-label="Play or pause"><span aria-hidden="true">▶</span></button>
         <button class="player-btn" id="music-player-next" type="button" aria-label="Next track">
-          <i class="fa-solid fa-forward" style="color: var(--accent);"></i>
+          <span aria-hidden="true">&gt;|</span>
         </button>
         <label class="setting">
           <span>BGM volume</span>
@@ -555,12 +668,12 @@
       </div>
     </div>
   </div>
-  <audio id="bgm" src="files/bg_music.mp3" preload="auto"></audio>
-  <script src="js/core/constants.js" defer></script>
-  <script src="js/core/state.js" defer></script>
-  <script src="js/core/audio.js" defer></script>
-  <script src="js/ui/quick-stats-panel.js" defer></script>
-  <script src="js/ui/music-player.js" defer></script>
-  <script src="js/main.js" defer></script>
+  <audio id="bgm" src="files/music/bg_music.mp3" preload="metadata"></audio>
+  <script src="js/core/constants.js?v=2" defer></script>
+  <script src="js/core/state.js?v=2" defer></script>
+  <script src="js/core/audio.js?v=2" defer></script>
+  <script src="js/ui/quick-stats-panel.js?v=2" defer></script>
+  <script src="js/ui/music-player.js?v=2" defer></script>
+  <script src="js/main.js?v=2" defer></script>
 </body>
 </html>
