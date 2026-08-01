@@ -1,108 +1,45 @@
 (function () {
   document.addEventListener('DOMContentLoaded', () => {
     const panel = document.getElementById('quick-stats-panel');
-    if (!panel) return;
-
     const toggle = document.getElementById('quick-stats-toggle');
-    const MIN_VERTICAL_MARGIN = 24;
-    let isDragging = false;
-    let pointerId = null;
-    let dragOffsetY = 0;
+    const content = document.getElementById('quick-stats-content');
+    const closeButton = document.getElementById('quick-stats-close');
+    if (!panel || !toggle || !content) return;
 
-    const clampTop = (desiredTop) => {
-      const viewportHeight =
-        window.innerHeight || document.documentElement.clientHeight || 0;
-      const rect = panel.getBoundingClientRect();
-      const maxTop = Math.max(
-        MIN_VERTICAL_MARGIN,
-        viewportHeight - rect.height - MIN_VERTICAL_MARGIN,
-      );
-      return Math.min(Math.max(desiredTop, MIN_VERTICAL_MARGIN), maxTop);
-    };
+    const setCollapsed = (collapsed, options = {}) => {
+      const openedFromToggle = !collapsed && document.activeElement === toggle;
+      panel.classList.toggle('collapsed', collapsed);
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.setAttribute('aria-label', collapsed ? 'Open live stats' : 'Close live stats');
+      toggle.toggleAttribute('inert', !collapsed);
+      toggle.setAttribute('aria-hidden', String(!collapsed));
+      content.toggleAttribute('inert', collapsed);
+      content.setAttribute('aria-hidden', String(collapsed));
 
-    const setPanelTop = (top) => {
-      const clamped = clampTop(top);
-      panel.style.top = `${clamped}px`;
-      panel.style.bottom = 'auto';
-    };
-
-    const initPosition = () => {
-      const rect = panel.getBoundingClientRect();
-      const viewportHeight =
-        window.innerHeight || document.documentElement.clientHeight || 0;
-      const startTop = viewportHeight - rect.height - MIN_VERTICAL_MARGIN;
-      setPanelTop(startTop);
-    };
-
-    const setToggleIcon = () => {
-      if (!toggle) return;
-      const collapsed = panel.classList.contains('collapsed');
-      toggle.innerHTML = collapsed
-        ? '<i class="fa-solid fa-arrow-right-to-bracket" style="color: var(--accent);"></i>'
-        : '<i class="fa-solid fa-arrow-right-from-bracket fa-flip-horizontal" style="color: var(--accent);"></i>';
-    };
-
-    const startDrag = (event) => {
-      if (isDragging) return;
-      isDragging = true;
-      pointerId = event.pointerId;
-      const rect = panel.getBoundingClientRect();
-      dragOffsetY = event.clientY - rect.top;
-
-      if (panel.setPointerCapture) {
-        try {
-          panel.setPointerCapture(pointerId);
-        } catch (_) {}
+      if (!collapsed) {
+        document.dispatchEvent(new CustomEvent('nodeshift:utility-open', { detail: { id: panel.id } }));
       }
-
-      panel.classList.add('dragging');
-    };
-
-    const moveDrag = (event) => {
-      if (!isDragging) return;
-      if (pointerId != null && event.pointerId !== pointerId) return;
-      setPanelTop(event.clientY - dragOffsetY);
-    };
-
-    const stopDrag = (event) => {
-      if (!isDragging) return;
-      if (event && pointerId != null && event.pointerId !== pointerId) return;
-
-      isDragging = false;
-      if (pointerId != null && panel.releasePointerCapture) {
-        try {
-          panel.releasePointerCapture(pointerId);
-        } catch (_) {}
+      if (options.focus) {
+        (collapsed ? toggle : closeButton)?.focus({ preventScroll: true });
+      } else if (openedFromToggle) {
+        closeButton?.focus({ preventScroll: true });
       }
-      pointerId = null;
-      panel.classList.remove('dragging');
     };
 
-    if (toggle) {
-      toggle.addEventListener('click', () => {
-        panel.classList.toggle('collapsed');
-        setToggleIcon();
-      });
-      setToggleIcon();
-    }
+    toggle.addEventListener('click', () => setCollapsed(!panel.classList.contains('collapsed')));
+    closeButton?.addEventListener('click', () => setCollapsed(true, { focus: true }));
 
-    panel.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return;
-      if (event.target.closest('#quick-stats-toggle')) return;
-      event.preventDefault();
-      startDrag(event);
+    document.addEventListener('nodeshift:utility-open', (event) => {
+      if (event.detail?.id !== panel.id) setCollapsed(true);
     });
 
-    panel.addEventListener('pointermove', moveDrag);
-    panel.addEventListener('pointerup', stopDrag);
-    panel.addEventListener('pointercancel', stopDrag);
-    window.addEventListener('blur', stopDrag);
-
-    window.addEventListener('resize', () => {
-      const rect = panel.getBoundingClientRect();
-      setPanelTop(rect.top);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !panel.classList.contains('collapsed')) {
+        setCollapsed(true, { focus: true });
+      }
     });
 
-    initPosition();
+    panel.classList.add('collapsed');
+    setCollapsed(true);
   });
 })();

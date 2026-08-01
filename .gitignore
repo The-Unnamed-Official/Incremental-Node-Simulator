@@ -301,6 +301,12 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# NodeShift v2 production wrapper output
+dist/
+.game-public/
+.next/
+.wrangler/
+
 # Visual Studio 6 build log
 *.plg
 

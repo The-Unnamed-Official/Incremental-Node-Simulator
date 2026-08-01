@@ -35,17 +35,20 @@
 
   const syncPlayIcon = (button) => {
     if (!button || typeof bgmAudio === 'undefined' || !bgmAudio) return;
-    button.innerHTML = bgmAudio.paused
-      ? '<i class="fa-solid fa-play" style="color: var(--accent);"></i>'
-      : '<i class="fa-solid fa-pause" style="color: var(--accent);"></i>';
+    button.textContent = bgmAudio.paused ? '▶' : 'Ⅱ';
     button.classList.toggle('is-playing', !bgmAudio.paused);
+    button.setAttribute('aria-label', bgmAudio.paused ? 'Play music' : 'Pause music');
   };
 
   document.addEventListener('DOMContentLoaded', () => {
     const shell = document.getElementById('music-player');
     if (!shell) return;
+    shell.classList.add('collapsed');
 
     const toggle = document.getElementById('music-player-toggle');
+    const content = document.getElementById('music-player-content');
+    const closeButton = document.getElementById('music-player-close');
+    const toggleSummary = document.getElementById('music-toggle-summary');
     const titleEl = document.getElementById('music-title');
     const artistEl = document.getElementById('music-artist');
     const coverEl = document.getElementById('music-cover');
@@ -58,77 +61,6 @@
 
     let scrubbing = false;
     let audioListenersAttached = false;
-    
-    const MIN_VERTICAL_MARGIN = 24;
-    let isDraggingPlayer = false;
-    let dragPointerId = null;
-    let dragOffsetY = 0;
-
-    const clampPlayerTop = (desiredTop) => {
-      const viewportHeight =
-        window.innerHeight || document.documentElement.clientHeight || 0;
-      const rect = shell.getBoundingClientRect();
-      const maxTop = Math.max(
-        MIN_VERTICAL_MARGIN,
-        viewportHeight - rect.height - MIN_VERTICAL_MARGIN,
-      );
-      return Math.min(Math.max(desiredTop, MIN_VERTICAL_MARGIN), maxTop);
-    };
-
-    const setPlayerTop = (top) => {
-      const clamped = clampPlayerTop(top);
-      shell.style.top = `${clamped}px`;
-      shell.style.bottom = 'auto';
-    };
-
-    const initPlayerVerticalPosition = () => {
-      const rect = shell.getBoundingClientRect();
-      const viewportHeight =
-        window.innerHeight || document.documentElement.clientHeight || 0;
-      const startTop = viewportHeight - rect.height - MIN_VERTICAL_MARGIN;
-      setPlayerTop(startTop);
-    };
-
-    const startPlayerDrag = (event) => {
-      if (isDraggingPlayer) return;
-      isDraggingPlayer = true;
-      dragPointerId = event.pointerId;
-
-      const rect = shell.getBoundingClientRect();
-      dragOffsetY = event.clientY - rect.top;
-
-      if (shell.setPointerCapture) {
-        try {
-          shell.setPointerCapture(dragPointerId);
-        } catch (_) {}
-      }
-
-      shell.classList.add('dragging');
-      document.body.classList.add('cursor-music-dragging');
-    };
-
-    const movePlayerDrag = (event) => {
-      if (!isDraggingPlayer) return;
-      if (dragPointerId != null && event.pointerId !== dragPointerId) return;
-      setPlayerTop(event.clientY - dragOffsetY);
-    };
-
-    const stopPlayerDrag = (event) => {
-      if (!isDraggingPlayer) return;
-      if (event && dragPointerId != null && event.pointerId !== dragPointerId) return;
-
-      isDraggingPlayer = false;
-
-      if (dragPointerId != null && shell.releasePointerCapture) {
-        try {
-          shell.releasePointerCapture(dragPointerId);
-        } catch (_) {}
-      }
-      dragPointerId = null;
-
-      shell.classList.remove('dragging');
-      document.body.classList.remove('cursor-music-dragging');
-    };
 
     const attachAudioListeners = () => {
       if (audioListenersAttached || typeof bgmAudio === 'undefined' || !bgmAudio) return;
@@ -140,19 +72,39 @@
       audioListenersAttached = true;
     };
 
-    const setToggleIcon = () => {
-      if (!toggle) return;
-      const collapsed = shell.classList.contains('collapsed');
-      toggle.innerHTML = collapsed
-        ? '<i class="fa-solid fa-arrow-right-from-bracket fa-flip-horizontal" style="color: var(--accent);"></i>'
-        : '<i class="fa-solid fa-arrow-right-to-bracket" style="color: var(--accent);"></i>';
+    const setCollapsed = (collapsed, options = {}) => {
+      const openedFromToggle = !collapsed && document.activeElement === toggle;
+      shell.classList.toggle('collapsed', collapsed);
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', String(!collapsed));
+        toggle.setAttribute('aria-label', collapsed ? 'Open music player' : 'Close music player');
+        toggle.toggleAttribute('inert', !collapsed);
+        toggle.setAttribute('aria-hidden', String(!collapsed));
+      }
+      if (content) {
+        content.toggleAttribute('inert', collapsed);
+        content.setAttribute('aria-hidden', String(collapsed));
+      }
+      if (!collapsed) {
+        document.dispatchEvent(new CustomEvent('nodeshift:utility-open', { detail: { id: shell.id } }));
+      }
+      if (options.focus) {
+        (collapsed ? toggle : closeButton)?.focus({ preventScroll: true });
+      } else if (openedFromToggle) {
+        closeButton?.focus({ preventScroll: true });
+      }
     };
 
     const updateTrackDetails = () => {
       const track = getTrackMeta();
       if (!track) return;
       titleEl.textContent = track.title || '';
+      titleEl.title = track.title || '';
       artistEl.textContent = track.artist || '';
+      artistEl.title = track.artist || '';
+      if (toggleSummary) {
+        toggleSummary.textContent = (track.shortCode || track.title || 'READY').slice(0, 12).toUpperCase();
+      }
       applyTrackVisuals(track, coverEl, shell);
       if (typeof bgmAudio !== 'undefined' && bgmAudio) {
         durationEl.textContent = Number.isFinite(bgmAudio.duration)
@@ -184,11 +136,20 @@
 
     if (toggle) {
       toggle.addEventListener('click', () => {
-        shell.classList.toggle('collapsed');
-        setToggleIcon();
+        setCollapsed(!shell.classList.contains('collapsed'));
       });
-      setToggleIcon();
     }
+    closeButton?.addEventListener('click', () => setCollapsed(true, { focus: true }));
+
+    document.addEventListener('nodeshift:utility-open', (event) => {
+      if (event.detail?.id !== shell.id) setCollapsed(true);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !shell.classList.contains('collapsed')) {
+        setCollapsed(true, { focus: true });
+      }
+    });
 
     if (playBtn) {
       playBtn.addEventListener('click', () => {
@@ -254,63 +215,12 @@
       });
     }
 
-    initPlayerVerticalPosition();
-
-    window.addEventListener('resize', () => {
-      const rect = shell.getBoundingClientRect();
-      setPlayerTop(rect.top);
-    });
-
-    shell.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return;
-
-      const t = event.target;
-      if (
-        t.closest('#music-player-toggle') ||
-        t.closest('.player-meta') ||
-        t.closest('.player-progress') ||
-        t.closest('.player-controls')
-      ) {
-        return;
-      }
-
-      if (!t.closest('.music-player')) return;
-
-      event.preventDefault();
-      startPlayerDrag(event);
-    });
-
-    shell.addEventListener('pointermove', (event) => {
-      movePlayerDrag(event);
-    });
-
-    shell.addEventListener('pointerup', (event) => {
-      stopPlayerDrag(event);
-    });
-
-    shell.addEventListener('pointercancel', (event) => {
-      stopPlayerDrag(event);
-    });
-
-    window.addEventListener('blur', (event) => {
-      stopPlayerDrag(event);
-    });
-
-    shell.addEventListener('pointerenter', () => {
-      document.body.classList.add('cursor-music-drag');
-    });
-
-    shell.addEventListener('pointerleave', () => {
-      if (!isDraggingPlayer) {
-        document.body.classList.remove('cursor-music-drag');
-      }
-    });
-
     document.addEventListener('bgm-track-change', updateTrackDetails);
     attachAudioListeners();
 
     updateTrackDetails();
     syncProgress();
     syncPlayIcon(playBtn);
+    setCollapsed(true);
   });
 })();

@@ -1,11 +1,11 @@
 function getLevelDuration(levelIndex = 1) {
   const safeIndex = Math.max(1, levelIndex);
-  return BASE_LEVEL_DURATION + (safeIndex - 1) * LEVEL_DURATION_INCREMENT;
+  return Math.min(90, BASE_LEVEL_DURATION + Math.log2(safeIndex) * LEVEL_DURATION_INCREMENT);
 }
 
 function getBossBaseHP(levelIndex = 1) {
   const safeIndex = Math.max(1, levelIndex);
-  return BASE_BOSS_HP + (safeIndex - 1) * BOSS_HP_INCREMENT;
+  return BASE_BOSS_HP * Math.pow(BOSS_HP_INCREMENT, safeIndex - 1);
 }
 
 function createInitialState() {
@@ -18,8 +18,11 @@ function createInitialState() {
     highestCompletedLevel: 0,
     lp: 0,
     levelXP: 0,
-    xpForNext: 100,
+    xpForNext: 80,
     playtime: 0,
+    lifetimeBits: 0,
+    lifetimeCryptcoins: 0,
+    totalPrestigeEarned: 0,
     health: 100,
     maxHealth: 100,
     nodesDestroyed: {
@@ -54,13 +57,19 @@ function createInitialState() {
     labProgress: 0,
     labSpeed: 0,
     labDeposited: 0,
+    labCycles: 0,
     crypto: {
       deposit: 0,
       rate: 0,
       mined: 0,
       duration: 0,
       timeRemaining: 0,
-      speedUpgrades: {},
+    speedUpgrades: {},
+    overclocks: {},
+    overclockUnlocked: false,
+    skillChecksCompleted: 0,
+    skillChecksSucceeded: 0,
+    skillCheckPity: 0,
     },
     skins: {
       owned: new Set(['default']),
@@ -84,6 +93,7 @@ function createInitialState() {
     selectedUpgradeFilter: 'damage',
     lastSeenVersion: null,
     lastSavedAt: null,
+    lastActiveAt: Date.now(),
     tutorialCompleted: false,
   };
 }
@@ -112,6 +122,7 @@ const stats = {
   bossHPFactor: 1,
   nodeCountDamageBonus: 0,
   bossKillDamageRamp: 0,
+  bossDamageMultiplier: 1,
 };
 
 const DEFAULT_STATE_SERIALIZED = JSON.stringify(createInitialState(), stateReplacer);

@@ -1,12 +1,60 @@
 const TICK_RATE = 1000 / 60;
-const BASE_LEVEL_DURATION = 60;
-const LEVEL_DURATION_INCREMENT = 10;
-const BASE_BOSS_HP = 200;
-const BOSS_HP_INCREMENT = 100;
+const BASE_LEVEL_DURATION = 38;
+const LEVEL_DURATION_INCREMENT = 5.5;
+const BASE_BOSS_HP = 180;
+const BOSS_HP_INCREMENT = 2.28;
 const NODE_SIZE = 82;
-const GAME_VERSION = 'v1.700';
+const GAME_VERSION = 'v2';
 
 const UPDATE_LOGS = [
+  {
+    version: 'v2',
+    title: 'AGAIN! // NodeShift v2 // Constellation OS',
+    description:
+      'AGAIN! Yes, the previous release was already a rework. This is the complete v2 rebuild: a different pixel-constellation interface, instant live readouts, a sustainable progression curve, and every major screen redesigned as one coherent game.',
+    changes: [
+      {
+        text: 'Constellation OS interface',
+        sub: [
+          'Replaced the old green command-deck treatment with a cooler indigo pixel system using cyan, coral, amber, and violet signal colors.',
+          'Rebuilt the header, battlefield, module bay, resources, telemetry, buttons, dialogs, settings, theme previews, utility cards, and responsive layouts.',
+          'Every surface now shares the same spacing, focus, motion, contrast, and status language without hiding controls behind decorative borders.',
+        ],
+      },
+      {
+        text: 'Instant systems and smoother performance',
+        sub: [
+          'Resources, stage timing, boss health, objectives, node density, quick stats, and progression records now synchronize continuously instead of waiting for another action.',
+          'Progress cards update in place rather than rebuilding dozens of DOM nodes every two seconds.',
+          'Cursor motion is frame-batched, expensive blur layers are reduced, and dense combat retains the adaptive effect budget.',
+        ],
+      },
+      {
+        text: 'Gameplay, progression, and fairness',
+        sub: [
+          'Point Area now scales the complete custom reticle, including its inner square, to match the real hit region.',
+          'Boss growth, rewards, rank XP, and stage timing were tuned for a faster opening and a more sustainable endless curve.',
+          'Calibration checks keep their fail-safe purchase protection, wider recovery windows, and clear success targets.',
+        ],
+      },
+      {
+        text: 'New archive, player, and completion flow',
+        sub: [
+          'Achievements and milestones moved out from under gameplay into a searchable, filterable full-height Archive overlay with live claim states.',
+          'The music player is rebuilt as a compact radio deck with readable metadata, balanced controls, and clean responsive behavior.',
+          'Boss victories now open a proper stage-complete transmission with reward cards, the cleared stage, and a clear next-route decision.',
+        ],
+      },
+      {
+        text: 'Reliability and accessibility',
+        sub: [
+          'Stage dropdowns now render above telemetry and the battlefield at every supported width.',
+          'Hidden drawers are removed from keyboard navigation, focus returns to their launch controls, and Escape closes every major overlay.',
+          'The native cursor stays hidden while the pixel reticle, reduced-motion mode, save recovery, and boot fault reporting remain active.',
+        ],
+      },
+    ],
+  },
   {
     version: 'v1.700',
     title: 'Total Rework & Bugfix',
@@ -422,7 +470,7 @@ const CRYPTO_SPEED_UPGRADES = [
 ];
 
 const UPGRADE_LEVEL_GROWTH = 1.1;
-const UPGRADE_TIER_GROWTH = 1.5;
+const UPGRADE_TIER_GROWTH = 1.22;
 
 const TAB_UNLOCK_RULES = {
   crypto: { label: 'Crypto Mine', stateKey: 'cryptoUnlocked', cost: { currency: 'bits', amount: 100000, label: '100k Bits' } },
@@ -450,7 +498,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 15 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 15 * Math.pow(2.08, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -462,7 +510,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 30 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 30 * Math.pow(2.1, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -481,7 +529,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 30 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 38 * Math.pow(2.12, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -493,7 +541,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 115 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 110 * Math.pow(2.18, Math.max(0, safeLevel - 1));
     },
   },
   {
@@ -503,7 +551,7 @@ const nodeTypes = [
     speedMultiplier: 0.65,
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 220 * Math.pow(110, Math.max(0, safeLevel - 1));
+      return 220 * Math.pow(2.22, Math.max(0, safeLevel - 1));
     },
     reward(level) {
       const safeLevel = Math.max(1, Math.floor(level));
@@ -536,7 +584,7 @@ const nodeTypes = [
     },
     hp(level) {
       const safeLevel = Math.max(1, Math.floor(level));
-      return 95 * Math.pow(100, Math.max(0, safeLevel - 1));
+      return 95 * Math.pow(2.16, Math.max(0, safeLevel - 1));
     },
     hues: ['azure', 'emerald', 'crimson', 'auric', 'void'],
   },
@@ -554,7 +602,7 @@ const bossNames = [
 ];
 
 const SKILL_CHECK_DIFFICULTIES = {
-  easy: { duration: 4.5, baseSpeed: 0.6, window: 0.3, minWindow: 0.16 },
-  normal: { duration: 3.8, baseSpeed: 0.85, window: 0.22, minWindow: 0.1 },
-  hard: { duration: 3.2, baseSpeed: 1.05, window: 0.16, minWindow: 0.075 },
+  easy: { duration: 6.6, baseSpeed: 0.46, window: 0.36, minWindow: 0.22 },
+  normal: { duration: 6, baseSpeed: 0.62, window: 0.29, minWindow: 0.17 },
+  hard: { duration: 5.4, baseSpeed: 0.76, window: 0.24, minWindow: 0.14 },
 };

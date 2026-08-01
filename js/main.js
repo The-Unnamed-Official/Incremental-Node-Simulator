@@ -4,13 +4,15 @@ let areaUpgradeDefs = [];
 let collectUpgradeDefs = [];
 let spawnUpgradeDefs = [];
 let speedUpgradeDefs = [];
+let overclockDefs = [];
 let milestones = [];
 let achievements = [];
 let skins = [];
 let nodeSpawnTimer = 0;
 let tooltipEl;
-let achievementTimer = 0;
-let milestoneTimer = 0;
+let liveUiTimer = 0;
+let progressUiTimer = 0;
+let lastUpgradePanelRefreshAt = 0;
 let activeUpdateLogVersion = null;
 let frameCounter = 0;
 let cachedNodeAreaRect = null;
@@ -52,7 +54,7 @@ const skillCheckState = {
 
 const TUTORIAL_STORAGE_KEY = 'ins-tutorial-complete';
 const TUTORIAL_PREF_KEY = 'ins-tutorial-prefs';
-const VERSION_TUTORIAL_PROMPT_VERSION = 'v1.700';
+const VERSION_TUTORIAL_PROMPT_VERSION = 'v2.000';
 let shouldForceVersionTutorial = false;
 const tutorialState = {
   active: false,
@@ -77,6 +79,8 @@ let bitTokenSweepScheduled = false;
 let topBarObserver = null;
 let topBarStickyObserver = null;
 let tutorialHighlightFrame = null;
+let activeProgressFilter = 'all';
+let progressSearchQuery = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
@@ -88,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   generateCollectUpgrades();
   generateSpawnUpgrades();
   generateSpeedUpgrades();
+  generateOverclocks();
   generateMilestones();
   generateAchievements();
   loadGame();
@@ -142,6 +147,8 @@ function cacheElements() {
   UI.bitLayer = document.getElementById('bit-layer');
   UI.currentLevel = document.getElementById('current-level');
   UI.levelSelect = document.getElementById('level-select');
+  UI.stageJumpInput = document.getElementById('stage-jump-input');
+  UI.stageJumpButton = document.getElementById('stage-jump-button');
   UI.versionDisplay = document.getElementById('version-display');
   UI.topBar = document.querySelector('.top-bar');
   if (UI.versionDisplay) {
@@ -153,10 +160,22 @@ function cacheElements() {
   UI.collectUpgradeGrid = document.getElementById('collect-upgrade-grid');
   UI.spawnUpgradeGrid = document.getElementById('spawn-upgrade-grid');
   UI.speedUpgradeGrid = document.getElementById('speed-upgrade-grid');
+  UI.overclockGrid = document.getElementById('overclock-grid');
+  UI.overclockStatus = document.getElementById('overclock-status');
   UI.milestoneDock = document.getElementById('milestone-dock');
   UI.achievementDot = document.querySelector('[data-dot="achievements"]');
   UI.milestoneDot = document.querySelector('[data-dot="milestones"]');
   UI.claimAllButton = document.getElementById('claim-all-progress');
+  UI.progressHub = document.getElementById('progress-hub');
+  UI.progressHubToggle = document.getElementById('progress-hub-toggle');
+  UI.progressHubClose = document.getElementById('progress-hub-close');
+  UI.progressHubScrim = document.getElementById('progress-hub-scrim');
+  UI.progressSearch = document.getElementById('progress-search');
+  UI.progressFilters = document.querySelectorAll('.progress-filter');
+  UI.progressCompletedCount = document.getElementById('progress-completed-count');
+  UI.progressReadyCount = document.getElementById('progress-ready-count');
+  UI.progressVisibleCount = document.getElementById('progress-visible-count');
+  UI.progressBeaconSummary = document.getElementById('progress-beacon-summary');
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
   UI.cryptoReturns = document.getElementById('crypto-returns');
   UI.cryptoTimer = document.getElementById('crypto-timer');
@@ -195,6 +214,7 @@ function cacheElements() {
   UI.skillCheckTier = document.getElementById('skill-check-tier');
   UI.skillCheckReward = document.getElementById('skill-check-reward');
   UI.skillCheckPenalty = document.getElementById('skill-check-penalty');
+  UI.skillCheckStreak = document.getElementById('skill-check-streak');
   UI.tutorialOverlay = document.getElementById('tutorial-overlay');
   UI.tutorialPanel = document.querySelector('.tutorial-panel');
   UI.tutorialBackdrop = document.querySelector('.tutorial-backdrop');
@@ -209,6 +229,11 @@ function cacheElements() {
   UI.levelDialogSummary = document.getElementById('level-dialog-summary');
   UI.levelContinue = document.getElementById('level-continue');
   UI.levelReplay = document.getElementById('level-replay');
+  UI.levelDialogStage = document.getElementById('level-dialog-stage');
+  UI.levelDialogNextStage = document.getElementById('level-dialog-next-stage');
+  UI.levelRewardBits = document.getElementById('level-reward-bits');
+  UI.levelRewardXP = document.getElementById('level-reward-xp');
+  UI.levelRewardPrestige = document.getElementById('level-reward-prestige');
   UI.newGameDialog = document.getElementById('new-game-dialog');
   UI.newGameConfirm = document.getElementById('confirm-new-game');
   UI.newGameCancel = document.getElementById('cancel-new-game');
@@ -221,12 +246,18 @@ function cacheElements() {
   UI.quickStatAuto = document.getElementById('stat-auto');
   UI.quickStatSpawn = document.getElementById('stat-spawn');
   UI.quickStatBoss = document.getElementById('stat-boss');
+  UI.statsToggleSummary = document.getElementById('stats-toggle-summary');
   UI.bossPhaseFill = document.getElementById('boss-phase-fill');
   UI.bossPhasePhase = document.getElementById('boss-phase-phase');
   UI.bossPhaseMeta = document.getElementById('boss-phase-meta');
   UI.palettePreviewRow = document.getElementById('palette-preview-row');
   UI.skillDetailPopup = document.getElementById('skill-detail-popup');
   UI.nodeArenaBackdrop = document.getElementById('node-arena-backdrop');
+  UI.nodesDestroyedDisplay = document.getElementById('nodes-destroyed-display');
+  UI.fieldDensityDisplay = document.getElementById('field-density-display');
+  UI.bitYieldDisplay = document.getElementById('bit-yield-display');
+  UI.nextObjectiveDisplay = document.getElementById('next-objective-display');
+  UI.progressSummary = document.getElementById('progress-summary');
   UI.title = document.querySelector('.title');
   UI.tipsToggle = document.getElementById('tips-toggle');
   UI.replayTutorial = document.getElementById('replay-tutorial');
@@ -445,6 +476,12 @@ function loadGame() {
         data = JSON.parse(raw);
       }
     }
+    if (!data && typeof sessionStorage !== 'undefined') {
+      const sessionRaw = sessionStorage.getItem(SAVE_KEY);
+      if (sessionRaw) {
+        data = JSON.parse(sessionRaw);
+      }
+    }
   } catch (error) {
     console.warn('Failed to load save data', error);
   }
@@ -472,6 +509,7 @@ function hydrateState(source = {}) {
   const mergedSpawn = { ...(defaults.spawnUpgrades || {}), ...(source.spawnUpgrades || {}) };
   const mergedSpawnVersions = { ...(defaults.spawnUpgradeVersions || {}), ...(source.spawnUpgradeVersions || {}) };
   const mergedSpeed = { ...(defaults.speedUpgrades || {}), ...(source.speedUpgrades || {}) };
+  const mergedOverclocks = { ...(defaults.overclocks || {}), ...(source.overclocks || {}) };
   const mergedMilestones = { ...(defaults.milestoneClaims || {}), ...(source.milestoneClaims || {}) };
   const mergedAchievementClaims = { ...(defaults.achievementClaims || {}), ...(source.achievementClaims || {}) };
   const mergedAchievementLog = { ...(defaults.achievementLog || {}), ...(source.achievementLog || {}) };
@@ -480,6 +518,18 @@ function hydrateState(source = {}) {
   state.prestige = Number.isFinite(Number(source.prestige)) ? Number(source.prestige) : defaults.prestige;
   state.xp = Number.isFinite(Number(source.xp)) ? Number(source.xp) : defaults.xp;
   state.playtime = Number.isFinite(Number(source.playtime)) ? Number(source.playtime) : defaults.playtime;
+  state.lifetimeBits = Math.max(
+    state.bits,
+    Number.isFinite(Number(source.lifetimeBits)) ? Number(source.lifetimeBits) : state.bits,
+  );
+  state.lifetimeCryptcoins = Math.max(
+    state.cryptcoins,
+    Number.isFinite(Number(source.lifetimeCryptcoins)) ? Number(source.lifetimeCryptcoins) : state.cryptcoins,
+  );
+  state.totalPrestigeEarned = Math.max(
+    state.prestige,
+    Number.isFinite(Number(source.totalPrestigeEarned)) ? Number(source.totalPrestigeEarned) : state.prestige,
+  );
   state.paletteChangeCount = Number.isFinite(Number(source.paletteChangeCount))
     ? Number(source.paletteChangeCount)
     : defaults.paletteChangeCount;
@@ -573,6 +623,14 @@ function hydrateState(source = {}) {
     }
   });
   state.speedUpgrades = sanitizedSpeed;
+  const sanitizedOverclocks = {};
+  Object.entries(mergedOverclocks).forEach(([id, level]) => {
+    const numeric = Math.floor(Number(level));
+    if (Number.isFinite(numeric) && numeric > 0) {
+      sanitizedOverclocks[id] = Math.min(999, numeric);
+    }
+  });
+  state.overclocks = sanitizedOverclocks;
   const legacyPhaseLevel = Math.max(0, state.areaUpgrades['phase-halo'] || 0);
   const legacyPhaseVersion = Math.max(1, state.areaUpgradeVersions['phase-halo'] || 1);
   const legacyPhaseTotal = (legacyPhaseVersion - 1) * 10 + legacyPhaseLevel;
@@ -594,6 +652,22 @@ function hydrateState(source = {}) {
   state.labProgress = Math.max(0, Number.isFinite(Number(source.labProgress)) ? Number(source.labProgress) : defaults.labProgress);
   state.labSpeed = Math.max(0, Number.isFinite(Number(source.labSpeed)) ? Number(source.labSpeed) : defaults.labSpeed);
   state.labDeposited = Math.max(0, Number.isFinite(Number(source.labDeposited)) ? Number(source.labDeposited) : defaults.labDeposited);
+  state.labCycles = Math.max(0, Math.floor(Number.isFinite(Number(source.labCycles)) ? Number(source.labCycles) : defaults.labCycles));
+  state.skillChecksCompleted = Math.max(
+    0,
+    Math.floor(Number.isFinite(Number(source.skillChecksCompleted)) ? Number(source.skillChecksCompleted) : defaults.skillChecksCompleted),
+  );
+  state.skillChecksSucceeded = Math.max(
+    0,
+    Math.min(
+      state.skillChecksCompleted,
+      Math.floor(Number.isFinite(Number(source.skillChecksSucceeded)) ? Number(source.skillChecksSucceeded) : defaults.skillChecksSucceeded),
+    ),
+  );
+  state.skillCheckPity = Math.max(
+    0,
+    Math.min(4, Math.floor(Number.isFinite(Number(source.skillCheckPity)) ? Number(source.skillCheckPity) : defaults.skillCheckPity)),
+  );
   state.crypto = {
     deposit: Math.max(0, Number.isFinite(Number(mergedCrypto.deposit)) ? Number(mergedCrypto.deposit) : defaults.crypto.deposit),
     rate: Math.max(0, Number.isFinite(Number(mergedCrypto.rate)) ? Number(mergedCrypto.rate) : defaults.crypto.rate),
@@ -614,6 +688,8 @@ function hydrateState(source = {}) {
   if (!state.cryptoUnlocked && (state.crypto.deposit > 0 || state.crypto.rate > 0)) {
     state.cryptoUnlocked = true;
   }
+  state.overclockUnlocked =
+    coerceBoolean(source.overclockUnlocked, defaults.overclockUnlocked) || state.bossKills >= 3;
   state.skins = {
     active: defaults.skins.active,
     owned: new Set(['default']),
@@ -648,8 +724,13 @@ function hydrateState(source = {}) {
   state.lastSeenVersion = typeof source.lastSeenVersion === 'string' ? source.lastSeenVersion : defaults.lastSeenVersion;
   const lastSavedCandidate = Number(source.lastSavedAt);
   state.lastSavedAt = Number.isFinite(lastSavedCandidate) && lastSavedCandidate > 0 ? lastSavedCandidate : defaults.lastSavedAt;
+  const lastActiveCandidate = Number(source.lastActiveAt || source.lastSavedAt);
+  state.lastActiveAt = Number.isFinite(lastActiveCandidate) && lastActiveCandidate > 0
+    ? lastActiveCandidate
+    : Date.now();
   state.tutorialCompleted = coerceBoolean(source.tutorialCompleted, defaults.tutorialCompleted);
   state.health = Math.min(state.maxHealth, Math.max(0, state.health));
+  applyOfflineProgress();
   updateSaveTimestamp();
 }
 
@@ -733,10 +814,12 @@ function sanitizeStatsSnapshot(snapshot) {
 
 function saveGame(options = {}) {
   const { notify = false, message } = options;
+  const savedAt = Date.now();
+  state.lastSavedAt = savedAt;
+  state.lastActiveAt = savedAt;
   try {
     const payload = JSON.stringify(state, stateReplacer);
     localStorage.setItem(SAVE_KEY, payload);
-    state.lastSavedAt = Date.now();
     updateSaveTimestamp();
     if (notify) showSaveStatus(message || 'Game saved', 'info');
     return true;
@@ -758,22 +841,54 @@ function saveGame(options = {}) {
       cryptcoins: state.cryptcoins,
       prestige: state.prestige,
       xp: state.xp,
+      lifetimeBits: state.lifetimeBits,
+      lifetimeCryptcoins: state.lifetimeCryptcoins,
+      totalPrestigeEarned: state.totalPrestigeEarned,
       level: state.level,
+      levelXP: state.levelXP,
+      xpForNext: state.xpForNext,
       highestCompletedLevel: state.highestCompletedLevel,
       lp: state.lp,
+      playtime: state.playtime,
+      nodesDestroyed: state.nodesDestroyed,
+      bossKills: state.bossKills,
       upgrades: state.upgrades,
       areaUpgrades: state.areaUpgrades,
+      areaUpgradeVersions: state.areaUpgradeVersions,
       spawnUpgrades: state.spawnUpgrades,
+      spawnUpgradeVersions: state.spawnUpgradeVersions,
       speedUpgrades: state.speedUpgrades,
       collectUpgrades: state.collectUpgrades,
+      overclocks: state.overclocks,
+      overclockUnlocked: state.overclockUnlocked,
+      skillChecksCompleted: state.skillChecksCompleted,
+      skillChecksSucceeded: state.skillChecksSucceeded,
+      skillCheckPity: state.skillCheckPity,
+      cryptoUnlocked: state.cryptoUnlocked,
+      crypto: state.crypto,
+      labUnlocked: state.labUnlocked,
+      labProgress: state.labProgress,
+      labSpeed: state.labSpeed,
+      labDeposited: state.labDeposited,
+      labCycles: state.labCycles,
+      milestoneClaims: state.milestoneClaims,
+      achievementClaims: state.achievementClaims,
+      achievementLog: state.achievementLog,
       currentLevel: {
         index: state.currentLevel.index,
         timer: state.currentLevel.timer,
         active: state.currentLevel.active,
         bossActive: state.currentLevel.bossActive,
+        bossHP: state.currentLevel.bossHP,
+        bossMaxHP: state.currentLevel.bossMaxHP,
+        bossDamageDealt: state.currentLevel.bossDamageDealt,
       },
       settings: state.settings,
-      lastSavedAt: Date.now(),
+      selectedUpgradeFilter: state.selectedUpgradeFilter,
+      lastSeenVersion: state.lastSeenVersion,
+      tutorialCompleted: state.tutorialCompleted,
+      lastSavedAt: savedAt,
+      lastActiveAt: savedAt,
     };
 
     // Try a compact write to localStorage
@@ -784,30 +899,30 @@ function saveGame(options = {}) {
       showSaveStatus('Saved compact snapshot (local storage near capacity)', 'info');
       return true;
     } catch (compactErr) {
-      console.warn('Compact save failed, attempting pruning and fallbacks', compactErr);
-
-      // Attempt to prune obviously large keys from localStorage (non-critical)
+      console.warn('Compact save failed; trying session storage without touching unrelated data', compactErr);
       try {
-        const keysToPrune = [];
-        for (let i = 0; i < localStorage.length; i += 1) {
-          const key = localStorage.key(i);
-          if (!key || key === SAVE_KEY) continue;
-          try {
-            const val = localStorage.getItem(key) || '';
-            if (val.length > 20000) keysToPrune.push(key);
-          } catch (e) {
-            // ignore read errors
-          }
-        }
-        keysToPrune.forEach((k) => localStorage.removeItem(k));
-        // Retry compact save after pruning
+        sessionStorage.setItem(SAVE_KEY, JSON.stringify(compact));
+        updateSaveTimestamp();
+        showSaveStatus('Saved for this browser session', 'info');
+        return true;
+      } catch (sessionErr) {
+        console.error('All save targets failed', sessionErr);
+        showSaveStatus('Save failed - browser storage is unavailable', 'error');
+        return false;
+      }
+
+      /* Legacy fallback retained for older save snapshots. The active path above
+         stores the compact snapshot in session storage or returns a clear error. */
+      // Legacy fallback retained for old browsers; no unrelated storage is touched.
+      try {
+        // Retry the compact save once.
         localStorage.setItem(SAVE_KEY, JSON.stringify(compact));
         state.lastSavedAt = Date.now();
         updateSaveTimestamp();
-        showSaveStatus('Saved compact snapshot after pruning storage', 'info');
+        showSaveStatus('Saved compact recovery snapshot', 'info');
         return true;
       } catch (pruneErr) {
-        console.warn('Prune + localStorage retry failed, trying sessionStorage', pruneErr);
+        console.warn('Local storage retry failed, trying sessionStorage', pruneErr);
 
         // Try sessionStorage as a transient fallback
         try {
@@ -896,44 +1011,40 @@ function updateSaveTimestamp() {
 }
 
 function startNewGame() {
+  flushSaveQueue();
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(SAVE_KEY);
     }
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(SAVE_KEY);
+    }
   } catch (error) {
     console.warn('Failed to clear save data', error);
   }
-  saveGame({ notify: true, message: 'Progress reset... Please wait' });
-
-  setTimeout(() => {
-    hydrateState(getDefaultState());
-    activeNodes.forEach((node) => node.el?.remove());
-    activeNodes.clear();
-    syncNodeDensityState();
-    if (activeBoss?.el) {
-      activeBoss.el.remove();
-    }
-    activeBoss = null;
-    nodeSpawnTimer = 0;
-    autoClickTimer = 0;
-    state.currentLevel.timer = getLevelDuration(state.currentLevel.index);
-    state.currentLevel.active = true;
-    state.currentLevel.bossActive = false;
-    state.health = state.maxHealth;
-    hideLevelDialog();
-    applySavedUpgradeFilter();
-    renderMilestones();
-    renderAchievements();
-    renderAreaUpgrades();
-    syncLabVisibility();
-    applySettingsToControls();
-    applyDisplaySettings();
-    updateBGMVolume();
-    updateStats();
-    updateResources();
-    localStorage.clear();
-    location.reload();
-  }, 2000);
+  hydrateState(getDefaultState());
+  clearActiveEntities();
+  nodeSpawnTimer = 0;
+  autoClickTimer = 0;
+  state.currentLevel.timer = getLevelDuration(1);
+  state.currentLevel.active = true;
+  state.health = state.maxHealth;
+  hideLevelDialog();
+  applySavedUpgradeFilter();
+  renderMilestones();
+  renderAchievements();
+  renderAreaUpgrades();
+  renderCollectUpgrades();
+  renderSpawnUpgrades();
+  renderSpeedUpgrades();
+  renderOverclocks();
+  syncLabVisibility();
+  applySettingsToControls();
+  applyDisplaySettings();
+  updateBGMVolume();
+  updateStats();
+  updateResources();
+  saveGame({ notify: true, message: 'Fresh simulation launched' });
 }
 
 function syncLabVisibility() {
@@ -1248,9 +1359,30 @@ function setupFilters() {
 function setupProgressDock() {
   const tabs = document.querySelectorAll('.progress-tab');
   const panels = document.querySelectorAll('.progress-panel');
-  if (tabs.length === 0) {
-    return;
-  }
+  if (tabs.length === 0 || !UI.progressHub || !UI.progressHubToggle) return;
+
+  const setHubOpen = (open, options = {}) => {
+    UI.progressHub.classList.toggle('open', open);
+    UI.progressHub.setAttribute('aria-hidden', String(!open));
+    UI.progressHub.toggleAttribute('inert', !open);
+    UI.progressHubToggle.setAttribute('aria-expanded', String(open));
+    UI.progressHubScrim?.classList.toggle('hidden', !open);
+    UI.progressHubScrim?.setAttribute('aria-hidden', String(!open));
+    document.body.classList.toggle('progress-hub-open', open);
+    if (open) {
+      syncProgressCards();
+      requestAnimationFrame(() => (UI.progressSearch || UI.progressHubClose)?.focus({ preventScroll: true }));
+    } else if (options.restoreFocus) {
+      UI.progressHubToggle.focus({ preventScroll: true });
+    }
+  };
+
+  UI.progressHubToggle.addEventListener('click', () => {
+    setHubOpen(!UI.progressHub.classList.contains('open'));
+  });
+  UI.progressHubClose?.addEventListener('click', () => setHubOpen(false, { restoreFocus: true }));
+  UI.progressHubScrim?.addEventListener('click', () => setHubOpen(false, { restoreFocus: true }));
+
   if (UI.claimAllButton) {
     UI.claimAllButton.addEventListener('click', claimAllRewards);
   }
@@ -1271,8 +1403,34 @@ function setupProgressDock() {
           panel.setAttribute('aria-hidden', 'true');
         }
       });
+      applyProgressFilters();
     });
   });
+
+  UI.progressSearch?.addEventListener('input', () => {
+    progressSearchQuery = UI.progressSearch.value.trim().toLowerCase();
+    applyProgressFilters();
+  });
+
+  UI.progressFilters.forEach((button) => {
+    button.addEventListener('click', () => {
+      activeProgressFilter = button.dataset.progressFilter || 'all';
+      UI.progressFilters.forEach((item) => {
+        const active = item === button;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-pressed', String(active));
+      });
+      applyProgressFilters();
+    });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && UI.progressHub.classList.contains('open')) {
+      setHubOpen(false, { restoreFocus: true });
+    }
+  });
+
+  setHubOpen(false);
 }
 
 function setupStickyTopBarState() {
@@ -1349,7 +1507,7 @@ function renderUpdateLogs() {
     tab.id = `update-log-tab-${safeId}`;
     tab.setAttribute('role', 'tab');
     tab.innerHTML = `
-      <span>${log.version}${log.isLatest ? ' (Latest Update)' : ''}</span>
+      <span>${log.version}</span>
       ${log.isLatest ? '<span class="tag">(Latest Update)</span>' : ''}
     `;
     tab.addEventListener('click', () => selectUpdateLog(log.version));
@@ -2315,7 +2473,7 @@ function generateUpgrades() {
       const tierIndex = Math.floor(i / 10);
       const withinTier = i % 10;
       const maxLevel = family.minLevel + (i % (family.maxLevel - family.minLevel + 1));
-      let perLevel = 0.09 * Math.pow(2.2, i);
+      let perLevel = 0.09 * Math.pow(1.34, i);
       let multiplierGrowth = family.key === 'crit' ? 1.5 : 1;
       if (family.key === 'economy' || family.key === 'economyNode') {
         perLevel = 5 * Math.pow(3.3, tierIndex);
@@ -2760,6 +2918,10 @@ function applyCollectUpgrades(statsObj) {
 }
 
 function getUpgradeDisplayName(upgrade, level = 0) {
+  if (upgrade?.id === 'PHASE_HALO') {
+    const version = Math.min(4, Math.max(1, Math.ceil(Math.max(level, 0) / 3) || 1));
+    return `${upgrade.name} ${romanNumeral(version)}`;
+  }
   if (Array.isArray(upgrade?.tierNames) && upgrade.tierNames.length > 0) {
     const index = Math.min(Math.max(0, level), upgrade.tierNames.length - 1);
     return upgrade.tierNames[index];
@@ -2911,6 +3073,134 @@ function applySpeedUpgrades(statsObj) {
   });
 }
 
+function generateOverclocks() {
+  overclockDefs = [
+    {
+      id: 'continuum-power',
+      name: 'Power Lattice',
+      description: '+20% total damage each level',
+      costBase: 4,
+      costScale: 1.42,
+      effect: (statsObj, level) => {
+        statsObj.damage *= Math.pow(1.2, level);
+      },
+    },
+    {
+      id: 'continuum-yield',
+      name: 'Yield Router',
+      description: '+16% bit yield and +8% XP yield each level',
+      costBase: 7,
+      costScale: 1.46,
+      effect: (statsObj, level) => {
+        statsObj.bitGain *= Math.pow(1.16, level);
+        statsObj.xpGain *= Math.pow(1.08, level);
+      },
+    },
+    {
+      id: 'continuum-cadence',
+      name: 'Time Fold',
+      description: 'Faster auto-fire and node throughput each level',
+      costBase: 11,
+      costScale: 1.5,
+      effect: (statsObj, level) => {
+        statsObj.autoInterval = Math.max(0.025, statsObj.autoInterval * Math.pow(0.965, level));
+        statsObj.nodeSpawnDelay = Math.max(0.035, statsObj.nodeSpawnDelay * Math.pow(0.985, level));
+        statsObj.maxNodes += Math.floor(level / 3);
+      },
+    },
+    {
+      id: 'continuum-boss',
+      name: 'Boss Parser',
+      description: '+22% direct and payload boss damage each level',
+      costBase: 15,
+      costScale: 1.54,
+      effect: (statsObj, level) => {
+        statsObj.bossDamageMultiplier *= Math.pow(1.22, level);
+      },
+    },
+  ];
+}
+
+function isOverclockUnlocked() {
+  if (!state.overclockUnlocked && state.bossKills >= 3) {
+    state.overclockUnlocked = true;
+    queueSave(500);
+  }
+  return Boolean(state.overclockUnlocked);
+}
+
+function getOverclockCost(definition, level) {
+  const raw = definition.costBase * Math.pow(definition.costScale, Math.max(0, level));
+  return Number.isFinite(raw) ? Math.ceil(raw) : Number.MAX_VALUE;
+}
+
+function getOverclockLpCost(level) {
+  const nextLevel = Math.max(1, level + 1);
+  return nextLevel % 25 === 0 ? Math.max(1, Math.floor(nextLevel / 25)) : 0;
+}
+
+function renderOverclocks() {
+  if (!UI.overclockGrid) return;
+  const unlocked = isOverclockUnlocked();
+  if (UI.overclockStatus) {
+    UI.overclockStatus.textContent = unlocked
+      ? `Core online • ${formatNumberShort(Object.values(state.overclocks || {}).reduce((sum, value) => sum + value, 0))} total levels`
+      : `Core locked • ${Math.min(3, state.bossKills)} / 3 bosses`;
+  }
+  UI.overclockGrid.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  overclockDefs.forEach((definition) => {
+    const level = Math.max(0, state.overclocks?.[definition.id] || 0);
+    const cost = getOverclockCost(definition, level);
+    const lpCost = getOverclockLpCost(level);
+    const affordable = unlocked && state.prestige >= cost && state.lp >= lpCost;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'area-upgrade overclock-upgrade';
+    button.dataset.id = definition.id;
+    button.setAttribute('role', 'listitem');
+    button.classList.toggle('available', affordable);
+    button.classList.toggle('unaffordable', unlocked && !affordable);
+    button.classList.toggle('locked', !unlocked);
+    button.disabled = !affordable;
+    button.innerHTML = `
+      <div class="title">${definition.name}</div>
+      <div class="desc">${definition.description}</div>
+      <div class="level">Continuum level ${formatNumberShort(level)} / 999</div>
+      <div class="progress-track"><div class="fill" style="width: ${Math.min(100, (level % 25) * 4)}%"></div></div>
+      <div class="cost">${unlocked
+        ? `Cost: <span>${formatNumberShort(cost)}</span> Prestige${lpCost ? ` + ${lpCost} LP` : ''}`
+        : 'Neutralise three bosses to connect'}</div>
+    `;
+    button.addEventListener('click', () => purchaseOverclock(definition));
+    fragment.appendChild(button);
+  });
+  UI.overclockGrid.appendChild(fragment);
+}
+
+function purchaseOverclock(definition) {
+  if (!definition || !isOverclockUnlocked()) return;
+  const level = Math.max(0, state.overclocks?.[definition.id] || 0);
+  if (level >= 999) return;
+  const cost = getOverclockCost(definition, level);
+  const lpCost = getOverclockLpCost(level);
+  if (state.prestige < cost || state.lp < lpCost) return;
+  state.prestige -= cost;
+  state.lp -= lpCost;
+  state.overclocks[definition.id] = level + 1;
+  updateStats();
+  updateResources();
+  renderOverclocks();
+  queueSave();
+}
+
+function applyOverclocks(statsObj) {
+  overclockDefs.forEach((definition) => {
+    const level = Math.max(0, state.overclocks?.[definition.id] || 0);
+    if (level > 0) definition.effect(statsObj, level, definition);
+  });
+}
+
 function romanNumeral(num) {
   const map = [
     [1000, 'M'],
@@ -2964,19 +3254,13 @@ function getVisibleUpgradeSet(activeFilter, categorySequences) {
       return level < upgrade.maxLevel;
     });
     const cutoff = firstPendingIndex === -1 ? list.length - 1 : firstPendingIndex;
-    list.slice(0, cutoff + 1).forEach(({ upgrade }) => {
+    const start = Math.max(0, cutoff - 2);
+    const end = Math.min(list.length, cutoff + 2);
+    list.slice(start, end).forEach(({ upgrade }) => {
       visible.add(upgrade.id);
     });
   });
   return visible;
-}
-
-function getUpgradeDisplayName(upgrade, level) {
-  if (upgrade.id === 'PHASE_HALO') {
-    const version = Math.min(4, Math.max(1, Math.ceil(Math.max(level, 0) / 3) || 1));
-    return `${upgrade.name} ${romanNumeral(version)}`;
-  }
-  return upgrade.name;
 }
 
 function buildSkillBranchLayout(activeFilter) {
@@ -3028,17 +3312,17 @@ function drawSkillConnections(layer, elementMap) {
 }
 
 function getSkillCheckPreview(upgrade, cost, previousLevel = 0) {
-  const difficulty = upgrade.category === 'damage' ? 'easy' : 'normal';
-  const rewardBits = Math.ceil(cost * (difficulty === 'hard' ? 0.95 : difficulty === 'normal' ? 0.7 : 0.45));
+  const sequence = Math.max(0, Number(upgrade.sequenceIndex) || 0);
+  const difficulty = sequence >= 80 ? 'hard' : sequence >= 8 ? 'normal' : 'easy';
+  const rewardBits = Math.ceil(cost * (difficulty === 'hard' ? 0.8 : difficulty === 'normal' ? 0.6 : 0.45));
   const rewardXP = Math.ceil(15 * (difficulty === 'hard' ? 2.2 : difficulty === 'normal' ? 1.4 : 1));
-  const penalty = Math.min(state[upgrade.currency] || 0, cost);
   return {
     difficulty,
     rewardBits,
     rewardXP,
-    penalty,
+    penalty: 0,
     rewardLabel: `Reward: +${rewardBits.toLocaleString()} bits, +${rewardXP.toLocaleString()} XP`,
-    penaltyLabel: `Penalty: -${penalty.toLocaleString()} ${upgrade.currency}`,
+    penaltyLabel: 'Fail-safe: purchase kept • miss adds calibration assist',
     previousLevel,
   };
 }
@@ -3055,7 +3339,7 @@ function showSkillDetail(target, upgrade) {
     <div class="meta">
       <span>Next: ${nextLevel}/${upgrade.maxLevel}</span>
       <span>Cost: ${cost.toLocaleString()} ${upgrade.currency}</span>
-      <span>Skill check: 18% chance (${preview.difficulty})</span>
+      <span>Bonus calibration: 20% chance (${preview.difficulty})</span>
       <span>${preview.rewardLabel}</span>
       <span>${preview.penaltyLabel}</span>
     </div>
@@ -3362,7 +3646,7 @@ function attemptPurchase(upgrade, sourceEl = null) {
   const activeFilter =
     document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
   renderUpgrades(activeFilter);
-  renderMilestones();
+  syncProgressCards();
   handleTutorialUpgradePurchase(upgrade);
   maybeStartSkillCheck(upgrade, cost, level);
   queueSave();
@@ -3371,33 +3655,28 @@ function attemptPurchase(upgrade, sourceEl = null) {
 function maybeStartSkillCheck(upgrade, cost, previousLevel) {
   if (skillCheckState.active) return;
   const forcingTutorialCheck = tutorialState.active && tutorialState.awaitingUpgrade && !tutorialState.skillCheckComplete;
-  const baseChance = 0.18;
+  const baseChance = 0.2;
   if (!forcingTutorialCheck && Math.random() > baseChance) {
     return;
   }
   const preview = getSkillCheckPreview(upgrade, cost, previousLevel);
   const difficulty = forcingTutorialCheck ? 'easy' : preview.difficulty;
-  const { rewardBits, rewardXP, penalty } = preview;
+  const { rewardBits, rewardXP } = preview;
   startSkillCheck({
     upgrade,
     difficulty,
     summary: preview,
     reward: () => {
-      state.bits += rewardBits;
+      addBits(rewardBits);
       gainXP(rewardXP);
       createFloatText(UI.customCursor || document.body, `+${rewardBits} bits`, '#ffd166', { variant: 'currency' });
       updateResources();
     },
     onFail: () => {
-      state[upgrade.currency] -= penalty;
-      state.upgrades[upgrade.id] = previousLevel;
-      updateStats();
-      updateResources();
-      const activeFilter =
-        document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
-      renderUpgrades(activeFilter);
-      renderMilestones();
-      createFloatText(UI.customCursor || document.body, `-${cost + penalty} ${upgrade.currency}`, '#ff6ea8', { variant: 'requirement' });
+      createFloatText(UI.customCursor || document.body, 'Upgrade secured • calibration +1', '#7ef6ff', {
+        variant: 'status',
+        priority: 'high',
+      });
       queueSave();
     },
   });
@@ -3784,6 +4063,10 @@ function buildMilestoneElement(milestone, progress, variant) {
     const card = document.createElement('div');
     card.className = 'progress-card milestone-card';
     card.setAttribute('role', 'listitem');
+    card.dataset.progressId = milestone.id;
+    card.dataset.progressKind = 'milestone';
+    card.dataset.progressStatus = progress.claimed ? 'claimed' : progress.ready ? 'ready' : 'active';
+    card.dataset.progressSearch = `${milestone.label} ${describeMilestone(milestone)} milestone`.toLowerCase();
     if (progress.claimed) {
       card.classList.add('claimed');
     } else if (progress.ready) {
@@ -3803,6 +4086,7 @@ function buildMilestoneElement(milestone, progress, variant) {
       <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
       <div class="card-metrics">${progressText}</div>
     `;
+    claimButton.classList.add('progress-claim');
     card.appendChild(claimButton);
     return card;
   }
@@ -3835,7 +4119,7 @@ function claimMilestoneReward(milestone) {
   state.milestoneClaims[milestone.id] = true;
   updateStats();
   updateResources();
-  renderMilestones();
+  syncProgressCards();
   queueSave();
 }
 
@@ -3898,8 +4182,18 @@ const NUMBER_SUFFIXES = [
 ];
 
 function formatNumberShort(value) {
-  const numeric = Number(value) || 0;
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return '0';
+  if (!Number.isFinite(numeric)) return numeric < 0 ? '-∞' : '∞';
   const absValue = Math.abs(numeric);
+  if (absValue >= 1e36) {
+    const exponent = Math.floor(Math.log10(absValue));
+    const mantissa = numeric / Math.pow(10, exponent);
+    return `${mantissa.toFixed(2).replace(/\.0+$/u, '')}e${exponent}`;
+  }
+  if (absValue > 0 && absValue < 0.001) {
+    return numeric.toExponential(2).replace(/\.00e/u, 'e');
+  }
   if (absValue < 1) {
     return numeric.toFixed(3).replace(/\.0+$/u, '').replace(/\.$/u, '');
   }
@@ -3916,6 +4210,12 @@ function formatNumberShort(value) {
     return formatted;
   }
   return `${formatted} ${NUMBER_SUFFIXES[tier]}`;
+}
+
+function formatMultiplier(value) {
+  const numeric = Math.max(0, Number(value) || 0);
+  if (numeric < 1000) return numeric.toFixed(numeric >= 100 ? 0 : numeric >= 10 ? 1 : 2);
+  return formatNumberShort(numeric);
 }
 
 function formatMilestoneValue(milestone, value) {
@@ -3986,8 +4286,7 @@ function claimAllRewards() {
     }
   });
   if (claimedAny) {
-    renderAchievements();
-    renderMilestones();
+    syncProgressCards();
     updateResources();
     queueSave();
   }
@@ -4002,12 +4301,26 @@ function toggleNotificationDot(dotEl, isActive) {
 function updateProgressIndicators() {
   const claimableAchievements = getClaimableAchievementCount();
   const claimableMilestones = getClaimableMilestoneCount();
+  const completedAchievements = achievements.filter((achievement) => getAchievementProgress(achievement).achieved).length;
+  const completedMilestones = milestones.filter((milestone) => getMilestoneProgress(milestone).ready).length;
+  const completed = completedAchievements + completedMilestones;
+  const total = achievements.length + milestones.length;
   toggleNotificationDot(UI.achievementDot, claimableAchievements > 0);
   toggleNotificationDot(UI.milestoneDot, claimableMilestones > 0);
   const totalClaimable = claimableAchievements + claimableMilestones;
   if (UI.claimAllButton) {
     UI.claimAllButton.classList.toggle('visible', totalClaimable > 0);
+    UI.claimAllButton.textContent = totalClaimable > 0 ? `Claim all • ${totalClaimable}` : 'Claim all';
   }
+  if (UI.progressSummary) {
+    UI.progressSummary.textContent = `${completed} / ${total} records complete • ${totalClaimable} rewards ready`;
+  }
+  if (UI.progressCompletedCount) UI.progressCompletedCount.textContent = formatNumberShort(completed);
+  if (UI.progressReadyCount) UI.progressReadyCount.textContent = formatNumberShort(totalClaimable);
+  if (UI.progressBeaconSummary) {
+    UI.progressBeaconSummary.textContent = totalClaimable > 0 ? `${totalClaimable} READY` : `${completed} / ${total}`;
+  }
+  UI.progressHubToggle?.classList.toggle('has-rewards', totalClaimable > 0);
 }
 
 const ACHIEVEMENT_DIFFICULTY_WEIGHTS = {
@@ -4075,16 +4388,16 @@ function applyAchievementReward(reward) {
   const prestige = Math.max(0, Math.round(Number(reward.prestige) || 0));
   const cryptcoins = Math.max(0, Math.round(Number(reward.cryptcoins) || 0));
   if (bits > 0) {
-    state.bits += bits;
+    addBits(bits);
   }
   if (xp > 0) {
     gainXP(xp);
   }
   if (prestige > 0) {
-    state.prestige += prestige;
+    addPrestige(prestige);
   }
   if (cryptcoins > 0) {
-    state.cryptcoins += cryptcoins;
+    addCryptcoins(cryptcoins);
   }
 }
 
@@ -4095,7 +4408,7 @@ function claimAchievementReward(achievement) {
   }
   applyAchievementReward(achievement.reward);
   state.achievementClaims[achievement.id] = true;
-  renderAchievements();
+  syncProgressCards();
   updateResources();
   queueSave();
 }
@@ -4157,7 +4470,7 @@ function generateAchievements() {
       goal: 10,
       difficulty: 'hard',
       category: 'prestige',
-      stat: () => state.prestige,
+      stat: () => state.totalPrestigeEarned,
     }),
     createAchievement({
       id: 'upgrade-50',
@@ -4186,11 +4499,11 @@ function generateAchievements() {
     createAchievement({
       id: 'crypto-hoard',
       label: 'Miner 49k',
-      description: 'Accumulate 50k CC.',
+      description: 'Mine 50k CC across all runs.',
       goal: 50000,
       difficulty: 'legendary',
       category: 'crypto',
-      stat: () => state.cryptcoins,
+      stat: () => state.lifetimeCryptcoins,
     }),
     createAchievement({
       id: 'boss-hunter',
@@ -4213,38 +4526,38 @@ function generateAchievements() {
     createAchievement({
       id: 'bit-avalanche',
       label: 'Bit Avalanche',
-      description: 'Hold 250,000 bits at once.',
+      description: 'Recover 250,000 lifetime bits.',
       goal: 250000,
       difficulty: 'hard',
       category: 'economy',
-      stat: () => state.bits,
+      stat: () => state.lifetimeBits,
     }),
     createAchievement({
       id: 'bit-supermassive',
       label: 'Supermassive Cache',
-      description: 'Hold 1,000,000,000 bits at once.',
+      description: 'Recover 1,000,000,000 lifetime bits.',
       goal: 1_000_000_000,
       difficulty: 'legendary',
       category: 'economy',
-      stat: () => state.bits,
+      stat: () => state.lifetimeBits,
     }),
     createAchievement({
       id: 'bit-singularity',
       label: 'Bit Singularity',
-      description: 'Hold 1,000,000,000,000,000 bits at once.',
+      description: 'Recover 1,000,000,000,000,000 lifetime bits.',
       goal: 1_000_000_000_000_000,
       difficulty: 'legendary',
       category: 'economy',
-      stat: () => state.bits,
+      stat: () => state.lifetimeBits,
     }),
     createAchievement({
       id: 'bit-omniloop',
       label: 'Omniloop Overflow',
-      description: 'Hold 100,000,000,000,000,000 bits at once.',
+      description: 'Recover 100,000,000,000,000,000 lifetime bits.',
       goal: 100_000_000_000_000_000,
       difficulty: 'legendary',
       category: 'economy',
-      stat: () => state.bits,
+      stat: () => state.lifetimeBits,
     }),
     createAchievement({
       id: 'level-1000',
@@ -4285,7 +4598,7 @@ function generateAchievements() {
       goal: 500,
       difficulty: 'hard',
       category: 'prestige',
-      stat: () => state.prestige,
+      stat: () => state.totalPrestigeEarned,
     }),
     createAchievement({
       id: 'prestige-5000',
@@ -4294,7 +4607,7 @@ function generateAchievements() {
       goal: 5000,
       difficulty: 'legendary',
       category: 'prestige',
-      stat: () => state.prestige,
+      stat: () => state.totalPrestigeEarned,
     }),
     createAchievement({
       id: 'prestige-25000',
@@ -4303,7 +4616,7 @@ function generateAchievements() {
       goal: 25000,
       difficulty: 'legendary',
       category: 'prestige',
-      stat: () => state.prestige,
+      stat: () => state.totalPrestigeEarned,
     }),
     createAchievement({
       id: 'prestige-90000',
@@ -4312,16 +4625,16 @@ function generateAchievements() {
       goal: 90000,
       difficulty: 'legendary',
       category: 'prestige',
-      stat: () => state.prestige,
+      stat: () => state.totalPrestigeEarned,
     }),
     createAchievement({
       id: 'crypto-elite',
       label: 'Crypt Billionaire',
-      description: 'Accumulate 10,000,000 CC.',
+      description: 'Mine 10,000,000 lifetime CC.',
       goal: 10_000_000,
       difficulty: 'legendary',
       category: 'crypto',
-      stat: () => state.cryptcoins,
+      stat: () => state.lifetimeCryptcoins,
     }),
   ];
 }
@@ -4335,6 +4648,10 @@ function renderAchievements() {
     const card = document.createElement('div');
     card.className = 'progress-card achievement';
     card.setAttribute('role', 'listitem');
+    card.dataset.progressId = achievement.id;
+    card.dataset.progressKind = 'achievement';
+    card.dataset.progressStatus = progress.claimed ? 'claimed' : progress.achieved ? 'ready' : 'active';
+    card.dataset.progressSearch = `${achievement.label} ${achievement.description} ${difficultyLabel} ${achievement.category}`.toLowerCase();
     if (progress.achieved) {
       card.classList.add('completed');
       const completion = Number(state.achievementLog[achievement.id]);
@@ -4375,11 +4692,73 @@ function renderAchievements() {
     claimButton.className = 'pill';
     claimButton.textContent = progress.claimed ? 'claimed' : progress.achieved ? 'claim' : 'locked';
     claimButton.disabled = progress.claimed || !progress.achieved;
+    claimButton.classList.add('progress-claim');
     claimButton.addEventListener('click', () => claimAchievementReward(achievement));
     card.appendChild(claimButton);
     UI.achievementGrid.appendChild(card);
   });
   updateProgressIndicators();
+}
+
+function syncProgressCard(card, progress, item, kind) {
+  if (!card) return;
+  const complete = kind === 'achievement' ? progress.achieved : progress.ready;
+  const statusKey = progress.claimed ? 'claimed' : complete ? 'ready' : 'active';
+  card.dataset.progressStatus = statusKey;
+  card.classList.toggle('completed', complete);
+  card.classList.toggle('ready', complete && !progress.claimed);
+  card.classList.toggle('claimed', progress.claimed);
+
+  const status = card.querySelector('.status');
+  if (status) {
+    status.className = `status${statusKey === 'ready' ? ' ready' : statusKey === 'claimed' ? ' claimed' : ''}`;
+    status.textContent = statusKey === 'claimed' ? 'Claimed' : statusKey === 'ready' ? 'Reward ready' : `${Math.floor(Math.max(0, progress.percent ?? (progress.current / Math.max(1, progress.goal)) * 100))}%`;
+  }
+
+  const percent = Math.min(100, Math.max(0, progress.percent ?? (progress.current / Math.max(1, progress.goal)) * 100));
+  const fill = card.querySelector('.progress-track .fill');
+  if (fill) fill.style.width = `${percent}%`;
+
+  const metrics = card.querySelector('.card-metrics');
+  if (metrics) {
+    metrics.textContent = kind === 'achievement'
+      ? `${formatNumberShort(Math.min(progress.current, item.goal))} / ${formatNumberShort(item.goal)}`
+      : `${formatMilestoneValue(item, progress.current)} / ${formatMilestoneValue(item, item.goal)}`;
+  }
+
+  const claimButton = card.querySelector('.progress-claim');
+  if (claimButton) {
+    claimButton.textContent = progress.claimed ? 'claimed' : complete ? 'claim reward' : 'in progress';
+    claimButton.disabled = progress.claimed || !complete;
+  }
+}
+
+function syncProgressCards() {
+  if (!UI.progressHub) return;
+  achievements.forEach((achievement) => {
+    const card = UI.achievementGrid?.querySelector(`[data-progress-id="${achievement.id}"]`);
+    syncProgressCard(card, getAchievementProgress(achievement), achievement, 'achievement');
+  });
+  milestones.forEach((milestone) => {
+    const card = UI.milestoneDock?.querySelector(`[data-progress-id="${milestone.id}"]`);
+    syncProgressCard(card, getMilestoneProgress(milestone), milestone, 'milestone');
+  });
+  updateProgressIndicators();
+  applyProgressFilters();
+}
+
+function applyProgressFilters() {
+  if (!UI.progressHub) return;
+  let visibleCount = 0;
+  UI.progressHub.querySelectorAll('.progress-card').forEach((card) => {
+    const panelActive = card.closest('.progress-panel')?.classList.contains('active');
+    const statusMatch = activeProgressFilter === 'all' || card.dataset.progressStatus === activeProgressFilter;
+    const searchMatch = !progressSearchQuery || (card.dataset.progressSearch || '').includes(progressSearchQuery);
+    const visible = statusMatch && searchMatch;
+    card.hidden = !visible;
+    if (visible && panelActive) visibleCount += 1;
+  });
+  if (UI.progressVisibleCount) UI.progressVisibleCount.textContent = formatNumberShort(visibleCount);
 }
 
 function setupCryptoControls() {
@@ -4445,7 +4824,7 @@ function settleCryptoRun({ early = false } = {}) {
   const mined = Math.max(0, state.crypto.mined || 0);
   const payout = early ? Math.floor(mined * 0.7) : mined;
   if (payout > 0) {
-    state.cryptcoins += payout;
+    addCryptcoins(payout);
     createFloatText(UI.cryptoMineVisual || UI.nodeArea || document.body, `+${formatNumberShort(payout)} CC`, '#ffd166', {
       variant: 'currency',
       priority: 'high',
@@ -4534,14 +4913,17 @@ function setupLabControls() {
       state.cryptcoins -= amount;
       state.labDeposited += amount;
       state.labSpeed = Math.sqrt(state.labDeposited) / 5;
+      document.getElementById('lab-deposit').value = '';
       updateLabUI();
       updateResources();
       queueSave();
     }
   });
   document.getElementById('breach-lab').addEventListener('click', () => {
-    if (state.labProgress >= 1000) {
-      grantPrestige(250);
+    const target = getLabTarget();
+    if (state.labProgress >= target) {
+      grantPrestige(getLabReward());
+      state.labCycles = (state.labCycles || 0) + 1;
       state.labProgress = 0;
       state.labDeposited = 0;
       state.labSpeed = 0;
@@ -4555,16 +4937,23 @@ function setupLabControls() {
 function unlockLab() {
   state.labUnlocked = true;
   syncLabVisibility();
-  renderAchievements();
+  syncProgressCards();
   queueSave();
 }
 
 function updateLabUI() {
   if (!state.labUnlocked) return;
-  const progress = Math.min(1, state.labProgress / 1000);
+  const target = getLabTarget();
+  const reward = getLabReward();
+  const progress = Math.min(1, state.labProgress / Math.max(1, target));
   UI.labProgressFill.style.width = `${progress * 100}%`;
-  UI.labProgressText.textContent = `${state.labProgress.toFixed(3)} / 1000.000`;
-  UI.labSpeed.textContent = `${state.labSpeed.toFixed(3)} / sec`;
+  UI.labProgressText.textContent = `${formatNumberShort(state.labProgress)} / ${formatNumberShort(target)} • Cycle ${(state.labCycles || 0) + 1}`;
+  UI.labSpeed.textContent = `${formatNumberShort(state.labSpeed)} / sec`;
+  const breachButton = document.getElementById('breach-lab');
+  if (breachButton) {
+    breachButton.disabled = state.labProgress < target;
+    breachButton.textContent = `Breach cycle • +${formatNumberShort(reward)} Prestige`;
+  }
 }
 
 function setupLevelDialog() {
@@ -4583,13 +4972,22 @@ function setupLevelDialog() {
   });
 }
 
-function showLevelDialog(summary) {
+function showLevelDialog(payload) {
   if (!UI.levelDialog) UI.levelDialog = document.getElementById('level-dialog');
   if (!UI.levelDialogSummary) UI.levelDialogSummary = document.getElementById('level-dialog-summary');
   if (!UI.levelContinue) UI.levelContinue = document.getElementById('level-continue');
   if (!UI.levelDialog || !UI.levelDialogSummary) return;
-  UI.levelDialogSummary.textContent = summary;
+  const result = typeof payload === 'string' ? { summary: payload } : payload || {};
+  const stage = Math.max(1, Number(result.stage) || state.currentLevel.index || 1);
+  UI.levelDialogSummary.textContent = result.summary || 'Stage rewards secured and routed to your inventory.';
+  if (UI.levelDialogStage) UI.levelDialogStage.textContent = formatNumberShort(stage);
+  if (UI.levelDialogNextStage) UI.levelDialogNextStage.textContent = formatNumberShort(stage + 1);
+  if (UI.levelRewardBits) UI.levelRewardBits.textContent = formatNumberShort(Math.round(result.rewardBits || 0));
+  if (UI.levelRewardXP) UI.levelRewardXP.textContent = formatNumberShort(Math.round(result.xp || 0));
+  if (UI.levelRewardPrestige) UI.levelRewardPrestige.textContent = formatNumberShort(Math.round(result.prestige || 0));
+  UI.levelDialog.classList.remove('celebrate');
   UI.levelDialog.classList.remove('hidden');
+  requestAnimationFrame(() => UI.levelDialog?.classList.add('celebrate'));
   if (UI.levelContinue) {
     UI.levelContinue.focus({ preventScroll: true });
   }
@@ -4598,6 +4996,7 @@ function showLevelDialog(summary) {
 function hideLevelDialog() {
   if (!UI.levelDialog) UI.levelDialog = document.getElementById('level-dialog');
   if (!UI.levelDialog) return;
+  UI.levelDialog.classList.remove('celebrate');
   UI.levelDialog.classList.add('hidden');
 }
 
@@ -4611,6 +5010,14 @@ function setupLevelSelector() {
     }
   });
   UI.levelDropdown = setupCustomDropdown(UI.levelSelect);
+  const submitStageJump = () => {
+    const desired = Number(UI.stageJumpInput?.value);
+    if (Number.isFinite(desired)) jumpToLevel(desired);
+  };
+  UI.stageJumpButton?.addEventListener('click', submitStageJump);
+  UI.stageJumpInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') submitStageJump();
+  });
   refreshLevelOptions();
 }
 
@@ -4619,13 +5026,27 @@ function refreshLevelOptions() {
   const unlockedLevel = Math.max(1, state.highestCompletedLevel + 1);
   const maxLevel = Math.max(unlockedLevel, state.currentLevel.index);
   UI.levelSelect.innerHTML = '';
-  for (let i = 1; i <= maxLevel; i += 1) {
+  let availableLevels = [];
+  if (maxLevel <= 150) {
+    availableLevels = Array.from({ length: maxLevel }, (_, index) => index + 1);
+  } else {
+    const usefulLevels = new Set([1, state.currentLevel.index, maxLevel]);
+    for (let power = 10; power < maxLevel; power *= 10) usefulLevels.add(power);
+    for (let i = Math.max(1, maxLevel - 119); i <= maxLevel; i += 1) usefulLevels.add(i);
+    for (let i = Math.max(1, state.currentLevel.index - 4); i <= Math.min(maxLevel, state.currentLevel.index + 4); i += 1) usefulLevels.add(i);
+    availableLevels = Array.from(usefulLevels).sort((a, b) => a - b);
+  }
+  availableLevels.forEach((i) => {
     const option = document.createElement('option');
     option.value = `${i}`;
     option.textContent = `Stage ${i}`;
     UI.levelSelect.appendChild(option);
-  }
+  });
   UI.levelSelect.value = `${state.currentLevel.index}`;
+  if (UI.stageJumpInput) {
+    UI.stageJumpInput.max = `${maxLevel}`;
+    UI.stageJumpInput.value = `${state.currentLevel.index}`;
+  }
   if (UI.levelDropdown?.refresh) {
     UI.levelDropdown.refresh();
   }
@@ -4641,13 +5062,22 @@ function setupCursor() {
   if (!UI.customCursor) return;
   const cursor = UI.customCursor;
   applyCursorSize();
+  let cursorFrame = 0;
+  let pendingX = cursorPosition.x;
+  let pendingY = cursorPosition.y;
+  const flushCursorPosition = () => {
+    cursorFrame = 0;
+    cursor.style.setProperty('--cursor-x', `${pendingX}px`);
+    cursor.style.setProperty('--cursor-y', `${pendingY}px`);
+    updateCursorAreaState(isNodeAreaInteractive(pendingX, pendingY));
+    requestBitTokenSweep();
+  };
   const updateCursorPosition = (x, y) => {
     cursorPosition.x = x;
     cursorPosition.y = y;
-    cursor.style.left = `${x}px`;
-    cursor.style.top = `${y}px`;
-    updateCursorAreaState(isNodeAreaInteractive(x, y));
-    requestBitTokenSweep();
+    pendingX = x;
+    pendingY = y;
+    if (!cursorFrame) cursorFrame = requestAnimationFrame(flushCursorPosition);
   };
   updateCursorPosition(cursorPosition.x, cursorPosition.y);
   const syncTouchPosition = (event) => {
@@ -4777,7 +5207,6 @@ function setupSkillCheck() {
       attemptSkillCheckResolution();
     }
   };
-  UI.skillCheckAction.addEventListener('keydown', handleSkillCheckKey);
   document.addEventListener('keydown', handleSkillCheckKey);
 }
 
@@ -4807,9 +5236,10 @@ function getSkillCheckVariant() {
 function getSkillCheckConfig(difficulty) {
   const settings = SKILL_CHECK_DIFFICULTIES[difficulty] || SKILL_CHECK_DIFFICULTIES.normal;
   const levelFactor = Math.max(0, state.level - 1);
-  const speedMultiplier = 1 + Math.min(0.7, levelFactor * 0.012);
-  const windowReduction = Math.min(0.55, levelFactor * 0.01);
-  const windowSize = Math.max(settings.minWindow, settings.window * (1 - windowReduction));
+  const speedMultiplier = 1 + Math.min(0.35, levelFactor * 0.006);
+  const windowReduction = Math.min(0.25, levelFactor * 0.004);
+  const pityBonus = Math.min(0.12, (state.skillCheckPity || 0) * 0.03);
+  const windowSize = Math.min(0.46, Math.max(settings.minWindow, settings.window * (1 - windowReduction)) + pityBonus);
   const sliderSpeed = settings.baseSpeed * speedMultiplier;
   return {
     duration: settings.duration,
@@ -4919,50 +5349,54 @@ function attemptSkillCheckResolution() {
 function startSkillCheck({ upgrade, difficulty, reward, onFail, summary }) {
   if (!UI.skillCheck || !UI.skillCheckAction || !UI.skillCheckTarget || !UI.skillCheckSlider) return;
   const config = getSkillCheckConfig(difficulty);
+  const variant = getSkillCheckVariant();
+  const checkWindowSize = variant === 'cross' ? Math.min(0.46, config.windowSize * 1.25) : config.windowSize;
   const sliderPosition = Math.min(0.95, Math.max(0.05, Math.random()));
   const sliderDirection = sliderPosition > 0.5 ? -1 : 1;
-  const maxTargetStart = Math.max(0, 1 - config.windowSize);
+  const maxTargetStart = Math.max(0, 1 - checkWindowSize);
   const targetStart = maxTargetStart > 0 ? Math.random() * maxTargetStart : 0;
   const secondaryPosition = Math.min(0.95, Math.max(0.05, Math.random()));
   const secondaryDirection = secondaryPosition > 0.5 ? -1 : 1;
   const secondaryStart = maxTargetStart > 0 ? Math.random() * maxTargetStart : 0;
-  const variant = getSkillCheckVariant();
   skillCheckState.active = true;
   skillCheckState.timer = 0;
-  const duration = variant === 'cross' ? Math.max(config.duration, 60) : config.duration;
+  const duration = variant === 'cross' ? config.duration + 0.6 : config.duration;
   skillCheckState.duration = duration;
   skillCheckState.reward = reward;
   skillCheckState.onFail = onFail || null;
   skillCheckState.sliderSpeed = config.sliderSpeed;
   skillCheckState.secondarySpeed = variant === 'cross' ? config.sliderSpeed * 0.92 : config.sliderSpeed;
-  skillCheckState.windowSize = config.windowSize;
+  skillCheckState.windowSize = checkWindowSize;
   skillCheckState.sliderPosition = sliderPosition;
   skillCheckState.secondaryPosition = variant === 'cross' ? secondaryPosition : sliderPosition;
   skillCheckState.sliderDirection = sliderDirection;
   skillCheckState.secondaryDirection = variant === 'cross' ? secondaryDirection : sliderDirection;
   skillCheckState.targetStart = targetStart;
-  skillCheckState.targetEnd = targetStart + config.windowSize;
+  skillCheckState.targetEnd = targetStart + checkWindowSize;
   skillCheckState.secondaryStart = variant === 'cross' ? secondaryStart : targetStart;
-  skillCheckState.secondaryEnd = skillCheckState.secondaryStart + config.windowSize;
+  skillCheckState.secondaryEnd = skillCheckState.secondaryStart + checkWindowSize;
   skillCheckState.difficulty = difficulty;
   skillCheckState.meta = summary || null;
   setSkillCheckVariant(variant);
   const variantCopy = SKILL_CHECK_VARIANT_DETAILS[variant] || SKILL_CHECK_VARIANT_DETAILS.linear;
-  UI.skillCheckTitle.textContent = `${variantCopy.title} — ${difficulty.toUpperCase()}`;
+  UI.skillCheckTitle.textContent = `${variantCopy.title} // ${difficulty.toUpperCase()}`;
   const targetLabel = upgrade?.name || 'the target';
   UI.skillCheckDescription.textContent = variantCopy.description.replace('{target}', targetLabel);
   if (UI.skillCheckUpgrade) {
     UI.skillCheckUpgrade.textContent = targetLabel;
   }
   if (UI.skillCheckTier) {
-    const nextLevel = (upgrade ? (state.upgrades[upgrade.id] || 0) + 1 : 0) || 0;
-    UI.skillCheckTier.textContent = nextLevel ? `Next tier: ${nextLevel}` : '';
+    const securedLevel = (upgrade ? state.upgrades[upgrade.id] || 0 : 0) || 0;
+    UI.skillCheckTier.textContent = securedLevel ? `Secured tier: ${securedLevel}` : '';
   }
   if (UI.skillCheckReward) {
     UI.skillCheckReward.textContent = summary?.rewardLabel || '';
   }
   if (UI.skillCheckPenalty) {
     UI.skillCheckPenalty.textContent = summary?.penaltyLabel || '';
+  }
+  if (UI.skillCheckStreak) {
+    UI.skillCheckStreak.textContent = `CALIBRATION ${state.skillCheckPity || 0} • FAIL-SAFE ACTIVE`;
   }
   UI.skillCheck.classList.remove('hidden');
   refreshSkillCheckVisuals();
@@ -4972,15 +5406,19 @@ function startSkillCheck({ upgrade, difficulty, reward, onFail, summary }) {
 function resolveSkillCheck(success) {
   if (!skillCheckState.active) return;
   skillCheckState.active = false;
+  state.skillChecksCompleted = (state.skillChecksCompleted || 0) + 1;
   if (UI.skillCheck) {
     UI.skillCheck.classList.add('hidden');
   }
   if (success) {
+    state.skillChecksSucceeded = (state.skillChecksSucceeded || 0) + 1;
+    state.skillCheckPity = 0;
     if (typeof skillCheckState.reward === 'function') {
       skillCheckState.reward();
     }
     spawnSkillCheckConfetti();
   } else if (!success) {
+    state.skillCheckPity = Math.min(4, (state.skillCheckPity || 0) + 1);
     flashSkillCheckFailTint();
     if (typeof skillCheckState.onFail === 'function') {
       skillCheckState.onFail();
@@ -5100,15 +5538,19 @@ function tick(delta) {
   updateCrypto(delta);
   updateLab(delta);
   updateSkillCheck(delta);
-  milestoneTimer += delta;
-  if (milestoneTimer >= 1) {
-    renderMilestones();
-    milestoneTimer = 0;
+  liveUiTimer += delta;
+  if (liveUiTimer >= 1 / 12) {
+    syncLiveUIReadouts();
+    liveUiTimer = 0;
   }
-  achievementTimer += delta;
-  if (achievementTimer >= 1) {
-    renderAchievements();
-    achievementTimer = 0;
+  progressUiTimer += delta;
+  if (progressUiTimer >= 0.2) {
+    if (UI.progressHub?.classList.contains('open')) {
+      syncProgressCards();
+    } else {
+      updateProgressIndicators();
+    }
+    progressUiTimer = 0;
   }
 }
 
@@ -5125,6 +5567,7 @@ function isHighDensityMode() {
 function syncNodeDensityState() {
   if (!UI.nodeArea) return;
   UI.nodeArea.classList.toggle('high-density', activeNodes.size >= HIGH_DENSITY_NODE_THRESHOLD);
+  updateTelemetry();
 }
 
 function removeNodeFromArena(node) {
@@ -5213,7 +5656,7 @@ function updateAutoClick(delta) {
 }
 
 function getAutoClickInterval() {
-  const baseInterval = Math.max(0.1, stats.autoInterval);
+  const baseInterval = Math.max(0.025, stats.autoInterval);
   if (greenMomentumTimer <= 0 || greenMomentumStacks <= 0) return baseInterval;
   const haste = 1 - Math.min(0.5, greenMomentumStacks * 0.15);
   return Math.max(0.05, baseInterval * haste);
@@ -5699,7 +6142,7 @@ function randomInRange(min, max) {
 function getLevelBitReward(typeId, levelIndex = 1) {
   const level = Math.max(1, Math.floor(levelIndex));
   const baseRange = BIT_REWARD_TABLE[typeId] || BIT_REWARD_TABLE.red;
-  const levelMultiplier = Math.pow(3, Math.max(0, level - 1));
+  const levelMultiplier = Math.pow(1.92, Math.max(0, level - 1));
   const min = baseRange.min * levelMultiplier;
   const max = baseRange.max * levelMultiplier;
   return Math.round(randomInRange(min, max));
@@ -5767,7 +6210,8 @@ function destroyNode(node, options = {}) {
   }
   spawnBitTokens(node, rewardsGranted?.bits || 0);
   removeNodeFromArena(node);
-  renderMilestones();
+  if (UI.progressHub?.classList.contains('open')) syncProgressCards();
+  else updateProgressIndicators();
 }
 
 function dropRewards(node) {
@@ -5779,7 +6223,7 @@ function dropRewards(node) {
   if (baseBits || stats.bitNodeBonus) {
     const totalBits = Math.max(0, baseBits + stats.bitNodeBonus);
     harvestedBits = Math.max(0, totalBits * stats.bitGain);
-    state.bits += harvestedBits;
+    addBits(harvestedBits);
     if (state.currentLevel.bossActive) {
       const payload = getBossDamageFromNodeType(type.id);
       if (payload > 0) {
@@ -5791,15 +6235,15 @@ function dropRewards(node) {
     gainXP(rewards.xp * stats.xpGain);
   }
   if (rewards.cryptcoins) {
-    state.cryptcoins += rewards.cryptcoins;
+    addCryptcoins(rewards.cryptcoins);
     createNodeFloatText(node, `+${formatNumberShort(rewards.cryptcoins)} CC`, '#7ef6ff', { variant: 'currency' });
   }
   if (rewards.prestige) {
-    state.prestige += rewards.prestige;
+    addPrestige(rewards.prestige);
   }
   const rareCryptoDrop = rollRareCryptoDrop(node);
   if (rareCryptoDrop > 0) {
-    state.cryptcoins += rareCryptoDrop;
+    addCryptcoins(rareCryptoDrop);
     createNodeFloatText(node, `Lucky CC +${formatNumberShort(rareCryptoDrop)}`, '#9efcff', {
       variant: 'currency',
       priority: 'high',
@@ -5976,7 +6420,7 @@ function collectBitToken(token) {
   token.style.pointerEvents = 'none';
   playSFX('bitsGain');
   const value = Number(token.dataset.value) || 1;
-  state.bits += value;
+  addBits(value);
   gainXP(Math.ceil(value * 0.4));
   updateResources();
   queueSave(2000);
@@ -6262,7 +6706,7 @@ function applyBossDamage(amount, sourceEl = activeBoss?.el) {
   const damage = Math.max(0, Number(amount) || 0);
   if (damage <= 0) return;
   const ramp = 1 + state.bossKills * (stats.bossKillDamageRamp || 0);
-  const effectiveDamage = Math.max(0, damage * ramp);
+  const effectiveDamage = Math.max(0, damage * ramp * Math.max(1, stats.bossDamageMultiplier || 1));
   const criticalImpact = effectiveDamage >= 180;
   state.currentLevel.bossHP -= effectiveDamage;
   state.currentLevel.bossDamageDealt = Math.max(0, (state.currentLevel.bossDamageDealt || 0) + effectiveDamage);
@@ -6363,17 +6807,19 @@ function defeatBoss() {
   state.currentLevel.bossActive = false;
   state.currentLevel.active = false;
   state.bossKills += 1;
-  renderMilestones();
+  if (UI.progressHub?.classList.contains('open')) syncProgressCards();
+  else updateProgressIndicators();
   const defeatedBossEl = activeBoss?.el;
-  const rewardBits = Math.round(500 * state.currentLevel.index * stats.bitGain);
-  const prestige = 1 * stats.prestigeGain;
-  const xp = 120 * stats.xpGain;
+  const stageFactor = Math.pow(2.16, Math.max(0, state.currentLevel.index - 1));
+  const rewardBits = Math.round(500 * stageFactor * stats.bitGain);
+  const prestige = Math.max(1, Math.floor(Math.pow(state.currentLevel.index, 0.72))) * stats.prestigeGain;
+  const xp = Math.round((120 + state.currentLevel.index * 24) * stats.xpGain);
   const summary = `Recovered ${Math.round(rewardBits).toLocaleString()} bits, ${xp.toFixed(0)} XP, ${prestige.toFixed(0)} prestige.`;
 
   const cleanup = () => {
     state.highestCompletedLevel = Math.max(state.highestCompletedLevel, state.currentLevel.index);
     activeBoss = null;
-    state.bits += rewardBits;
+    addBits(rewardBits);
     gainXP(xp);
     grantPrestige(prestige);
     activeNodes.forEach((node) => node.el.remove());
@@ -6384,7 +6830,13 @@ function defeatBoss() {
     }
     updateResources();
     refreshLevelOptions();
-    showLevelDialog(summary);
+    showLevelDialog({
+      summary,
+      rewardBits,
+      xp,
+      prestige,
+      stage: state.currentLevel.index,
+    });
     queueSave();
   };
 
@@ -6417,12 +6869,15 @@ function updateStats() {
   stats.bossHPFactor = 1;
   stats.nodeCountDamageBonus = 0;
   stats.bossKillDamageRamp = 0;
+  stats.bossDamageMultiplier = 1;
   stats.maxHealth = 100 + state.level * 5;
   const levelPressure = Math.max(0, state.currentLevel.index - 1);
-  const spawnAcceleration = Math.min(1.35, levelPressure * 0.045);
-  stats.nodeSpawnDelay = Math.max(0.45, stats.nodeSpawnDelay - spawnAcceleration);
-  stats.maxNodes += Math.floor(levelPressure * 1.5);
-  stats.bossHPFactor = 1 + levelPressure * 0.05;
+  const pressureCurve = Math.log2(levelPressure + 1);
+  const spawnAcceleration = Math.min(1.35, pressureCurve * 0.12);
+  stats.nodeSpawnDelay = Math.max(0.32, stats.nodeSpawnDelay - spawnAcceleration);
+  stats.maxNodes += Math.min(174, Math.floor(Math.sqrt(levelPressure) * 4));
+  stats.nodeHPFactor = 1 + pressureCurve * 0.035;
+  stats.bossHPFactor = 1 + pressureCurve * 0.04;
   Object.entries(state.upgrades).forEach(([id, level]) => {
     const upgrade = upgrades.find((u) => u.id === id);
     if (upgrade) {
@@ -6433,25 +6888,30 @@ function updateStats() {
   applyCollectUpgrades(stats);
   applySpawnUpgrades(stats);
   applySpeedUpgrades(stats);
+  applyOverclocks(stats);
   stats.critChance = Math.min(0.7, Math.max(0, stats.critChance));
-  stats.maxNodes = Math.max(6, Math.floor(stats.maxNodes));
-  stats.nodeSpawnDelay = Math.max(0.02, stats.nodeSpawnDelay);
+  stats.maxNodes = Math.min(240, Math.max(6, Math.floor(stats.maxNodes)));
+  stats.nodeSpawnDelay = Math.max(0.035, stats.nodeSpawnDelay);
   state.maxHealth = stats.maxHealth;
   state.health = Math.min(state.health, state.maxHealth);
   applyCursorSize();
   persistStatsSnapshot();
   updateQuickStats();
   updateBossPhaseBar();
+  updateTelemetry();
 }
 
 function updateQuickStats() {
   if (!UI.quickStatDamage) return;
-  UI.quickStatDamage.textContent = `${Math.round(stats.damage).toLocaleString()}`;
-  UI.quickStatCrit.textContent = `${(stats.critChance * 100).toFixed(1)}% / 70% cap x${stats.critMultiplier.toFixed(2)}`;
+  UI.quickStatDamage.textContent = formatNumberShort(stats.damage);
+  UI.quickStatCrit.textContent = `${(stats.critChance * 100).toFixed(1)}% / 70% cap x${formatMultiplier(stats.critMultiplier)}`;
   UI.quickStatAuto.textContent = `${stats.autoInterval.toFixed(2)}s`;
   UI.quickStatSpawn.textContent = `${stats.nodeSpawnDelay.toFixed(2)}s / ${stats.maxNodes}`;
   const bossHp = Math.round(getBossBaseHP(state.currentLevel.index) * stats.bossHPFactor);
-  UI.quickStatBoss.textContent = bossHp.toLocaleString();
+  UI.quickStatBoss.textContent = formatNumberShort(bossHp);
+  if (UI.statsToggleSummary) {
+    UI.statsToggleSummary.textContent = `DMG ${formatNumberShort(stats.damage)}`;
+  }
 }
 
 function updateBossPhaseBar() {
@@ -6479,6 +6939,52 @@ function updateBossPhaseBar() {
   }
 }
 
+function getNextObjectiveText() {
+  if (state.currentLevel.bossActive) {
+    const remaining = Math.max(0, state.currentLevel.bossHP || 0);
+    return `Break boss core • ${formatNumberShort(remaining)} HP`;
+  }
+  if (totalNodesDestroyed() === 0) return 'Destroy a node to recover Bits';
+  if (!state.cryptoUnlocked) return `Unlock Crypto Mine • ${formatNumberShort(Math.max(0, 100000 - state.bits))} Bits left`;
+  if (state.bossKills < 3) return `Neutralise ${3 - state.bossKills} more boss${3 - state.bossKills === 1 ? '' : 'es'}`;
+  if (!state.labUnlocked) return `Unlock Lab • ${formatNumberShort(Math.max(0, 1000 - state.cryptcoins))} CC left`;
+  return `Push Stage ${Math.max(state.highestCompletedLevel + 1, state.currentLevel.index)}`;
+}
+
+function updateTelemetry() {
+  const syncText = (element, value) => {
+    if (element && element.textContent !== value) element.textContent = value;
+  };
+  syncText(UI.nodesDestroyedDisplay, formatNumberShort(totalNodesDestroyed()));
+  syncText(UI.fieldDensityDisplay, `${formatNumberShort(activeNodes.size)} / ${formatNumberShort(stats.maxNodes)}`);
+  syncText(UI.bitYieldDisplay, `x${formatMultiplier(stats.bitGain)}`);
+  syncText(UI.nextObjectiveDisplay, getNextObjectiveText());
+}
+
+function syncLiveUIReadouts() {
+  const syncText = (element, value) => {
+    if (element && element.textContent !== value) element.textContent = value;
+  };
+  syncText(UI.bits, formatNumberShort(Math.floor(state.bits)));
+  syncText(UI.cryptcoins, formatNumberShort(Math.floor(state.cryptcoins)));
+  syncText(UI.prestige, formatNumberShort(Math.floor(state.prestige)));
+  syncText(UI.xp, formatNumberShort(Math.floor(state.xp)));
+  syncText(UI.rank, formatNumberShort(state.level));
+  syncText(UI.rankProgressLabel, `${formatNumberShort(Math.floor(state.levelXP))} / ${formatNumberShort(Math.floor(state.xpForNext))} XP`);
+  syncText(UI.lp, formatNumberShort(state.lp));
+  syncText(UI.currentLevel, `${state.currentLevel.index}`);
+  if (UI.rankProgressFill) {
+    const ratio = Math.max(0, Math.min(1, (state.levelXP || 0) / Math.max(1, state.xpForNext || 1)));
+    UI.rankProgressFill.style.transform = `scaleX(${ratio})`;
+  }
+  updateBossPhaseBar();
+  updateTelemetry();
+  updateQuickStats();
+  refreshVisibleUpgradeStates();
+  updateTabAvailability();
+  updateUpgradeTabAvailability();
+}
+
 function updateResources() {
   UI.bits.textContent = formatNumberShort(Math.floor(state.bits));
   UI.cryptcoins.textContent = formatNumberShort(Math.floor(state.cryptcoins));
@@ -6499,17 +7005,23 @@ function updateResources() {
   UI.lp.textContent = formatNumberShort(state.lp);
   UI.currentLevel.textContent = state.currentLevel.index;
   updateCryptoUI();
-  renderCryptoSpeedUpgrades();
   updateLabUI();
-  renderAreaUpgrades();
-  renderCollectUpgrades();
-  renderSpawnUpgrades();
-  renderSpeedUpgrades();
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (now - lastUpgradePanelRefreshAt >= 200) {
+    lastUpgradePanelRefreshAt = now;
+    renderCryptoSpeedUpgrades();
+    renderAreaUpgrades();
+    renderCollectUpgrades();
+    renderSpawnUpgrades();
+    renderSpeedUpgrades();
+    renderOverclocks();
+  }
   refreshVisibleUpgradeStates();
   updateTabAvailability();
   updateUpgradeTabAvailability();
   updateQuickStats();
   updateBossPhaseBar();
+  updateTelemetry();
 }
 
 function gainXP(amount) {
@@ -6519,7 +7031,7 @@ function gainXP(amount) {
     state.levelXP -= state.xpForNext;
     state.level += 1;
     state.lp += 1;
-    state.xpForNext *= 1.2;
+    state.xpForNext = Math.ceil(state.xpForNext * 1.12);
     state.maxHealth += 10;
     state.health = state.maxHealth;
     playSFX('levelUp');
@@ -6527,20 +7039,41 @@ function gainXP(amount) {
   queueSave(2000);
 }
 
+function addBits(amount) {
+  const value = Math.max(0, Number(amount) || 0);
+  state.bits += value;
+  state.lifetimeBits = Math.max(0, (state.lifetimeBits || 0) + value);
+  return value;
+}
+
+function addCryptcoins(amount) {
+  const value = Math.max(0, Number(amount) || 0);
+  state.cryptcoins += value;
+  state.lifetimeCryptcoins = Math.max(0, (state.lifetimeCryptcoins || 0) + value);
+  return value;
+}
+
+function addPrestige(amount) {
+  const value = Math.max(0, Number(amount) || 0);
+  state.prestige += value;
+  state.totalPrestigeEarned = Math.max(0, (state.totalPrestigeEarned || 0) + value);
+  return value;
+}
+
 function grantBits(amount) {
-  state.bits += amount;
+  addBits(amount);
   updateResources();
   queueSave(2000);
 }
 
 function grantCryptcoins(amount) {
-  state.cryptcoins += amount;
+  addCryptcoins(amount);
   updateResources();
   queueSave(2000);
 }
 
 function grantPrestige(amount) {
-  state.prestige += amount;
+  addPrestige(amount);
   updateResources();
   queueSave();
 }
@@ -6557,10 +7090,48 @@ function updateCrypto(delta) {
   updateCryptoUI();
 }
 
+function getLabTarget() {
+  const cycles = Math.max(0, state.labCycles || 0);
+  return Math.min(Number.MAX_VALUE, 1000 * Math.pow(1.32, cycles));
+}
+
+function getLabReward() {
+  const cycles = Math.max(0, state.labCycles || 0);
+  return Math.max(250, Math.floor(250 * Math.pow(1.45, cycles)));
+}
+
 function updateLab(delta) {
   if (!state.labUnlocked || state.labSpeed <= 0) return;
-  state.labProgress = Math.min(1000, state.labProgress + state.labSpeed * delta);
+  state.labProgress = Math.min(getLabTarget(), state.labProgress + state.labSpeed * delta);
   updateLabUI();
+}
+
+function applyOfflineProgress() {
+  const now = Date.now();
+  const previous = Number(state.lastActiveAt || state.lastSavedAt || now);
+  const elapsed = Math.max(0, Math.min(8 * 60 * 60, (now - previous) / 1000));
+  state.lastActiveAt = now;
+  if (elapsed < 5) return;
+
+  let offlineCC = 0;
+  if (state.cryptoUnlocked && state.crypto.deposit > 0 && state.crypto.rate > 0) {
+    const activeSeconds = Math.min(elapsed, Math.max(0, state.crypto.timeRemaining));
+    state.crypto.mined += state.crypto.rate * activeSeconds;
+    state.crypto.timeRemaining = Math.max(0, state.crypto.timeRemaining - activeSeconds);
+    if (state.crypto.timeRemaining <= 0) {
+      offlineCC = Math.max(0, state.crypto.mined || 0);
+      addCryptcoins(offlineCC);
+      resetCryptoRun();
+    }
+  }
+
+  if (state.labUnlocked && state.labSpeed > 0) {
+    state.labProgress = Math.min(getLabTarget(), state.labProgress + state.labSpeed * elapsed);
+  }
+
+  if (offlineCC > 0) {
+    showSaveStatus(`Offline mine complete: +${formatNumberShort(offlineCC)} CC`, 'info');
+  }
 }
 
 function totalNodesDestroyed() {
