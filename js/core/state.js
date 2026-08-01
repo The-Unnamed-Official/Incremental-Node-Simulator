@@ -1,6 +1,6 @@
 function getLevelDuration(levelIndex = 1) {
   const safeIndex = Math.max(1, levelIndex);
-  return Math.min(120, BASE_LEVEL_DURATION + Math.log2(safeIndex) * LEVEL_DURATION_INCREMENT);
+  return Math.min(90, BASE_LEVEL_DURATION + Math.log2(safeIndex) * LEVEL_DURATION_INCREMENT);
 }
 
 function getBossBaseHP(levelIndex = 1) {

@@ -1,80 +1,56 @@
 const TICK_RATE = 1000 / 60;
-const BASE_LEVEL_DURATION = 42;
-const LEVEL_DURATION_INCREMENT = 7;
+const BASE_LEVEL_DURATION = 38;
+const LEVEL_DURATION_INCREMENT = 5.5;
 const BASE_BOSS_HP = 180;
-const BOSS_HP_INCREMENT = 2.42;
+const BOSS_HP_INCREMENT = 2.28;
 const NODE_SIZE = 82;
 const GAME_VERSION = 'v2';
 
 const UPDATE_LOGS = [
   {
     version: 'v2',
-    title: 'NodeShift v2 // Breach Deck',
+    title: 'AGAIN! // NodeShift v2 // Constellation OS',
     description:
-      'A complete stability recovery and visual systems rebuild: the full runtime is active again, every control is wired, and the interface now reads like a responsive neon breach console.',
+      'AGAIN! Yes, the previous release was already a rework. This is the complete v2 rebuild: a different pixel-constellation interface, instant live readouts, a sustainable progression curve, and every major screen redesigned as one coherent game.',
     changes: [
       {
-        text: 'Runtime restored',
+        text: 'Constellation OS interface',
         sub: [
-          'Repaired the bootstrap fault that prevented the game loop, upgrades, controls, nodes, and cursor from initialising.',
-          'Added early boot fault capture so a future startup problem cannot fail as a silent, dead interface.',
-          'Resolved the duplicate upgrade-name routine exposed by the repaired bootstrap path.',
+          'Replaced the old green command-deck treatment with a cooler indigo pixel system using cyan, coral, amber, and violet signal colors.',
+          'Rebuilt the header, battlefield, module bay, resources, telemetry, buttons, dialogs, settings, theme previews, utility cards, and responsive layouts.',
+          'Every surface now shares the same spacing, focus, motion, contrast, and status language without hiding controls behind decorative borders.',
         ],
       },
       {
-        text: 'Breach Deck interface',
+        text: 'Instant systems and smoother performance',
         sub: [
-          'Rebuilt every major surface around a sharper neon-pixel command deck with stronger hierarchy, contrast, focus states, responsive stacking, and clearer live status.',
-          'Reworked the battlefield, boss tracker, telemetry, resource cards, module bay, upgrade cards, progress archive, dialogs, settings, music, and stat docks as one coherent visual system.',
-          'The native pointer is now suppressed across the entire game while the high-visibility pixel reticle remains active globally.',
+          'Resources, stage timing, boss health, objectives, node density, quick stats, and progression records now synchronize continuously instead of waiting for another action.',
+          'Progress cards update in place rather than rebuilding dozens of DOM nodes every two seconds.',
+          'Cursor motion is frame-batched, expensive blur layers are reduced, and dense combat retains the adaptive effect budget.',
         ],
       },
       {
-        text: 'Interaction polish',
+        text: 'Gameplay, progression, and fairness',
         sub: [
-          'Buttons now have consistent hover, pressed, focus, affordable, locked, and selected states.',
-          'Dense panels use contained scrolling and sticky controls without hiding upgrades or breaking the combat viewport.',
-          'Reduced-motion mode keeps the hierarchy and cursor while disabling nonessential scanning sweeps.',
-        ],
-      },
-    ],
-  },
-  {
-    version: 'v2.000',
-    title: 'NodeShift v2 // Continuum',
-    description:
-      'A complete command-deck UI rebuild, repaired progression curve, fair bonus skill checks, safer saves, compact records, and a repeatable Continuum endgame.',
-    changes: [
-      {
-        text: 'New command deck',
-        sub: [
-          'The arena, stage controls, boss state, resources, live telemetry, and next objective now fit together in one readable combat viewport.',
-          'Upgrade paths and permanent records use compact scroll regions instead of stretching the entire page or leaving cards off-screen.',
-          'Music and combat-stat modules start docked, stay available, and no longer cover the battlefield by default.',
+          'Point Area now scales the complete custom reticle, including its inner square, to match the real hit region.',
+          'Boss growth, rewards, rank XP, and stage timing were tuned for a faster opening and a more sustainable endless curve.',
+          'Calibration checks keep their fail-safe purchase protection, wider recovery windows, and clear success targets.',
         ],
       },
       {
-        text: 'Progression rebuilt',
+        text: 'New archive, player, and completion flow',
         sub: [
-          'Node and boss health now scale alongside rewards instead of jumping by 100x between early stages.',
-          'Rank XP, stage timers, spawn pressure, boss rewards, the Lab, and the Crypto Mine now remain useful deeper into a run.',
-          'The repeatable Continuum Core adds four long-run upgrade routes for damage, yield, cadence, and boss output.',
+          'Achievements and milestones moved out from under gameplay into a searchable, filterable full-height Archive overlay with live claim states.',
+          'The music player is rebuilt as a compact radio deck with readable metadata, balanced controls, and clean responsive behavior.',
+          'Boss victories now open a proper stage-complete transmission with reward cards, the cleared stage, and a clear next-route decision.',
         ],
       },
       {
-        text: 'Fair calibration checks',
+        text: 'Reliability and accessibility',
         sub: [
-          'A failed check never removes the purchased upgrade and never charges the price twice.',
-          'Failure builds calibration assistance, widening the next target until the player succeeds.',
-          'Axis Weave no longer lasts a full minute and every check clearly advertises its fail-safe behavior.',
-        ],
-      },
-      {
-        text: 'Reliability pass',
-        sub: [
-          'Save timestamps are stored correctly, fallback saves preserve advanced systems, and unrelated browser storage is never deleted.',
-          'Long idle gaps advance active research and mining safely without simulating thousands of missed animation frames.',
-          'Duplicate IDs, a broken default music path, malformed labels, and several number-format overflow cases are repaired.',
+          'Stage dropdowns now render above telemetry and the battlefield at every supported width.',
+          'Hidden drawers are removed from keyboard navigation, focus returns to their launch controls, and Escape closes every major overlay.',
+          'The native cursor stays hidden while the pixel reticle, reduced-motion mode, save recovery, and boot fault reporting remain active.',
         ],
       },
     ],

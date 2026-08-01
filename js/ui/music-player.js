@@ -99,7 +99,9 @@
       const track = getTrackMeta();
       if (!track) return;
       titleEl.textContent = track.title || '';
+      titleEl.title = track.title || '';
       artistEl.textContent = track.artist || '';
+      artistEl.title = track.artist || '';
       if (toggleSummary) {
         toggleSummary.textContent = (track.shortCode || track.title || 'READY').slice(0, 12).toUpperCase();
       }

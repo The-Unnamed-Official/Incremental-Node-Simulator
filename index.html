@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NodeShift v2 — Breach. Build. Overclock.</title>
-  <meta name="description" content="NodeShift v2 is a neon pixel incremental game about breaching nodes, building an upgrade network, mining Cryptcoin, and pushing an endless Continuum." />
-  <meta name="theme-color" content="#05070d" />
+  <meta name="description" content="NodeShift v2 is a pixel-constellation incremental game about breaching nodes, building an upgrade network, mining Cryptcoin, and pushing an endless Continuum." />
+  <meta name="theme-color" content="#090b18" />
   <script>
     window.__nodeshiftBootErrors = [];
     window.addEventListener('error', function (event) {
@@ -21,12 +21,12 @@
   </script>
   <meta property="og:type" content="website" />
   <meta property="og:title" content="NodeShift v2 — Breach. Build. Overclock." />
-  <meta property="og:description" content="A neon pixel incremental game with fair skill checks, deep upgrade networks, and an endless Continuum." />
-  <meta property="og:image" content="/og.png" />
-  <meta property="og:image:width" content="1680" />
-  <meta property="og:image:height" content="945" />
+  <meta property="og:description" content="A pixel-constellation incremental game with fair skill checks, deep upgrade networks, and an endless Continuum." />
+  <meta property="og:image" content="/og-v2.png" />
+  <meta property="og:image:width" content="1672" />
+  <meta property="og:image:height" content="941" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:image" content="/og.png" />
+  <meta name="twitter:image" content="/og-v2.png" />
   <link rel="stylesheet" href="style.css?v=2" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -390,13 +390,26 @@
       </aside>
     </main>
 
-    <section class="progress-dock" aria-labelledby="progress-heading">
+    <button id="progress-hub-toggle" class="progress-hub-toggle" type="button" aria-controls="progress-hub" aria-expanded="false">
+      <span class="progress-hub-glyph" aria-hidden="true">◇</span>
+      <span><strong>ARCHIVE</strong><small id="progress-beacon-summary">0 / 0</small></span>
+    </button>
+    <div id="progress-hub-scrim" class="progress-hub-scrim hidden" aria-hidden="true"></div>
+    <section id="progress-hub" class="progress-dock progress-hub" role="dialog" aria-modal="true" aria-labelledby="progress-heading" aria-hidden="true">
       <div class="progress-dock-header">
         <div>
-          <span class="progress-kicker">PERMANENT RECORD</span>
-          <h2 id="progress-heading">Progress Chronicle</h2>
+          <span class="progress-kicker">CONSTELLATION ARCHIVE</span>
+          <h2 id="progress-heading">Operator Records</h2>
           <p id="progress-summary" class="progress-summary">0 records complete</p>
         </div>
+        <button id="progress-hub-close" class="progress-hub-close" type="button" aria-label="Close operator records">×</button>
+      </div>
+      <div class="progress-overview" aria-live="polite">
+        <div><span>Completed</span><strong id="progress-completed-count">0</strong></div>
+        <div><span>Rewards ready</span><strong id="progress-ready-count">0</strong></div>
+        <div><span>Visible records</span><strong id="progress-visible-count">0</strong></div>
+      </div>
+      <div class="progress-command-bar">
         <div class="progress-dock-tabs" role="tablist">
           <button
             class="progress-tab active"
@@ -421,6 +434,16 @@
             <span class="notification-dot" data-dot="milestones" aria-hidden="true"></span>
           </button>
           <button id="claim-all-progress" class="pill claim-all" type="button">Claim all</button>
+        </div>
+        <label class="progress-search" for="progress-search">
+          <span>Search records</span>
+          <input id="progress-search" type="search" placeholder="Name, goal, reward…" autocomplete="off" />
+        </label>
+        <div class="progress-filters" role="group" aria-label="Filter progress records">
+          <button class="progress-filter active" type="button" data-progress-filter="all" aria-pressed="true">All</button>
+          <button class="progress-filter" type="button" data-progress-filter="ready" aria-pressed="false">Ready</button>
+          <button class="progress-filter" type="button" data-progress-filter="active" aria-pressed="false">In progress</button>
+          <button class="progress-filter" type="button" data-progress-filter="claimed" aria-pressed="false">Claimed</button>
         </div>
       </div>
       <div class="progress-dock-panels">
@@ -483,11 +506,22 @@
   <div id="skill-detail-popup" class="skill-detail-popup hidden" role="dialog" aria-live="polite"></div>
   <div id="level-dialog" class="level-dialog hidden" role="dialog" aria-modal="true" aria-live="assertive">
     <div class="level-dialog-panel">
-      <h2>Boss neutralised</h2>
+      <div class="level-complete-signal" aria-hidden="true"><span></span></div>
+      <span class="level-complete-kicker">TRANSMISSION SECURED</span>
+      <h2>Stage <span id="level-dialog-stage">1</span> complete</h2>
       <p id="level-dialog-summary">Loot tallied.</p>
+      <div class="level-reward-grid" aria-label="Stage rewards">
+        <div><span>Bits recovered</span><strong id="level-reward-bits">0</strong></div>
+        <div><span>Rank XP</span><strong id="level-reward-xp">0</strong></div>
+        <div><span>Prestige</span><strong id="level-reward-prestige">0</strong></div>
+      </div>
+      <div class="level-next-route">
+        <span>Next route</span>
+        <strong>Stage <span id="level-dialog-next-stage">2</span> // threat recalibrated</strong>
+      </div>
       <div class="level-dialog-actions">
-        <button id="level-replay" class="pill">Re-run breach</button>
-        <button id="level-continue" class="pill accent">Advance</button>
+        <button id="level-replay" class="pill">Replay stage</button>
+        <button id="level-continue" class="pill accent">Enter next stage</button>
       </div>
     </div>
   </div>
@@ -576,6 +610,7 @@
         </div>
       </div>
       <div class="player-meta">
+        <span class="player-track-kicker">NOW PLAYING</span>
         <p class="player-title" id="music-title"></p>
         <a
           id="music-artist"

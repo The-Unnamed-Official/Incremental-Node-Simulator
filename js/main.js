@@ -10,8 +10,8 @@ let achievements = [];
 let skins = [];
 let nodeSpawnTimer = 0;
 let tooltipEl;
-let achievementTimer = 0;
-let milestoneTimer = 0;
+let liveUiTimer = 0;
+let progressUiTimer = 0;
 let lastUpgradePanelRefreshAt = 0;
 let activeUpdateLogVersion = null;
 let frameCounter = 0;
@@ -79,6 +79,8 @@ let bitTokenSweepScheduled = false;
 let topBarObserver = null;
 let topBarStickyObserver = null;
 let tutorialHighlightFrame = null;
+let activeProgressFilter = 'all';
+let progressSearchQuery = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
@@ -164,6 +166,16 @@ function cacheElements() {
   UI.achievementDot = document.querySelector('[data-dot="achievements"]');
   UI.milestoneDot = document.querySelector('[data-dot="milestones"]');
   UI.claimAllButton = document.getElementById('claim-all-progress');
+  UI.progressHub = document.getElementById('progress-hub');
+  UI.progressHubToggle = document.getElementById('progress-hub-toggle');
+  UI.progressHubClose = document.getElementById('progress-hub-close');
+  UI.progressHubScrim = document.getElementById('progress-hub-scrim');
+  UI.progressSearch = document.getElementById('progress-search');
+  UI.progressFilters = document.querySelectorAll('.progress-filter');
+  UI.progressCompletedCount = document.getElementById('progress-completed-count');
+  UI.progressReadyCount = document.getElementById('progress-ready-count');
+  UI.progressVisibleCount = document.getElementById('progress-visible-count');
+  UI.progressBeaconSummary = document.getElementById('progress-beacon-summary');
   UI.cryptoDeposited = document.getElementById('crypto-deposited');
   UI.cryptoReturns = document.getElementById('crypto-returns');
   UI.cryptoTimer = document.getElementById('crypto-timer');
@@ -217,6 +229,11 @@ function cacheElements() {
   UI.levelDialogSummary = document.getElementById('level-dialog-summary');
   UI.levelContinue = document.getElementById('level-continue');
   UI.levelReplay = document.getElementById('level-replay');
+  UI.levelDialogStage = document.getElementById('level-dialog-stage');
+  UI.levelDialogNextStage = document.getElementById('level-dialog-next-stage');
+  UI.levelRewardBits = document.getElementById('level-reward-bits');
+  UI.levelRewardXP = document.getElementById('level-reward-xp');
+  UI.levelRewardPrestige = document.getElementById('level-reward-prestige');
   UI.newGameDialog = document.getElementById('new-game-dialog');
   UI.newGameConfirm = document.getElementById('confirm-new-game');
   UI.newGameCancel = document.getElementById('cancel-new-game');
@@ -1342,9 +1359,30 @@ function setupFilters() {
 function setupProgressDock() {
   const tabs = document.querySelectorAll('.progress-tab');
   const panels = document.querySelectorAll('.progress-panel');
-  if (tabs.length === 0) {
-    return;
-  }
+  if (tabs.length === 0 || !UI.progressHub || !UI.progressHubToggle) return;
+
+  const setHubOpen = (open, options = {}) => {
+    UI.progressHub.classList.toggle('open', open);
+    UI.progressHub.setAttribute('aria-hidden', String(!open));
+    UI.progressHub.toggleAttribute('inert', !open);
+    UI.progressHubToggle.setAttribute('aria-expanded', String(open));
+    UI.progressHubScrim?.classList.toggle('hidden', !open);
+    UI.progressHubScrim?.setAttribute('aria-hidden', String(!open));
+    document.body.classList.toggle('progress-hub-open', open);
+    if (open) {
+      syncProgressCards();
+      requestAnimationFrame(() => (UI.progressSearch || UI.progressHubClose)?.focus({ preventScroll: true }));
+    } else if (options.restoreFocus) {
+      UI.progressHubToggle.focus({ preventScroll: true });
+    }
+  };
+
+  UI.progressHubToggle.addEventListener('click', () => {
+    setHubOpen(!UI.progressHub.classList.contains('open'));
+  });
+  UI.progressHubClose?.addEventListener('click', () => setHubOpen(false, { restoreFocus: true }));
+  UI.progressHubScrim?.addEventListener('click', () => setHubOpen(false, { restoreFocus: true }));
+
   if (UI.claimAllButton) {
     UI.claimAllButton.addEventListener('click', claimAllRewards);
   }
@@ -1365,8 +1403,34 @@ function setupProgressDock() {
           panel.setAttribute('aria-hidden', 'true');
         }
       });
+      applyProgressFilters();
     });
   });
+
+  UI.progressSearch?.addEventListener('input', () => {
+    progressSearchQuery = UI.progressSearch.value.trim().toLowerCase();
+    applyProgressFilters();
+  });
+
+  UI.progressFilters.forEach((button) => {
+    button.addEventListener('click', () => {
+      activeProgressFilter = button.dataset.progressFilter || 'all';
+      UI.progressFilters.forEach((item) => {
+        const active = item === button;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-pressed', String(active));
+      });
+      applyProgressFilters();
+    });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && UI.progressHub.classList.contains('open')) {
+      setHubOpen(false, { restoreFocus: true });
+    }
+  });
+
+  setHubOpen(false);
 }
 
 function setupStickyTopBarState() {
@@ -3582,7 +3646,7 @@ function attemptPurchase(upgrade, sourceEl = null) {
   const activeFilter =
     document.querySelector('.filter.active')?.dataset.filter || state.selectedUpgradeFilter || 'damage';
   renderUpgrades(activeFilter);
-  renderMilestones();
+  syncProgressCards();
   handleTutorialUpgradePurchase(upgrade);
   maybeStartSkillCheck(upgrade, cost, level);
   queueSave();
@@ -3999,6 +4063,10 @@ function buildMilestoneElement(milestone, progress, variant) {
     const card = document.createElement('div');
     card.className = 'progress-card milestone-card';
     card.setAttribute('role', 'listitem');
+    card.dataset.progressId = milestone.id;
+    card.dataset.progressKind = 'milestone';
+    card.dataset.progressStatus = progress.claimed ? 'claimed' : progress.ready ? 'ready' : 'active';
+    card.dataset.progressSearch = `${milestone.label} ${describeMilestone(milestone)} milestone`.toLowerCase();
     if (progress.claimed) {
       card.classList.add('claimed');
     } else if (progress.ready) {
@@ -4018,6 +4086,7 @@ function buildMilestoneElement(milestone, progress, variant) {
       <div class="progress-track"><div class="fill" style="width: ${percent}%"></div></div>
       <div class="card-metrics">${progressText}</div>
     `;
+    claimButton.classList.add('progress-claim');
     card.appendChild(claimButton);
     return card;
   }
@@ -4050,7 +4119,7 @@ function claimMilestoneReward(milestone) {
   state.milestoneClaims[milestone.id] = true;
   updateStats();
   updateResources();
-  renderMilestones();
+  syncProgressCards();
   queueSave();
 }
 
@@ -4217,8 +4286,7 @@ function claimAllRewards() {
     }
   });
   if (claimedAny) {
-    renderAchievements();
-    renderMilestones();
+    syncProgressCards();
     updateResources();
     queueSave();
   }
@@ -4233,6 +4301,10 @@ function toggleNotificationDot(dotEl, isActive) {
 function updateProgressIndicators() {
   const claimableAchievements = getClaimableAchievementCount();
   const claimableMilestones = getClaimableMilestoneCount();
+  const completedAchievements = achievements.filter((achievement) => getAchievementProgress(achievement).achieved).length;
+  const completedMilestones = milestones.filter((milestone) => getMilestoneProgress(milestone).ready).length;
+  const completed = completedAchievements + completedMilestones;
+  const total = achievements.length + milestones.length;
   toggleNotificationDot(UI.achievementDot, claimableAchievements > 0);
   toggleNotificationDot(UI.milestoneDot, claimableMilestones > 0);
   const totalClaimable = claimableAchievements + claimableMilestones;
@@ -4241,12 +4313,14 @@ function updateProgressIndicators() {
     UI.claimAllButton.textContent = totalClaimable > 0 ? `Claim all • ${totalClaimable}` : 'Claim all';
   }
   if (UI.progressSummary) {
-    const completedAchievements = achievements.filter((achievement) => getAchievementProgress(achievement).achieved).length;
-    const completedMilestones = milestones.filter((milestone) => getMilestoneProgress(milestone).ready).length;
-    const completed = completedAchievements + completedMilestones;
-    const total = achievements.length + milestones.length;
     UI.progressSummary.textContent = `${completed} / ${total} records complete • ${totalClaimable} rewards ready`;
   }
+  if (UI.progressCompletedCount) UI.progressCompletedCount.textContent = formatNumberShort(completed);
+  if (UI.progressReadyCount) UI.progressReadyCount.textContent = formatNumberShort(totalClaimable);
+  if (UI.progressBeaconSummary) {
+    UI.progressBeaconSummary.textContent = totalClaimable > 0 ? `${totalClaimable} READY` : `${completed} / ${total}`;
+  }
+  UI.progressHubToggle?.classList.toggle('has-rewards', totalClaimable > 0);
 }
 
 const ACHIEVEMENT_DIFFICULTY_WEIGHTS = {
@@ -4334,7 +4408,7 @@ function claimAchievementReward(achievement) {
   }
   applyAchievementReward(achievement.reward);
   state.achievementClaims[achievement.id] = true;
-  renderAchievements();
+  syncProgressCards();
   updateResources();
   queueSave();
 }
@@ -4574,6 +4648,10 @@ function renderAchievements() {
     const card = document.createElement('div');
     card.className = 'progress-card achievement';
     card.setAttribute('role', 'listitem');
+    card.dataset.progressId = achievement.id;
+    card.dataset.progressKind = 'achievement';
+    card.dataset.progressStatus = progress.claimed ? 'claimed' : progress.achieved ? 'ready' : 'active';
+    card.dataset.progressSearch = `${achievement.label} ${achievement.description} ${difficultyLabel} ${achievement.category}`.toLowerCase();
     if (progress.achieved) {
       card.classList.add('completed');
       const completion = Number(state.achievementLog[achievement.id]);
@@ -4614,11 +4692,73 @@ function renderAchievements() {
     claimButton.className = 'pill';
     claimButton.textContent = progress.claimed ? 'claimed' : progress.achieved ? 'claim' : 'locked';
     claimButton.disabled = progress.claimed || !progress.achieved;
+    claimButton.classList.add('progress-claim');
     claimButton.addEventListener('click', () => claimAchievementReward(achievement));
     card.appendChild(claimButton);
     UI.achievementGrid.appendChild(card);
   });
   updateProgressIndicators();
+}
+
+function syncProgressCard(card, progress, item, kind) {
+  if (!card) return;
+  const complete = kind === 'achievement' ? progress.achieved : progress.ready;
+  const statusKey = progress.claimed ? 'claimed' : complete ? 'ready' : 'active';
+  card.dataset.progressStatus = statusKey;
+  card.classList.toggle('completed', complete);
+  card.classList.toggle('ready', complete && !progress.claimed);
+  card.classList.toggle('claimed', progress.claimed);
+
+  const status = card.querySelector('.status');
+  if (status) {
+    status.className = `status${statusKey === 'ready' ? ' ready' : statusKey === 'claimed' ? ' claimed' : ''}`;
+    status.textContent = statusKey === 'claimed' ? 'Claimed' : statusKey === 'ready' ? 'Reward ready' : `${Math.floor(Math.max(0, progress.percent ?? (progress.current / Math.max(1, progress.goal)) * 100))}%`;
+  }
+
+  const percent = Math.min(100, Math.max(0, progress.percent ?? (progress.current / Math.max(1, progress.goal)) * 100));
+  const fill = card.querySelector('.progress-track .fill');
+  if (fill) fill.style.width = `${percent}%`;
+
+  const metrics = card.querySelector('.card-metrics');
+  if (metrics) {
+    metrics.textContent = kind === 'achievement'
+      ? `${formatNumberShort(Math.min(progress.current, item.goal))} / ${formatNumberShort(item.goal)}`
+      : `${formatMilestoneValue(item, progress.current)} / ${formatMilestoneValue(item, item.goal)}`;
+  }
+
+  const claimButton = card.querySelector('.progress-claim');
+  if (claimButton) {
+    claimButton.textContent = progress.claimed ? 'claimed' : complete ? 'claim reward' : 'in progress';
+    claimButton.disabled = progress.claimed || !complete;
+  }
+}
+
+function syncProgressCards() {
+  if (!UI.progressHub) return;
+  achievements.forEach((achievement) => {
+    const card = UI.achievementGrid?.querySelector(`[data-progress-id="${achievement.id}"]`);
+    syncProgressCard(card, getAchievementProgress(achievement), achievement, 'achievement');
+  });
+  milestones.forEach((milestone) => {
+    const card = UI.milestoneDock?.querySelector(`[data-progress-id="${milestone.id}"]`);
+    syncProgressCard(card, getMilestoneProgress(milestone), milestone, 'milestone');
+  });
+  updateProgressIndicators();
+  applyProgressFilters();
+}
+
+function applyProgressFilters() {
+  if (!UI.progressHub) return;
+  let visibleCount = 0;
+  UI.progressHub.querySelectorAll('.progress-card').forEach((card) => {
+    const panelActive = card.closest('.progress-panel')?.classList.contains('active');
+    const statusMatch = activeProgressFilter === 'all' || card.dataset.progressStatus === activeProgressFilter;
+    const searchMatch = !progressSearchQuery || (card.dataset.progressSearch || '').includes(progressSearchQuery);
+    const visible = statusMatch && searchMatch;
+    card.hidden = !visible;
+    if (visible && panelActive) visibleCount += 1;
+  });
+  if (UI.progressVisibleCount) UI.progressVisibleCount.textContent = formatNumberShort(visibleCount);
 }
 
 function setupCryptoControls() {
@@ -4797,7 +4937,7 @@ function setupLabControls() {
 function unlockLab() {
   state.labUnlocked = true;
   syncLabVisibility();
-  renderAchievements();
+  syncProgressCards();
   queueSave();
 }
 
@@ -4832,13 +4972,22 @@ function setupLevelDialog() {
   });
 }
 
-function showLevelDialog(summary) {
+function showLevelDialog(payload) {
   if (!UI.levelDialog) UI.levelDialog = document.getElementById('level-dialog');
   if (!UI.levelDialogSummary) UI.levelDialogSummary = document.getElementById('level-dialog-summary');
   if (!UI.levelContinue) UI.levelContinue = document.getElementById('level-continue');
   if (!UI.levelDialog || !UI.levelDialogSummary) return;
-  UI.levelDialogSummary.textContent = summary;
+  const result = typeof payload === 'string' ? { summary: payload } : payload || {};
+  const stage = Math.max(1, Number(result.stage) || state.currentLevel.index || 1);
+  UI.levelDialogSummary.textContent = result.summary || 'Stage rewards secured and routed to your inventory.';
+  if (UI.levelDialogStage) UI.levelDialogStage.textContent = formatNumberShort(stage);
+  if (UI.levelDialogNextStage) UI.levelDialogNextStage.textContent = formatNumberShort(stage + 1);
+  if (UI.levelRewardBits) UI.levelRewardBits.textContent = formatNumberShort(Math.round(result.rewardBits || 0));
+  if (UI.levelRewardXP) UI.levelRewardXP.textContent = formatNumberShort(Math.round(result.xp || 0));
+  if (UI.levelRewardPrestige) UI.levelRewardPrestige.textContent = formatNumberShort(Math.round(result.prestige || 0));
+  UI.levelDialog.classList.remove('celebrate');
   UI.levelDialog.classList.remove('hidden');
+  requestAnimationFrame(() => UI.levelDialog?.classList.add('celebrate'));
   if (UI.levelContinue) {
     UI.levelContinue.focus({ preventScroll: true });
   }
@@ -4847,6 +4996,7 @@ function showLevelDialog(summary) {
 function hideLevelDialog() {
   if (!UI.levelDialog) UI.levelDialog = document.getElementById('level-dialog');
   if (!UI.levelDialog) return;
+  UI.levelDialog.classList.remove('celebrate');
   UI.levelDialog.classList.add('hidden');
 }
 
@@ -5388,15 +5538,19 @@ function tick(delta) {
   updateCrypto(delta);
   updateLab(delta);
   updateSkillCheck(delta);
-  milestoneTimer += delta;
-  if (milestoneTimer >= 2) {
-    renderMilestones();
-    milestoneTimer = 0;
+  liveUiTimer += delta;
+  if (liveUiTimer >= 1 / 12) {
+    syncLiveUIReadouts();
+    liveUiTimer = 0;
   }
-  achievementTimer += delta;
-  if (achievementTimer >= 2) {
-    renderAchievements();
-    achievementTimer = 0;
+  progressUiTimer += delta;
+  if (progressUiTimer >= 0.2) {
+    if (UI.progressHub?.classList.contains('open')) {
+      syncProgressCards();
+    } else {
+      updateProgressIndicators();
+    }
+    progressUiTimer = 0;
   }
 }
 
@@ -6056,7 +6210,8 @@ function destroyNode(node, options = {}) {
   }
   spawnBitTokens(node, rewardsGranted?.bits || 0);
   removeNodeFromArena(node);
-  renderMilestones();
+  if (UI.progressHub?.classList.contains('open')) syncProgressCards();
+  else updateProgressIndicators();
 }
 
 function dropRewards(node) {
@@ -6652,9 +6807,10 @@ function defeatBoss() {
   state.currentLevel.bossActive = false;
   state.currentLevel.active = false;
   state.bossKills += 1;
-  renderMilestones();
+  if (UI.progressHub?.classList.contains('open')) syncProgressCards();
+  else updateProgressIndicators();
   const defeatedBossEl = activeBoss?.el;
-  const stageFactor = Math.pow(2.08, Math.max(0, state.currentLevel.index - 1));
+  const stageFactor = Math.pow(2.16, Math.max(0, state.currentLevel.index - 1));
   const rewardBits = Math.round(500 * stageFactor * stats.bitGain);
   const prestige = Math.max(1, Math.floor(Math.pow(state.currentLevel.index, 0.72))) * stats.prestigeGain;
   const xp = Math.round((120 + state.currentLevel.index * 24) * stats.xpGain);
@@ -6674,7 +6830,13 @@ function defeatBoss() {
     }
     updateResources();
     refreshLevelOptions();
-    showLevelDialog(summary);
+    showLevelDialog({
+      summary,
+      rewardBits,
+      xp,
+      prestige,
+      stage: state.currentLevel.index,
+    });
     queueSave();
   };
 
@@ -6799,6 +6961,30 @@ function updateTelemetry() {
   syncText(UI.nextObjectiveDisplay, getNextObjectiveText());
 }
 
+function syncLiveUIReadouts() {
+  const syncText = (element, value) => {
+    if (element && element.textContent !== value) element.textContent = value;
+  };
+  syncText(UI.bits, formatNumberShort(Math.floor(state.bits)));
+  syncText(UI.cryptcoins, formatNumberShort(Math.floor(state.cryptcoins)));
+  syncText(UI.prestige, formatNumberShort(Math.floor(state.prestige)));
+  syncText(UI.xp, formatNumberShort(Math.floor(state.xp)));
+  syncText(UI.rank, formatNumberShort(state.level));
+  syncText(UI.rankProgressLabel, `${formatNumberShort(Math.floor(state.levelXP))} / ${formatNumberShort(Math.floor(state.xpForNext))} XP`);
+  syncText(UI.lp, formatNumberShort(state.lp));
+  syncText(UI.currentLevel, `${state.currentLevel.index}`);
+  if (UI.rankProgressFill) {
+    const ratio = Math.max(0, Math.min(1, (state.levelXP || 0) / Math.max(1, state.xpForNext || 1)));
+    UI.rankProgressFill.style.transform = `scaleX(${ratio})`;
+  }
+  updateBossPhaseBar();
+  updateTelemetry();
+  updateQuickStats();
+  refreshVisibleUpgradeStates();
+  updateTabAvailability();
+  updateUpgradeTabAvailability();
+}
+
 function updateResources() {
   UI.bits.textContent = formatNumberShort(Math.floor(state.bits));
   UI.cryptcoins.textContent = formatNumberShort(Math.floor(state.cryptcoins));
@@ -6845,7 +7031,7 @@ function gainXP(amount) {
     state.levelXP -= state.xpForNext;
     state.level += 1;
     state.lp += 1;
-    state.xpForNext = Math.ceil(state.xpForNext * 1.14);
+    state.xpForNext = Math.ceil(state.xpForNext * 1.12);
     state.maxHealth += 10;
     state.health = state.maxHealth;
     playSFX('levelUp');
